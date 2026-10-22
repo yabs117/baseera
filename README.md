@@ -6,7 +6,7 @@ and image conversion.
 
 [العربية](docs/README.ar.md) · [Français](docs/README.fr.md) · [Español](docs/README.es.md)
 
-[Download Windows app](https://github.com/yabs117/baseera/releases/download/v0.3.0-preview/Baseera-v0.3.0-Windows-x64.exe) · [Release notes](https://github.com/yabs117/baseera/releases/tag/v0.3.0-preview) · [Roadmap](docs/ROADMAP.md)
+[Download Windows app](https://github.com/yabs117/baseera/releases/download/v0.3.1-preview/Baseera-v0.3.1-Windows-x64.exe) · [Release notes](https://github.com/yabs117/baseera/releases/tag/v0.3.1-preview) · [Roadmap](docs/ROADMAP.md)
 
 ![Baseera overview — English, light appearance](docs/images/baseera-en.png)
 
@@ -18,7 +18,7 @@ and image conversion.
 
 </details>
 
-**Early preview, version 0.3.0.** This is a new project, not a certified antivirus
+**Early preview, version 0.3.1.** This is a new project, not a certified antivirus
 or a claim of 100% malware detection. Read the [capability status](docs/ROADMAP.md)
 and [security scope](SECURITY.md) before relying on it.
 
@@ -49,13 +49,28 @@ Settings are grouped by purpose; unsaved translation settings survive appearance
 
 ## Run
 
+On first launch, a welcome dialog summarizes the four tools, explains translation
+privacy and lets you choose the interface language and appearance. Continue to
+tool selection to enable what you need. The dialog appears once per Windows
+profile by default, including once for profiles upgrading from an older version.
+You can select **Show this window at startup**, or reopen it from **Settings →
+Appearance and language → Getting started**.
+
+<details>
+<summary>First-run welcome</summary>
+
+![Welcome to Baseera — English](docs/images/welcome-en.png)
+![Welcome to Baseera — Arabic, dark appearance](docs/images/welcome-ar-dark.png)
+
+</details>
+
 Requires **Windows 10/11, x64**. The runtime is included; no separate .NET installation is needed.
 
 | Download | How to use |
 | --- | --- |
-| [Windows app (.exe)](https://github.com/yabs117/baseera/releases/download/v0.3.0-preview/Baseera-v0.3.0-Windows-x64.exe) | Save to a permanent folder and open it. This is the desktop application. |
-| [Windows ZIP with instructions](https://github.com/yabs117/baseera/releases/download/v0.3.0-preview/Baseera-v0.3.0-Windows-x64.zip) | Extract the whole ZIP, then open `Baseera.exe`. |
-| [Optional browser extension](https://github.com/yabs117/baseera/releases/download/v0.3.0-preview/Baseera-v0.3.0-Browser-Extension.zip) | Extract, read `START-HERE.html`, then load the inner `extension` folder in Chrome/Edge. |
+| [Windows app (.exe)](https://github.com/yabs117/baseera/releases/download/v0.3.1-preview/Baseera-v0.3.1-Windows-x64.exe) | Save to a permanent folder and open it. This is the desktop application. |
+| [Windows ZIP with instructions](https://github.com/yabs117/baseera/releases/download/v0.3.1-preview/Baseera-v0.3.1-Windows-x64.zip) | Extract the whole ZIP, then open `Baseera.exe`. |
+| [Optional browser extension](https://github.com/yabs117/baseera/releases/download/v0.3.1-preview/Baseera-v0.3.1-Browser-Extension.zip) | Extract, read `START-HERE.html`, then load the inner `extension` folder in Chrome/Edge. |
 
 Source ZIP downloads from GitHub are source code, not compiled applications.
 The browser extension is installed **inside the browser**. Do not double-click its
@@ -81,7 +96,7 @@ Install the .NET 10 SDK on Windows. There are no third-party NuGet dependencies.
 node --test extension/test/protocol.test.js
 ```
 
-The self-contained executable is produced in `artifacts/Baseera-v0.3.0-Windows-x64/`.
+The self-contained executable is produced in `artifacts/Baseera-v0.3.1-Windows-x64/`.
 `-Smoke -Publish` also checks the packaged executable. `-Smoke` uses a separate local data directory and does not run updates or
 register Explorer hooks. It renders the actual WPF screens and tests conversion,
 PDF generation, translation-box validation, localization coverage and DPAPI storage.

@@ -10,6 +10,8 @@ public sealed class Preferences
     public string Language { get; set; } = "ar";
     public bool Dark { get; set; }
     public bool Onboarded { get; set; }
+    public bool WelcomeSeen { get; set; }
+    public bool ShowWelcomeOnStartup { get; set; }
     public bool ScanEnabled { get; set; }
     public bool TranslationEnabled { get; set; }
     public bool UpdatesEnabled { get; set; }

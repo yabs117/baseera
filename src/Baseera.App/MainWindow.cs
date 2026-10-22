@@ -45,12 +45,25 @@ public sealed partial class MainWindow : Window
             updateTimer.Tick += async (_, _) => await AutomaticUpdates(); updateTimer.Start();
             Loaded += async (_, _) =>
             {
+                ShowStartupWelcome();
                 if (!Settings.Current.Onboarded) return;
                 if (Settings.Current.ScanEnabled && Settings.Current.ScanAtStartup && (File.Exists(Settings.Current.ScanPath) || Directory.Exists(Settings.Current.ScanPath)))
                     await Run(async ct => { report = await Task.Run(() => new ModScanner().Scan(Settings.Current.ScanPath, ct), ct); page = "scan"; Render(); });
                 await AutomaticUpdates();
             };
         }
+    }
+    internal bool ShowStartupWelcome()
+    {
+        if (!WelcomeWindow.ShouldShow(Settings.Current)) return false;
+        ShowWelcome(); return true;
+    }
+    internal void ShowWelcome()
+    {
+        var welcome = new WelcomeWindow(this); welcome.ShowDialog();
+        Settings.Current.WelcomeSeen = true;
+        Settings.Current.ShowWelcomeOnStartup = welcome.ShowAgain;
+        Settings.Save(); ApplyTheme(); Render(true);
     }
     private void ApplyExplorerShortcut()
     {

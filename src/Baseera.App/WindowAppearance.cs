@@ -20,6 +20,7 @@ internal static class WindowAppearance
         const long required = 0x00C00000 | 0x00080000 | 0x00020000 | 0x00010000;
         return (style & required) == required;
     }
+    internal static bool IsInputEnabled(Window window) => IsWindowEnabled(new WindowInteropHelper(window).Handle);
 
     internal static void SavePreview(Window window, string path)
     {
@@ -45,6 +46,7 @@ internal static class WindowAppearance
     [StructLayout(LayoutKind.Sequential)] private struct NativeRect { public int Left, Top, Right, Bottom; }
     [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr window, out NativeRect bounds);
     [DllImport("user32.dll")] private static extern bool PrintWindow(IntPtr window, IntPtr dc, uint flags);
+    [DllImport("user32.dll")] private static extern bool IsWindowEnabled(IntPtr window);
     [DllImport("dwmapi.dll")] private static extern int DwmGetWindowAttribute(IntPtr window, int attribute, out NativeRect value, int size);
 
     [DllImport("dwmapi.dll")]

@@ -234,7 +234,10 @@ public sealed partial class MainWindow
         Heading(body, "settings", "settingsDesc");
         SectionHeading(body, "appearance"); var appearance = Stack(); var language = LanguageCombo(); language.Margin = new Thickness(0); appearance.Children.Add(SettingRow("language", language)); Divider(appearance);
         var dark = Toggle("dark", Settings.Current.Dark, value => { Settings.Current.Dark = value; Settings.Save(); ApplyTheme(); Render(true); }); dark.Content = null;
-        appearance.Children.Add(SettingRow("dark", dark)); body.Children.Add(Card(appearance));
+        appearance.Children.Add(SettingRow("dark", dark)); Divider(appearance);
+        var welcomeStartup = Toggle("welcomeRepeat", Settings.Current.ShowWelcomeOnStartup, value => { Settings.Current.ShowWelcomeOnStartup = value; Settings.Save(); }); welcomeStartup.Content = null;
+        appearance.Children.Add(SettingRow("welcomeRepeat", welcomeStartup)); Divider(appearance);
+        var welcome = Action("welcomeReopen", ShowWelcome); welcome.Margin = new Thickness(0); appearance.Children.Add(SettingRow("welcomeGuide", welcome)); body.Children.Add(Card(appearance));
         SectionHeading(body, "yourTools"); FeatureChoices(body);
         SectionHeading(body, "windowsIntegration"); var windows = Stack();
         windows.Children.Add(Toggle("startup", startupDraft ?? Settings.Current.StartWithWindows, value => startupDraft = value));

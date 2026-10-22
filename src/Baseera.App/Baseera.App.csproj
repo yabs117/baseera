@@ -6,7 +6,7 @@
     <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>Baseera</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>0.3.0</Version>
+    <Version>0.3.1</Version>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../Baseera.Core/Baseera.Core.csproj" />

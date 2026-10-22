@@ -9,6 +9,17 @@ public static class I18n
     }
     public static readonly Dictionary<string, string[]> Words = new()
     {
+        ["welcomeCaption"] = ["مرحبًا بك", "Welcome", "Bienvenue", "Bienvenida"],
+        ["welcomeTitle"] = ["مرحبًا بك في بصيرة", "Welcome to Baseera", "Bienvenue dans Baseera", "Te damos la bienvenida a Baseera"],
+        ["welcomeIntro"] = ["أدوات لأعمالك اليومية على ويندوز، في مكان واحد. اختر ما تحتاجه منها.", "A few useful tools for your Windows PC, in one place. Choose the ones you need.", "Des outils utiles pour Windows, réunis au même endroit. Choisissez ceux qui vous conviennent.", "Herramientas útiles para Windows en un solo lugar. Elige las que necesitas."],
+        ["welcomePrivacy"] = ["الفحص والتحويل على جهازك. تُرسل لقطة النافذة إلى Google عند طلب الترجمة، باستخدام مفتاح Gemini الخاص بك.", "Inspection and conversion stay on your device. Window translation sends a screenshot to Google on request, using your own Gemini key.", "Analyse et conversion restent sur votre appareil. La traduction envoie une capture à Google sur demande, avec votre clé Gemini.", "El análisis y la conversión son locales. La traducción envía una captura a Google cuando lo solicitas, con tu propia clave Gemini."],
+        ["welcomeNext"] = ["في الخطوة التالية، تختار الأدوات التي تريد تفعيلها.", "Next, choose which tools to turn on.", "Choisissez ensuite les outils à activer.", "A continuación, elige qué herramientas activar."],
+        ["welcomeExisting"] = ["يمكنك إدارة الأدوات وخياراتها من الإعدادات في أي وقت.", "Manage your tools and preferences in Settings at any time.", "Gérez vos outils et préférences dans les paramètres à tout moment.", "Gestiona tus herramientas y preferencias en Configuración cuando quieras."],
+        ["welcomeRepeat"] = ["عرض هذه النافذة عند بدء التطبيق", "Show this window at startup", "Afficher au démarrage", "Mostrar al iniciar"],
+        ["welcomeStart"] = ["اختيار الأدوات", "Choose tools", "Choisir mes outils", "Elegir herramientas"],
+        ["welcomeBack"] = ["متابعة إلى التطبيق", "Continue to app", "Ouvrir l’application", "Continuar a la aplicación"],
+        ["welcomeReopen"] = ["عرض الترحيب", "Open welcome", "Afficher l’accueil", "Abrir bienvenida"],
+        ["welcomeGuide"] = ["التعرّف على بصيرة", "Getting started", "Premiers pas", "Primeros pasos"],
         ["windowsTools"] = ["أدوات ويندوز", "Windows utilities", "Outils Windows", "Utilidades de Windows"],
         ["preview"] = ["تجريبي", "Preview", "Aperçu", "Vista previa"],
         ["overviewDesc"] = ["اختر المهمة التي تريد إنجازها.", "Choose a task to get started.", "Choisissez une tâche pour commencer.", "Elige una tarea para empezar."],

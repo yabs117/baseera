@@ -19,6 +19,18 @@ public partial class App : Application
                 Directory.CreateDirectory(output);
                 int renders = 0;
                 void SaveView(string name) { Snapshot(window, Path.Combine(output, name + ".png")); renders++; }
+                Settings.Current.Onboarded = false; Settings.Current.ShowWelcomeOnStartup = false;
+                foreach (string language in new[] { "ar", "en", "fr", "es" })
+                foreach (bool dark in new[] { false, true })
+                {
+                    Settings.Current.Language = language; Settings.Current.Dark = dark; window.ApplyTheme(); window.Navigate("home");
+                    var welcome = new WelcomeWindow(window); welcome.Show();
+                    await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                    Snapshot(welcome, Path.Combine(output, "welcome-" + language + (dark ? "-dark" : "") + ".png")); renders++;
+                    if ((language == "en" && !dark) || (language == "ar" && dark))
+                        WindowAppearance.SavePreview(welcome, Path.Combine(output, "welcome-window-" + language + (dark ? "-dark" : "") + ".png"));
+                    welcome.Close();
+                }
                 Settings.Current.Dark = false;
                 foreach (string language in new[] { "ar", "en", "fr", "es" })
                 {
@@ -48,6 +60,7 @@ public partial class App : Application
                 }
                 SmokeChecks.Run(output);
                 await window.CheckNavigation();
+                await WelcomeSmokeChecks.Run(window);
                 window.Width = 940; window.Height = 680; Settings.Current.Dark = false;
                 foreach (string language in new[] { "en", "ar" })
                 {
@@ -55,7 +68,7 @@ public partial class App : Application
                     await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
                     SaveView("home-" + language + "-compact");
                 }
-                File.WriteAllText(Path.Combine(output, "smoke-result.txt"), $"PASS: {renders} UI renders; native frame previews; native maximize/minimize/restore; settings drafts survive theme changes; bundled Arabic font; opaque screenshots; navigation collapse/expand; language dropdown and RTL switch; format selection; image conversion; PDF; translation response validation; DPAPI key storage; language coverage.");
+                File.WriteAllText(Path.Combine(output, "smoke-result.txt"), $"PASS: {renders} UI renders; first-run welcome, restart persistence, repeat preference, modal dismissal, tool choices preserved; native frame previews; native maximize/minimize/restore; settings drafts survive theme changes; bundled Arabic font; opaque screenshots; navigation collapse/expand; language dropdown and RTL switch; format selection; image conversion; PDF; translation response validation; DPAPI key storage; language coverage.");
                 Shutdown(0);
             }
             catch (Exception ex)
