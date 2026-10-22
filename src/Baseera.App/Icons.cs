@@ -6,6 +6,10 @@ public static class Icons
 {
     private static readonly Dictionary<string, string> Paths = new()
     {
+        ["info"] = "M12,8 L12,8.1 M12,11 L12,17 M22,12 A10,10 0 1 1 2,12 A10,10 0 1 1 22,12",
+        ["chevronLeft"] = "M15,5 L8,12 L15,19",
+        ["chevronRight"] = "M9,5 L16,12 L9,19",
+        ["folder"] = "M3,7 L3,20 L21,20 L21,7 L12,7 L10,4 L3,4 Z",
         ["minimize"] = "M2,12 L22,12",
         ["maximize"] = "M3,3 L21,3 L21,21 L3,21 Z",
         ["close"] = "M3,3 L21,21 M21,3 L3,21",
@@ -22,9 +26,11 @@ public static class Icons
     };
     public static FrameworkElement Create(string name, double size = 22, string color = "Ink")
     {
-        var path = new System.Windows.Shapes.Path { Data = Geometry.Parse(Paths[name]), StrokeThickness = 1.7,
+        var path = new System.Windows.Shapes.Path { Data = Geometry.Parse(Paths[name]), StrokeThickness = 1.6,
             StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round, StrokeLineJoin = PenLineJoin.Round,
-            Stretch = Stretch.Uniform, Width = size, Height = size, Margin = new Thickness(2) };
-        path.SetResourceReference(Shape.StrokeProperty, color); return path;
+            Stretch = Stretch.None };
+        path.SetResourceReference(Shape.StrokeProperty, color);
+        var canvas = new Canvas { Width = 24, Height = 24 }; canvas.Children.Add(path);
+        return new Viewbox { Width = size, Height = size, Child = canvas, Stretch = Stretch.Uniform };
     }
 }

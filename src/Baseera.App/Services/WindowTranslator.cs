@@ -129,11 +129,11 @@ public sealed class TranslationOverlay : Window
                 var label = new TextBlock { Text = b.Text, Foreground = Brushes.White, TextWrapping = TextWrapping.Wrap,
                     FontFamily = Brand.InterfaceFont, FontSize = Math.Clamp(b.Height * Height * 0.52, 11, 22),
                     FlowDirection = Settings.Current.TargetLanguage == "Arabic" ? FlowDirection.RightToLeft : FlowDirection.LeftToRight };
-                var box = new Border { Background = new SolidColorBrush(Color.FromArgb(244, 24, 40, 40)), CornerRadius = new CornerRadius(4),
+                var box = new Border { Background = new SolidColorBrush(Color.FromArgb(244, 32, 32, 32)), CornerRadius = new CornerRadius(4),
                     Padding = new Thickness(4, 2, 4, 2), Width = Math.Max(30, b.Width * Width), Child = label, MaxHeight = Math.Max(25, Height * (1 - b.Y)) };
                 Canvas.SetLeft(box, b.X * Width); Canvas.SetTop(box, b.Y * Height); canvas.Children.Add(box);
             }
-            var close = new Button { Content = I18n.T("hideOverlay") + " · Esc", Background = Brushes.White, Foreground = Brushes.Black };
+            var close = new Button { Content = new TextBlock { Text = I18n.T("hideOverlay") + " · Esc", Foreground = Brushes.Black, FontFamily = Brand.InterfaceFont }, Background = Brushes.White, Foreground = Brushes.Black };
             close.Click += (_, _) => Close(); Canvas.SetRight(close, 12); Canvas.SetTop(close, 12); canvas.Children.Add(close);
         };
         KeyDown += (_, e) => { if (e.Key == System.Windows.Input.Key.Escape) Close(); };

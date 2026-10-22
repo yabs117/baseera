@@ -11,5 +11,3 @@ The font's embedded copyright notices are:
 The complete font license is in `src/Baseera.App/Assets/Fonts/OFL.txt`,
 `extension/assets/OFL.txt`, and `OFL.txt` in the Windows distribution.
 The font remains under its own license; the repository's MIT license applies to the application code.
-
-The Baseera logo was supplied by the project owner and is included without image modifications.

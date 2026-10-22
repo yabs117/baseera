@@ -1,5 +1,5 @@
 const strings = {
-  title:["الصفحة بلغتك","The page, in your language","La page dans votre langue","La página en tu idioma"],
+  title:["ترجمة الصفحة","Translate page","Traduire la page","Traducir página"],
   description:["استبدال نصوص الصفحة المفتوحة مع إمكانية استعادة الأصل.","Replace text on the active page and restore it anytime.","Remplacez le texte de la page et restaurez-le à tout moment.","Reemplaza el texto de la página y restáuralo cuando quieras."],
   key:["مفتاح Gemini لهذه الجلسة","Gemini key for this session","Clé Gemini pour cette session","Clave Gemini para esta sesión"],
   model:["معرّف نموذج Gemini","Gemini model ID","Identifiant du modèle Gemini","ID del modelo Gemini"],
