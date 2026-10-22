@@ -13,16 +13,17 @@ public sealed partial class MainWindow
     private string selfStatus = "";
     internal string? UpdateReceipt { get; set; }
 
-    private async Task CheckSelfUpdate(bool manual = false)
+    private async Task CheckSelfUpdate(bool manual = false, Func<CancellationToken, Task<SelfRelease?>>? check = null)
     {
-        if (smokeMode || checkingSelf || showingSelf || (!manual && !Settings.Current.CheckBaseeraUpdates)) return;
-        checkingSelf = true;
+        if ((smokeMode && check is null) || checkingSelf || showingSelf || (!manual && !Settings.Current.CheckBaseeraUpdates)) return;
+        checkingSelf = true; bool refreshed = false;
         try
         {
             if (manual || DateTime.UtcNow >= nextSelfCheck)
             {
+                refreshed = true;
                 selfStatus = I18n.T("selfChecking"); if (manual) Render(true);
-                pendingSelf = await SelfUpdater.Check(lifetime.Token);
+                pendingSelf = await (check ?? SelfUpdater.Check)(lifetime.Token);
                 nextSelfCheck = DateTime.UtcNow.AddHours(2);
                 selfStatus = I18n.T(pendingSelf is null ? "selfLatest" : "selfAvailable");
                 if (manual) Render(true);
@@ -39,7 +40,31 @@ public sealed partial class MainWindow
         }
         catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { }
         catch { nextSelfCheck = DateTime.UtcNow.AddMinutes(15); selfStatus = I18n.T("selfCheckFailed"); if (manual) Render(true); }
-        finally { checkingSelf = showingSelf = false; }
+        finally
+        {
+            checkingSelf = showingSelf = false;
+            if (refreshed && page == "settings" && !lifetime.IsCancellationRequested) Render(true);
+        }
+    }
+
+    internal async Task CheckSelfUpdateControls()
+    {
+        if (!smokeMode) throw new InvalidOperationException("Isolated UI checks only.");
+        Navigate("settings");
+        static IEnumerable<DependencyObject> Descendants(DependencyObject root)
+        {
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
+            { var child = VisualTreeHelper.GetChild(root, i); yield return child; foreach (var nested in Descendants(child)) yield return nested; }
+        }
+        void VerifyRetry()
+        {
+            UpdateLayout();
+            if (!Descendants(frame).OfType<Button>().Single(b => System.Windows.Automation.AutomationProperties.GetName(b) == I18n.T("selfCheck")).IsEnabled)
+                throw new Exception("Manual update check cannot be retried.");
+        }
+        await CheckSelfUpdate(true, _ => Task.FromResult<SelfRelease?>(null)); VerifyRetry();
+        await CheckSelfUpdate(true, _ => Task.FromException<SelfRelease?>(new HttpRequestException("Offline test"))); VerifyRetry();
+        await CheckSelfUpdate(true, _ => Task.FromResult<SelfRelease?>(null)); VerifyRetry();
     }
 
     private void SelfUpdateSettings(StackPanel body)

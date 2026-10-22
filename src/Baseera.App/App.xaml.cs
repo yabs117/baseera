@@ -72,6 +72,7 @@ public partial class App : Application
                 await window.CheckNavigation();
                 await WelcomeSmokeChecks.Run(window);
                 await SelfUpdateSmokeChecks.Run(output);
+                await window.CheckSelfUpdateControls();
                 foreach (string language in new[] { "en", "ar", "fr", "es" })
                 foreach (bool dark in new[] { false, true })
                 {
