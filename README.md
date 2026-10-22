@@ -6,7 +6,7 @@ and image conversion.
 
 [العربية](docs/README.ar.md) · [Français](docs/README.fr.md) · [Español](docs/README.es.md)
 
-[Download Windows app](https://github.com/yabs117/baseera/releases/download/v0.3.1-preview/Baseera-v0.3.1-Windows-x64.exe) · [Release notes](https://github.com/yabs117/baseera/releases/tag/v0.3.1-preview) · [Roadmap](docs/ROADMAP.md)
+[Download Windows app](https://github.com/yabs117/baseera/releases/download/v0.4.0-preview/Baseera-v0.4.0-Windows-x64.exe) · [Release notes](https://github.com/yabs117/baseera/releases/tag/v0.4.0-preview) · [Roadmap](docs/ROADMAP.md)
 
 ![Baseera overview — English, light appearance](docs/images/baseera-en.png)
 
@@ -18,7 +18,7 @@ and image conversion.
 
 </details>
 
-**Early preview, version 0.3.1.** This is a new project, not a certified antivirus
+**Early preview, version 0.4.0.** This is a new project, not a certified antivirus
 or a claim of 100% malware detection. Read the [capability status](docs/ROADMAP.md)
 and [security scope](SECURITY.md) before relying on it.
 
@@ -30,6 +30,7 @@ and [security scope](SECURITY.md) before relying on it.
 | Window translation | Select a visible window, send its screenshot to Gemini on request, and display translated text over the image. Esc closes the overlay. |
 | Page translation | Chrome/Edge extension replaces ordinary page text in place and restores originals. User-provided Gemini key and model. |
 | App updates | Opt-in WinGet updates per package, at launch and every six hours while running. Manual per-app GitHub release URLs override automatic installation and show releases for review. |
+| Baseera updates | Checks the official repository at launch and every two hours. In-app download, SHA-256 verification, same-path replacement and restart, with recovery backup. |
 | Image conversion | PNG, JPEG, BMP, TIFF and ordered multi-image PDF. Preserves source files. Opt-in Explorer menu and Ctrl + right-click on selected images while running. |
 | Interface | Arabic RTL, English, French, Spanish, light/dark themes, vector icons, collapsible navigation and first-run feature selection. |
 
@@ -57,7 +58,7 @@ You can select **Show this window at startup**, or reopen it from **Settings →
 Appearance and language → Getting started**.
 
 <details>
-<summary>First-run welcome</summary>
+<summary>Welcome dialog</summary>
 
 ![Welcome to Baseera — English](docs/images/welcome-en.png)
 ![Welcome to Baseera — Arabic, dark appearance](docs/images/welcome-ar-dark.png)
@@ -68,16 +69,47 @@ Requires **Windows 10/11, x64**. The runtime is included; no separate .NET insta
 
 | Download | How to use |
 | --- | --- |
-| [Windows app (.exe)](https://github.com/yabs117/baseera/releases/download/v0.3.1-preview/Baseera-v0.3.1-Windows-x64.exe) | Save to a permanent folder and open it. This is the desktop application. |
-| [Windows ZIP with instructions](https://github.com/yabs117/baseera/releases/download/v0.3.1-preview/Baseera-v0.3.1-Windows-x64.zip) | Extract the whole ZIP, then open `Baseera.exe`. |
-| [Optional browser extension](https://github.com/yabs117/baseera/releases/download/v0.3.1-preview/Baseera-v0.3.1-Browser-Extension.zip) | Extract, read `START-HERE.html`, then load the inner `extension` folder in Chrome/Edge. |
+| [Windows app (.exe)](https://github.com/yabs117/baseera/releases/download/v0.4.0-preview/Baseera-v0.4.0-Windows-x64.exe) | Save to a permanent folder and open it. This is the desktop application. |
+| [Windows ZIP with instructions](https://github.com/yabs117/baseera/releases/download/v0.4.0-preview/Baseera-v0.4.0-Windows-x64.zip) | Extract the whole ZIP, then open `Baseera.exe`. |
+| [Optional browser extension](https://github.com/yabs117/baseera/releases/download/v0.4.0-preview/Baseera-v0.4.0-Browser-Extension.zip) | Extract, read `START-HERE.html`, then load the inner `extension` folder in Chrome/Edge. |
 
 Source ZIP downloads from GitHub are source code, not compiled applications.
 The browser extension is installed **inside the browser**. Do not double-click its
 module files. A Windows Script Host error means a source file was opened as a Windows script.
 
-All features are off until selected. Startup registration and Explorer integration
+Tool modules are off until selected. Startup registration and Explorer integration
 are optional settings, applied only when you save them.
+
+### Updating Baseera
+
+Starting with **0.4.0**, Baseera checks its own official GitHub releases when opened
+and every two hours while running. A new release opens a dialog with its version,
+size and notes. Choose **Update and restart** to download inside Baseera, verify the
+file, replace the current executable and reopen it at the same path. Your settings,
+tool choices and saved Gemini key remain in your Windows profile. Unsaved settings
+must be saved before updating. **Later** dismisses that version for this session.
+
+Under **Settings → Baseera updates**, you can check manually or disable automatic
+checks. These checks are independent of the optional WinGet app-update module.
+They include this project's preview releases. Downloads start only after your click.
+
+Keep the app in a writable, permanent folder and close other running copies before
+updating. A background helper replaces the file after Baseera exits; no browser or
+second installed application is opened. A backup is retained until the restarted
+window loads, and restored if replacement or startup fails. Protected folders,
+security software or a changed executable can prevent installation; recovery files
+are retained if rollback itself cannot complete. Releases are currently unsigned.
+
+Versions **0.3.1 and earlier** need one manual download of 0.4.0 to gain this updater.
+The browser extension is still updated separately through the browser.
+
+<details>
+<summary>In-app update dialog (future-version preview fixture)</summary>
+
+![Baseera update dialog — English](docs/images/update-en.png)
+![Baseera update dialog — Arabic, dark](docs/images/update-ar-dark.png)
+
+</details>
 
 For translation, enter your Gemini API key and a model ID supported by your account
 in Settings. Choose a model supporting image input and structured output. No key
@@ -92,14 +124,19 @@ Install the .NET 10 SDK on Windows. There are no third-party NuGet dependencies.
 ./build.ps1 -Test -Publish
 # Optional desktop integration checks and renders:
 ./build.ps1 -Smoke
+# Real replacement/restart and rollback on isolated copies (after -Publish):
+./tests/self-update.e2e.ps1
 # Browser extension protocol tests (Node 22+):
 node --test extension/test/protocol.test.js
 ```
 
-The self-contained executable is produced in `artifacts/Baseera-v0.3.1-Windows-x64/`.
+The self-contained executable is produced in `artifacts/Baseera-v0.4.0-Windows-x64/`.
 `-Smoke -Publish` also checks the packaged executable. `-Smoke` uses a separate local data directory and does not run updates or
 register Explorer hooks. It renders the actual WPF screens and tests conversion,
 PDF generation, translation-box validation, localization coverage and DPAPI storage.
+It also tests successful, corrupt, partial, canceled and redirected update downloads
+without contacting the network. The standalone end-to-end check uses temporary
+copies and isolated data, including a renamed executable and failed-start rollback.
 
 ## Browser extension
 

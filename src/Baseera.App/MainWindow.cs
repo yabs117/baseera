@@ -38,14 +38,21 @@ public sealed partial class MainWindow : Window
         if (conversionFile is not null && File.Exists(conversionFile)) { images.Add(conversionFile); page = "convert"; }
         Content = frame;
         ApplyTheme(); Render();
-        Closed += (_, _) => { operation?.Cancel(); lifetime.Cancel(); updateTimer.Stop(); overlay?.Close(); explorerShortcut?.Dispose(); };
+        Closed += (_, _) => { operation?.Cancel(); lifetime.Cancel(); updateTimer.Stop(); selfUpdateTimer.Stop(); overlay?.Close(); explorerShortcut?.Dispose(); };
         if (!smoke)
         {
             ApplyExplorerShortcut();
             updateTimer.Tick += async (_, _) => await AutomaticUpdates(); updateTimer.Start();
+            selfUpdateTimer.Tick += async (_, _) => await CheckSelfUpdate(); selfUpdateTimer.Start();
             Loaded += async (_, _) =>
             {
+                if (UpdateReceipt is not null)
+                {
+                    try { var error = SelfUpdater.Acknowledge(UpdateReceipt); if (error is not null) status.Text = I18n.T("selfRestored") + " " + error; }
+                    catch (Exception ex) { status.Text = I18n.T("selfFailed") + " " + ex.Message; }
+                }
                 ShowStartupWelcome();
+                await CheckSelfUpdate();
                 if (!Settings.Current.Onboarded) return;
                 if (Settings.Current.ScanEnabled && Settings.Current.ScanAtStartup && (File.Exists(Settings.Current.ScanPath) || Directory.Exists(Settings.Current.ScanPath)))
                     await Run(async ct => { report = await Task.Run(() => new ModScanner().Scan(Settings.Current.ScanPath, ct), ct); page = "scan"; Render(); });
@@ -73,7 +80,7 @@ public sealed partial class MainWindow : Window
     }
     private async Task AutomaticUpdates()
     {
-        if (!Settings.Current.Onboarded || !Settings.Current.UpdatesEnabled || Settings.Current.AutoUpdateIds.Count == 0) return;
+        if (automaticUpdate is not null || showingSelf || !Settings.Current.Onboarded || !Settings.Current.UpdatesEnabled || Settings.Current.AutoUpdateIds.Count == 0) return;
         automaticUpdate = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
         try { updateLog = await Updater.UpdateSelected(automaticUpdate.Token); if (page == "updates") Render(); }
         catch (OperationCanceledException) { }

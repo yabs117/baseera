@@ -1,6 +1,6 @@
 # Security scope
 
-Baseera 0.1 is a preview, not an antivirus replacement. No detection rate or safety
+Baseera is a preview, not an antivirus replacement. No detection rate or safety
 guarantee has been measured. Keep Windows protection enabled.
 
 The scanner does not execute targets, extract archive contents to disk, exclude
@@ -23,6 +23,24 @@ WinGet updates are opt-in per package. The app does not accept new license agree
 bypass elevation, or sign in for the user. A manual source overrides automatic
 WinGet installation and currently supports inspecting GitHub releases only. Its
 installer assets require review; the app does not execute them.
+
+Baseera's own updater is separate from custom app sources. It queries the fixed
+`yabs117/baseera` GitHub repository over HTTPS, requires an uploaded x64 executable
+with the exact expected asset name, URL, bounded size and GitHub-provided SHA-256
+digest, and validates the complete download and embedded file version. Redirects
+are limited to GitHub and its release-asset hosts. A checksum verifies consistency
+with GitHub's metadata; it is not an independent publisher signature. Compromise of
+the repository, release credentials, local user account or GitHub is outside this
+trust boundary. Executables are not yet Authenticode signed.
+
+Installation uses same-volume staging in a randomly named sibling directory and a
+temporary copy of the current executable as a background helper. The helper checks
+the parent process identity/start time, old image hash and new image hash before
+waiting for exit and performing an atomic replacement with a backup. It does not
+request elevation or modify Defender settings. The backup is removed only after
+the restarted app acknowledges loading its window. Failure attempts rollback;
+failed recovery retains the backup and error journal. Preferences and DPAPI data
+are not part of the replacement. A writable application folder is required.
 
 For a suspected vulnerability, use GitHub's private vulnerability reporting if
 enabled. Otherwise open an issue requesting a private contact without including

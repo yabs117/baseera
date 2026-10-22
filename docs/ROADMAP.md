@@ -9,6 +9,7 @@
 - User-selected window capture, Gemini vision translation and dismissible overlay.
 - Chrome/Edge extension for in-place text replacement and original restoration.
 - Selected WinGet packages updated on app start and every six hours while open.
+- Baseera self-update checks, in-app download/progress, digest verification, same-path replacement, restart acknowledgement and rollback backup.
 - Per-package manual release URL override, GitHub release discovery, reviewed download links.
 - PNG/JPEG/BMP/TIFF conversion, ordered multi-image PDF, quality selection.
 - Opt-in Explorer context command and Ctrl + right-click on selected images while running.
@@ -24,7 +25,7 @@
 - General website release adapters and trusted unattended custom-source installation.
 - Modern Windows 11 compact Explorer menu extension (current normal menu is in Show more options).
 - WebP, document conversion beyond images, animations and multipage-image preservation.
-- Signed installer, automatic Baseera self-update, tray lifecycle, MSIX/store distribution.
+- Signed releases/installer, tray lifecycle, MSIX/store distribution, transactional browser-extension updates.
 
 The initial version is a usable development baseline. An OSS support application
 must describe the project as new and must not claim adoption, stars, security

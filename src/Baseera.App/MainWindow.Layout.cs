@@ -132,7 +132,7 @@ public sealed partial class MainWindow
         }
         DockPanel.SetDock(header, Dock.Top); navigation.Children.Add(header);
         var bottom = Stack(); bottom.Children.Add(NavigationButton("settings"));
-        if (expanded) { var version = Text("Baseera 0.3 · " + I18n.T("preview"), 10, true); version.Margin = new Thickness(16, 18, 0, 0); bottom.Children.Add(version); }
+        if (expanded) { var version = Text("Baseera " + SelfUpdater.CurrentVersion + " · " + I18n.T("preview"), 10, true); version.Margin = new Thickness(16, 18, 0, 0); bottom.Children.Add(version); }
         DockPanel.SetDock(bottom, Dock.Bottom); navigation.Children.Add(bottom);
         var links = Stack(); links.Children.Add(NavigationButton("home"));
         if (expanded) { var label = Text(I18n.T("yourTools"), 11, true); label.Margin = new Thickness(16, 22, 0, 8); links.Children.Add(label); }
@@ -232,6 +232,7 @@ public sealed partial class MainWindow
     private void SettingsPage(StackPanel body)
     {
         Heading(body, "settings", "settingsDesc");
+        SelfUpdateSettings(body);
         SectionHeading(body, "appearance"); var appearance = Stack(); var language = LanguageCombo(); language.Margin = new Thickness(0); appearance.Children.Add(SettingRow("language", language)); Divider(appearance);
         var dark = Toggle("dark", Settings.Current.Dark, value => { Settings.Current.Dark = value; Settings.Save(); ApplyTheme(); Render(true); }); dark.Content = null;
         appearance.Children.Add(SettingRow("dark", dark)); Divider(appearance);

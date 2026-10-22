@@ -61,6 +61,7 @@ try
     var folderReport = new ModScanner().Scan(folder);
     Check(folderReport.Files.Count == 2 && folderReport.Findings.Any(f => f.Code == "process-injection-api"), "Folder scan reaches nested files");
     Check(new ModScanner(new ScanLimits(MaxEntries: 1)).Scan(folder).Incomplete, "Folder budget reports incomplete coverage");
+    SelfUpdateChecks.Run(Check, root);
     Console.WriteLine($"{passed} tests passed.");
 }
 finally { Directory.Delete(root, true); }

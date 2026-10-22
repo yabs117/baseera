@@ -12,6 +12,7 @@ public sealed class Preferences
     public bool Onboarded { get; set; }
     public bool WelcomeSeen { get; set; }
     public bool ShowWelcomeOnStartup { get; set; }
+    public bool CheckBaseeraUpdates { get; set; } = true;
     public bool ScanEnabled { get; set; }
     public bool TranslationEnabled { get; set; }
     public bool UpdatesEnabled { get; set; }

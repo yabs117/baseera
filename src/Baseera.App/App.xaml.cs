@@ -5,12 +5,22 @@ namespace Baseera.App;
 
 public partial class App : Application
 {
-    protected override void OnStartup(StartupEventArgs e)
+    protected override async void OnStartup(StartupEventArgs e)
     {
-        base.OnStartup(e); Settings.Load();
+        base.OnStartup(e);
+        if (e.Args.Length == 2 && e.Args[0] == "--apply-update")
+        {
+            ShutdownMode = ShutdownMode.OnExplicitShutdown;
+            int result;
+            try { result = await Task.Run(() => SelfUpdater.Apply(e.Args[1])); }
+            catch { result = 1; }
+            Shutdown(result); return;
+        }
+        Settings.Load();
         bool smoke = e.Args.Contains("--smoke");
         string? input = e.Args.Length > 1 && e.Args[0] == "--convert" ? e.Args[1] : null;
         var window = new MainWindow(input, smoke); MainWindow = window;
+        if (!smoke && e.Args.Length == 2 && e.Args[0] == "--update-result") window.UpdateReceipt = e.Args[1];
         if (smoke) window.Loaded += async (_, _) =>
         {
             try
@@ -61,6 +71,21 @@ public partial class App : Application
                 SmokeChecks.Run(output);
                 await window.CheckNavigation();
                 await WelcomeSmokeChecks.Run(window);
+                await SelfUpdateSmokeChecks.Run(output);
+                foreach (string language in new[] { "en", "ar", "fr", "es" })
+                foreach (bool dark in new[] { false, true })
+                {
+                    Settings.Current.Language = language; Settings.Current.Dark = dark; window.ApplyTheme(); window.Navigate("settings");
+                    // Future-version fixture: no network request or installation in UI smoke checks.
+                    var example = new Baseera.Core.SelfRelease("v0.4.1-preview", new Version(0, 4, 1), I18n.T("selfPreviewNotes"),
+                        new Uri("https://github.com/yabs117/baseera/releases/download/v0.4.1-preview/Baseera-v0.4.1-Windows-x64.exe"), 173318766, new string('0', 64));
+                    var dialog = new UpdateWindow(window, example); dialog.Show();
+                    await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                    Snapshot(dialog, Path.Combine(output, "update-" + language + (dark ? "-dark" : "") + ".png")); renders++;
+                    if (language == "en" && !dark || language == "ar" && dark)
+                        WindowAppearance.SavePreview(dialog, Path.Combine(output, "update-window-" + language + (dark ? "-dark" : "") + ".png"));
+                    dialog.Close();
+                }
                 window.Width = 940; window.Height = 680; Settings.Current.Dark = false;
                 foreach (string language in new[] { "en", "ar" })
                 {
@@ -68,7 +93,7 @@ public partial class App : Application
                     await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
                     SaveView("home-" + language + "-compact");
                 }
-                File.WriteAllText(Path.Combine(output, "smoke-result.txt"), $"PASS: {renders} UI renders; first-run welcome, restart persistence, repeat preference, modal dismissal, tool choices preserved; native frame previews; native maximize/minimize/restore; settings drafts survive theme changes; bundled Arabic font; opaque screenshots; navigation collapse/expand; language dropdown and RTL switch; format selection; image conversion; PDF; translation response validation; DPAPI key storage; language coverage.");
+                File.WriteAllText(Path.Combine(output, "smoke-result.txt"), $"PASS: {renders} UI renders; verified, corrupt, partial, canceled and unsafe-redirect self-update downloads; four-language update dialogs; first-run welcome, restart persistence, repeat preference, modal dismissal, tool choices preserved; native frame previews; native maximize/minimize/restore; settings drafts survive theme changes; bundled Arabic font; opaque screenshots; navigation collapse/expand; language dropdown and RTL switch; format selection; image conversion; PDF; translation response validation; DPAPI key storage; language coverage.");
                 Shutdown(0);
             }
             catch (Exception ex)
