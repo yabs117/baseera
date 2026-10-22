@@ -6,7 +6,7 @@ and image conversion.
 
 [العربية](docs/README.ar.md) · [Français](docs/README.fr.md) · [Español](docs/README.es.md)
 
-[Download Windows app](https://github.com/yabs117/baseera/releases/download/v0.2.0-preview/Baseera-v0.2.0-Windows-x64.exe) · [Release notes](https://github.com/yabs117/baseera/releases/tag/v0.2.0-preview) · [Roadmap](docs/ROADMAP.md)
+[Download Windows app](https://github.com/yabs117/baseera/releases/download/v0.2.1-preview/Baseera-v0.2.1-Windows-x64.exe) · [Release notes](https://github.com/yabs117/baseera/releases/tag/v0.2.1-preview) · [Roadmap](docs/ROADMAP.md)
 
 ![Baseera overview — English, light appearance](docs/images/baseera-en.png)
 
@@ -18,7 +18,7 @@ and image conversion.
 
 </details>
 
-**Early preview, version 0.2.0.** This is a new project, not a certified antivirus
+**Early preview, version 0.2.1.** This is a new project, not a certified antivirus
 or a claim of 100% malware detection. Read the [capability status](docs/ROADMAP.md)
 and [security scope](SECURITY.md) before relying on it.
 
@@ -39,9 +39,9 @@ Requires **Windows 10/11, x64**. The runtime is included; no separate .NET insta
 
 | Download | How to use |
 | --- | --- |
-| [Windows app (.exe)](https://github.com/yabs117/baseera/releases/download/v0.2.0-preview/Baseera-v0.2.0-Windows-x64.exe) | Save to a permanent folder and open it. This is the desktop application. |
-| [Windows ZIP with instructions](https://github.com/yabs117/baseera/releases/download/v0.2.0-preview/Baseera-v0.2.0-Windows-x64.zip) | Extract the whole ZIP, then open `Baseera.exe`. |
-| [Optional browser extension](https://github.com/yabs117/baseera/releases/download/v0.2.0-preview/Baseera-v0.2.0-Browser-Extension.zip) | Extract, read `START-HERE.html`, then load the inner `extension` folder in Chrome/Edge. |
+| [Windows app (.exe)](https://github.com/yabs117/baseera/releases/download/v0.2.1-preview/Baseera-v0.2.1-Windows-x64.exe) | Save to a permanent folder and open it. This is the desktop application. |
+| [Windows ZIP with instructions](https://github.com/yabs117/baseera/releases/download/v0.2.1-preview/Baseera-v0.2.1-Windows-x64.zip) | Extract the whole ZIP, then open `Baseera.exe`. |
+| [Optional browser extension](https://github.com/yabs117/baseera/releases/download/v0.2.1-preview/Baseera-v0.2.1-Browser-Extension.zip) | Extract, read `START-HERE.html`, then load the inner `extension` folder in Chrome/Edge. |
 
 Source ZIP downloads from GitHub are source code, not compiled applications.
 The browser extension is installed **inside the browser**. Do not double-click its
@@ -67,7 +67,7 @@ Install the .NET 10 SDK on Windows. There are no third-party NuGet dependencies.
 node --test extension/test/protocol.test.js
 ```
 
-The self-contained executable is produced in `artifacts/Baseera-v0.2.0-Windows-x64/`.
+The self-contained executable is produced in `artifacts/Baseera-v0.2.1-Windows-x64/`.
 `-Smoke -Publish` also checks the packaged executable. `-Smoke` uses a separate local data directory and does not run updates or
 register Explorer hooks. It renders the actual WPF screens and tests conversion,
 PDF generation, translation-box validation, localization coverage and DPAPI storage.
@@ -106,4 +106,6 @@ with Windows DPAPI. Conversion never overwrites an existing image output. PDF ou
 requires a new filename. Update logs stay local. No telemetry is built into Baseera.
 
 Built with C#/.NET/WPF and a dependency-free Manifest V3 browser extension.
+Arabic text uses the bundled Elgharib Hayyakum Allah Taweel font supplied by the project owner.
+See [third-party notices](THIRD-PARTY-NOTICES.md) for its font license.
 See [CONTRIBUTING](CONTRIBUTING.md), [ROADMAP](docs/ROADMAP.md), and the [MIT license](LICENSE).

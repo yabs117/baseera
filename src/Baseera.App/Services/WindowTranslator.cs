@@ -127,7 +127,7 @@ public sealed class TranslationOverlay : Window
             foreach (var b in blocks)
             {
                 var label = new TextBlock { Text = b.Text, Foreground = Brushes.White, TextWrapping = TextWrapping.Wrap,
-                    FontFamily = new FontFamily("Segoe UI"), FontSize = Math.Clamp(b.Height * Height * 0.52, 11, 22),
+                    FontFamily = Brand.InterfaceFont, FontSize = Math.Clamp(b.Height * Height * 0.52, 11, 22),
                     FlowDirection = Settings.Current.TargetLanguage == "Arabic" ? FlowDirection.RightToLeft : FlowDirection.LeftToRight };
                 var box = new Border { Background = new SolidColorBrush(Color.FromArgb(244, 24, 40, 40)), CornerRadius = new CornerRadius(4),
                     Padding = new Thickness(4, 2, 4, 2), Width = Math.Max(30, b.Width * Width), Child = label, MaxHeight = Math.Max(25, Height * (1 - b.Y)) };

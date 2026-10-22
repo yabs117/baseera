@@ -35,7 +35,7 @@ public sealed class MainWindow : Window
         System.Windows.Shell.WindowChrome.SetWindowChrome(this, new System.Windows.Shell.WindowChrome
         { CaptionHeight = 0, ResizeBorderThickness = new Thickness(6), GlassFrameThickness = new Thickness(0), CornerRadius = new CornerRadius(12) });
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
-        FontFamily = new FontFamily("Segoe UI Variable, Segoe UI"); FontSize = 14;
+        FontFamily = Brand.InterfaceFont; FontSize = 14; Icon = Brand.Logo;
         if (conversionFile is not null && File.Exists(conversionFile)) { images.Add(conversionFile); page = "convert"; }
         Content = frame;
         ApplyTheme(); Render();
@@ -172,7 +172,7 @@ public sealed class MainWindow : Window
         System.Windows.Automation.AutomationProperties.SetName(menu, I18n.T("menu"));
         menu.Click += (_, _) => { expanded = !expanded; Render(); sidebar.BeginAnimation(WidthProperty, new DoubleAnimation(expanded ? 80 : 236, expanded ? 236 : 80, TimeSpan.FromMilliseconds(180)) { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } }); };
         var brand = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 30) };
-        brand.Children.Add(new Border { Background = Resource("Accent"), CornerRadius = new CornerRadius(12), Width = 44, Height = 44, Child = Icons.Create("mark", 25, "OnAccent") });
+        brand.Children.Add(Brand.CreateLogo());
         if (expanded) brand.Children.Add(new TextBlock { Text = Settings.Current.Language == "ar" ? "بصيرة" : "Baseera", FontSize = 24, FontWeight = FontWeights.SemiBold, Margin = new Thickness(12, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center });
         nav.Children.Add(brand);
         if (expanded) { var label = Text(I18n.T("workspace"), 11, true); label.Margin = new Thickness(12, 0, 0, 14); nav.Children.Add(label); }

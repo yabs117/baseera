@@ -7,6 +7,22 @@ internal static class SmokeChecks
 {
     public static void Run(string output)
     {
+        var typeface = new Typeface(Brand.ArabicFont, FontStyles.Normal, FontWeights.Normal, FontStretches.Normal);
+        if (!typeface.TryGetGlyphTypeface(out var arabic) || !arabic.CharacterToGlyphMap.ContainsKey(0x628))
+            throw new Exception("Bundled Arabic font did not load.");
+        var shaped = new FormattedText("بصيرة", System.Globalization.CultureInfo.GetCultureInfo("ar"), FlowDirection.RightToLeft,
+            new Typeface(Brand.InterfaceFont, FontStyles.Normal, FontWeights.Normal, FontStretches.Normal), 24, Brushes.Black, 1);
+        var visual = new DrawingVisual();
+        using (var drawing = visual.RenderOpen()) drawing.DrawText(shaped, new System.Windows.Point());
+        static IEnumerable<string> FontSources(Drawing drawing)
+        {
+            if (drawing is GlyphRunDrawing run) yield return run.GlyphRun.GlyphTypeface.FontUri.OriginalString;
+            if (drawing is DrawingGroup group) foreach (var child in group.Children) foreach (var source in FontSources(child)) yield return source;
+        }
+        var runs = FontSources(visual.Drawing).ToArray();
+        File.WriteAllText(Path.Combine(output, "brand-font.txt"), string.Join(Environment.NewLine, runs));
+        if (runs.Length == 0 || runs.Any(uri => !uri.Contains("Elgharib-Hayyakum-Allah-Taweel-Medium.ttf", StringComparison.OrdinalIgnoreCase)))
+            throw new Exception("Arabic text fell back to an installed font.");
         foreach (var values in I18n.Words.Values) if (values.Length != 4 || values.Any(string.IsNullOrWhiteSpace)) throw new Exception("Missing translation.");
         var source = Path.Combine(output, "sample.png");
         var bitmap = BitmapSource.Create(2, 2, 96, 96, PixelFormats.Bgra32, null,

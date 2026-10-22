@@ -1,0 +1,9 @@
+<FontFamily xmlns="http://schemas.microsoft.com/winfx/2006/xaml/composite-font"
+            xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+            xmlns:sys="clr-namespace:System;assembly=mscorlib">
+  <FontFamily.FamilyNames><sys:String x:Key="en-US">Baseera UI</sys:String></FontFamily.FamilyNames>
+  <FontFamily.FamilyMaps>
+    <FontFamilyMap Unicode="0600-06FF,0750-077F,0870-089F,08A0-08FF,FB50-FDFF,FE70-FEFF" Target="./#Elgharib-" Scale="1.0"/>
+    <FontFamilyMap Target="Segoe UI Variable, Segoe UI"/>
+  </FontFamily.FamilyMaps>
+</FontFamily>

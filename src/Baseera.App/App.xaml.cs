@@ -46,7 +46,7 @@ public partial class App : Application
                 window.ApplyTheme(); window.Navigate("home");
                 await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
                 Snapshot(window, Path.Combine(output, "home-en-compact.png"));
-                File.WriteAllText(Path.Combine(output, "smoke-result.txt"), "PASS: 19 UI renders; opaque screenshots; navigation collapse/expand; language dropdown and RTL switch; format selection; image conversion; PDF; translation response validation; DPAPI key storage; language coverage.");
+                File.WriteAllText(Path.Combine(output, "smoke-result.txt"), "PASS: 19 UI renders; bundled Arabic font resolves without installed fonts; opaque screenshots; navigation collapse/expand; language dropdown and RTL switch; format selection; image conversion; PDF; translation response validation; DPAPI key storage; language coverage.");
                 Shutdown(0);
             }
             catch (Exception ex)

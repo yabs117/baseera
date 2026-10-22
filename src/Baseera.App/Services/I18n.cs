@@ -87,7 +87,7 @@ public static class I18n
         ["remove"] = ["إزالة من القائمة", "Remove from list", "Retirer de la liste", "Quitar de la lista"],
         ["done"] = ["اكتملت العملية", "Completed", "Terminé", "Completado"],
         ["local"] = ["محلي على جهازك", "Local to your device", "Sur votre appareil", "Local en tu equipo"],
-        ["early"] = ["بصيرة · نسخة تجريبية 0.2", "Baseera · Preview 0.2", "Baseera · Aperçu 0.2", "Baseera · Vista previa 0.2"],
+        ["early"] = ["بصيرة · نسخة تجريبية 0.2.1", "Baseera · Preview 0.2.1", "Baseera · Aperçu 0.2.1", "Baseera · Vista previa 0.2.1"],
         ["menu"] = ["فتح أو طي القائمة", "Expand or collapse navigation", "Développer ou réduire le menu", "Expandir o contraer menú"],
         ["empty"] = ["لا توجد عناصر بعد", "No items yet", "Aucun élément", "Todavía no hay elementos"],
         ["quality"] = ["جودة JPEG", "JPEG quality", "Qualité JPEG", "Calidad JPEG"],
