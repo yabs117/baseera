@@ -78,8 +78,10 @@ public partial class App : Application
                 {
                     Settings.Current.Language = language; Settings.Current.Dark = dark; window.ApplyTheme(); window.Navigate("settings");
                     // Future-version fixture: no network request or installation in UI smoke checks.
-                    var example = new Baseera.Core.SelfRelease("v0.4.1-preview", new Version(0, 4, 1), I18n.T("selfPreviewNotes"),
-                        new Uri("https://github.com/yabs117/baseera/releases/download/v0.4.1-preview/Baseera-v0.4.1-Windows-x64.exe"), 173318766, new string('0', 64));
+                    var current = Baseera.Core.SelfRelease.ParseVersion(SelfUpdater.CurrentVersion)!;
+                    var next = new Version(current.Major, current.Minor, current.Build + 1); string tag = $"v{next}-preview";
+                    var example = new Baseera.Core.SelfRelease(tag, next, I18n.T("selfPreviewNotes"),
+                        new Uri($"https://github.com/yabs117/baseera/releases/download/{tag}/Baseera-v{next}-Windows-x64.exe"), 173318766, new string('0', 64));
                     var dialog = new UpdateWindow(window, example); dialog.Show();
                     await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
                     Snapshot(dialog, Path.Combine(output, "update-" + language + (dark ? "-dark" : "") + ".png")); renders++;

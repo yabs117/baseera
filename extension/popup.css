@@ -1,5 +1,7 @@
+@font-face{font-family:"Noto Serif";src:url("assets/NotoSerif-VariableFont_wdth,wght.ttf") format("truetype");font-weight:100 900;font-style:normal;font-display:swap}
+@font-face{font-family:"Noto Serif";src:url("assets/NotoSerif-Italic-VariableFont_wdth,wght.ttf") format("truetype");font-weight:100 900;font-style:italic;font-display:swap}
 @font-face{font-family:"Baseera Arabic";src:url("assets/Elgharib-Hayyakum-Allah-Taweel-Medium.ttf") format("truetype");font-weight:100 900;font-style:normal;font-display:swap;unicode-range:U+0600-06FF,U+0750-077F,U+0870-089F,U+08A0-08FF,U+FB50-FDFF,U+FE70-FEFF}
-:root{font-family:"Baseera Arabic","Segoe UI Variable","Segoe UI",sans-serif;font-size:13px;--bg:#fafafa;--surface:#fff;--ink:#1b1b1b;--muted:#666;--line:#dedede;--accent:#005fb8;--on-accent:#fff;color:var(--ink);background:var(--bg);color-scheme:light}
+:root{font-family:"Baseera Arabic","Noto Serif",Georgia,serif;font-size:13px;--bg:#fafafa;--surface:#fff;--ink:#1b1b1b;--muted:#666;--line:#dedede;--accent:#005fb8;--on-accent:#fff;color:var(--ink);background:var(--bg);color-scheme:light}
 body{width:350px;padding:22px;margin:0}
 header{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);padding-bottom:16px;margin-bottom:24px;gap:16px}
 header strong{font-size:20px;font-weight:600}

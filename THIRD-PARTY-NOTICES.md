@@ -11,3 +11,14 @@ The font's embedded copyright notices are:
 The complete font license is in `src/Baseera.App/Assets/Fonts/OFL.txt`,
 `extension/assets/OFL.txt`, and `OFL.txt` in the Windows distribution.
 The font remains under its own license; the repository's MIT license applies to the application code.
+
+The unmodified Noto Serif fonts supplied by the user are also distributed under
+the SIL Open Font License, Version 1.1.
+
+> Copyright 2022 The Noto Project Authors (https://github.com/notofonts/latin-greek-cyrillic)
+
+The desktop app uses the supplied static Regular, Medium, SemiBold, Bold and Italic
+faces. The browser extension uses the supplied upright and italic variable fonts.
+Their license is in `src/Baseera.App/Assets/Fonts/Noto-OFL.txt`,
+`extension/assets/Noto-OFL.txt`, and `Noto-OFL.txt` in the Windows ZIP. Both font
+licenses are also embedded in the standalone Windows executable.

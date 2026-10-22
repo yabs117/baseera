@@ -1,10 +1,12 @@
+param([string]$PreviousExecutable)
 $ErrorActionPreference = 'Stop'
 Set-Location -LiteralPath (Split-Path $PSScriptRoot)
 $project = [xml](Get-Content -Raw src/Baseera.App/Baseera.App.csproj)
 $version = [string]$project.Project.PropertyGroup.Version
 $channel = [string]$project.Project.PropertyGroup.InformationalVersion
 if ([string]::IsNullOrWhiteSpace($channel)) { $channel = $version }
-$source = (Resolve-Path ('artifacts/Baseera-v' + $version + '-Windows-x64/Baseera.exe')).Path
+$newSource = (Resolve-Path ('artifacts/Baseera-v' + $version + '-Windows-x64/Baseera.exe')).Path
+$source = if ($PreviousExecutable) { (Resolve-Path -LiteralPath $PreviousExecutable).Path } else { $newSource }
 $env:DOTNET_CLI_HOME = Join-Path (Get-Location) '.local/dotnet'
 $env:DOTNET_CLI_TELEMETRY_OPTOUT = '1'
 & dotnet publish tests/Fixtures/EarlyExit/EarlyExit.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:NuGetAudit=false "-p:Version=$version" "-p:InformationalVersion=$channel" -o .local/e2e-fixture --nologo
@@ -38,7 +40,7 @@ foreach ($scenario in @('replace', 'rollback')) {
     New-Item -ItemType Directory -Path $folder | Out-Null
     Copy-Item -LiteralPath $source -Destination (Join-Path $folder 'helper.exe')
     $payload = Join-Path $folder 'payload.exe'
-    $bytes = [IO.File]::ReadAllBytes($source)
+    $bytes = [IO.File]::ReadAllBytes($newSource)
     if ($scenario -eq 'replace') {
         # DOS stub message is unused on Windows; change the hash without disturbing the bundle.
         $bytes[80] = $bytes[80] -bxor 1

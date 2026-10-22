@@ -6,13 +6,14 @@
     <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>Baseera</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>0.4.0</Version>
-    <InformationalVersion>0.4.0-preview</InformationalVersion>
+    <Version>0.4.1</Version>
+    <InformationalVersion>0.4.1-preview</InformationalVersion>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../Baseera.Core/Baseera.Core.csproj" />
     <Content Include="Locales/*.json" CopyToOutputDirectory="PreserveNewest" />
     <Resource Include="Assets/Fonts/*.ttf" />
+    <Resource Include="Assets/Fonts/*OFL.txt" />
     <Resource Include="Assets/Fonts/*.CompositeFont" />
   </ItemGroup>
 </Project>
