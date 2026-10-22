@@ -1,4 +1,4 @@
-# Baseera · بصيرة
+# Baseera
 
 A modular Windows companion with a calm native desktop interface. Enable just the
 tools you need: local file inspection, window translation, selected app updates,
@@ -6,9 +6,19 @@ and image conversion.
 
 [العربية](docs/README.ar.md) · [Français](docs/README.fr.md) · [Español](docs/README.es.md)
 
-![Baseera in Arabic, right-to-left](docs/images/baseera-ar.png)
+[Download Windows app](https://github.com/yabs117/baseera/releases/download/v0.2.0-preview/Baseera-v0.2.0-Windows-x64.exe) · [Release notes](https://github.com/yabs117/baseera/releases/tag/v0.2.0-preview) · [Roadmap](docs/ROADMAP.md)
 
-**Early preview, version 0.1.0.** This is a new project, not a certified antivirus
+![Baseera overview — English, light appearance](docs/images/baseera-en.png)
+
+<details>
+<summary>Dark appearance and Arabic RTL</summary>
+
+![Baseera overview — English, dark appearance](docs/images/baseera-en-dark.png)
+![Baseera overview — Arabic, right-to-left](docs/images/baseera-ar.png)
+
+</details>
+
+**Early preview, version 0.2.0.** This is a new project, not a certified antivirus
 or a claim of 100% malware detection. Read the [capability status](docs/ROADMAP.md)
 and [security scope](SECURITY.md) before relying on it.
 
@@ -25,9 +35,18 @@ and [security scope](SECURITY.md) before relying on it.
 
 ## Run
 
-Requires Windows 10/11 and **.NET Desktop Runtime 10**. Download a packaged preview
-from [Releases](https://github.com/yabs117/baseera/releases), extract the whole folder,
-and open `Baseera.exe`. Source ZIP downloads from GitHub are not compiled applications.
+Requires **Windows 10/11, x64**. The runtime is included; no separate .NET installation is needed.
+
+| Download | How to use |
+| --- | --- |
+| [Windows app (.exe)](https://github.com/yabs117/baseera/releases/download/v0.2.0-preview/Baseera-v0.2.0-Windows-x64.exe) | Save to a permanent folder and open it. This is the desktop application. |
+| [Windows ZIP with instructions](https://github.com/yabs117/baseera/releases/download/v0.2.0-preview/Baseera-v0.2.0-Windows-x64.zip) | Extract the whole ZIP, then open `Baseera.exe`. |
+| [Optional browser extension](https://github.com/yabs117/baseera/releases/download/v0.2.0-preview/Baseera-v0.2.0-Browser-Extension.zip) | Extract, read `START-HERE.html`, then load the inner `extension` folder in Chrome/Edge. |
+
+Source ZIP downloads from GitHub are source code, not compiled applications.
+The browser extension is installed **inside the browser**. Do not double-click its
+module files. A Windows Script Host error means a source file was opened as a Windows script.
+
 All features are off until selected. Startup registration and Explorer integration
 are optional settings, applied only when you save them.
 
@@ -48,14 +67,14 @@ Install the .NET 10 SDK on Windows. There are no third-party NuGet dependencies.
 node --test extension/test/protocol.test.js
 ```
 
-The executable is produced in `artifacts/Baseera-win-x64/`. This is a framework-dependent
-build. `-Smoke` uses a separate local data directory and does not run updates or
+The self-contained executable is produced in `artifacts/Baseera-v0.2.0-Windows-x64/`.
+`-Smoke -Publish` also checks the packaged executable. `-Smoke` uses a separate local data directory and does not run updates or
 register Explorer hooks. It renders the actual WPF screens and tests conversion,
 PDF generation, translation-box validation, localization coverage and DPAPI storage.
 
 ## Browser extension
 
-Open `chrome://extensions` or `edge://extensions`, enable Developer mode, choose
+Extract the browser extension ZIP first. Open `chrome://extensions` or `edge://extensions`, enable Developer mode, choose
 **Load unpacked**, and select the `extension` folder. Open an HTTP(S) page and click
 the extension. Enter a Gemini key and model ID, choose the target language, then
 translate. The extension key is separate from the desktop key and is kept only

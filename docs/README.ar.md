@@ -5,7 +5,7 @@
 
 ## التشغيل
 
-يتطلب Windows 10/11 و.NET Desktop Runtime 10. افتح `Baseera.exe` من مجلد النسخة
+يتطلب Windows 10/11 بمعمارية x64. تتضمن النسخة المنشورة بيئة .NET ولا تحتاج تثبيتها منفصلة. افتح `Baseera.exe` من مجلد النسخة
 المنشورة. عند أول تشغيل تكون الميزات معطّلة، وتختار بنفسك ما تحتاجه.
 
 للبناء من المصدر، ثبّت .NET SDK 10 ثم نفّذ من PowerShell:
@@ -14,7 +14,10 @@
 ./build.ps1 -Test -Publish
 ```
 
-الملف التنفيذي في `artifacts/Baseera-win-x64/Baseera.exe`.
+الملف التنفيذي في `artifacts/Baseera-v0.2.0-Windows-x64/Baseera.exe`.
+
+حمّل [تطبيق ويندوز](https://github.com/yabs117/baseera/releases/download/v0.2.0-preview/Baseera-v0.2.0-Windows-x64.exe) مباشرة.
+إضافة المتصفح حزمة اختيارية منفصلة: اقرأ `START-HERE.html` وثبّتها من المتصفح، ولا تفتح ملفات الشيفرة بالنقر المزدوج.
 
 ## الاستخدام
 

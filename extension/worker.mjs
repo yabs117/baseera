@@ -1,4 +1,4 @@
-import {validateTranslations} from "./protocol.js";
+import {validateTranslations} from "./protocol.mjs";
 const jobs = new Set();
 chrome.storage.session.setAccessLevel({accessLevel:"TRUSTED_CONTEXTS"});
 

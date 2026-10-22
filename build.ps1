@@ -19,12 +19,21 @@ if ($Smoke) {
     Get-Content -LiteralPath 'artifacts/screenshots/smoke-result.txt'
 }
 if ($Publish) {
-    & dotnet publish src/Baseera.App/Baseera.App.csproj -c Release --no-restore -o artifacts/Baseera-win-x64 --nologo
+    & dotnet publish src/Baseera.App/Baseera.App.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=None -p:NuGetAudit=false -o artifacts/Baseera-v0.2.0-Windows-x64 --nologo
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-    Copy-Item -LiteralPath 'README.md', 'LICENSE' -Destination 'artifacts/Baseera-win-x64'
-    Compress-Archive -Path 'artifacts/Baseera-win-x64/*' -DestinationPath 'artifacts/Baseera-v0.1.0-win-x64.zip' -Force
-    Compress-Archive -Path 'extension/*' -DestinationPath 'artifacts/Baseera-Translate-v0.1.0.zip' -Force
-    $hashLines = foreach ($packagePath in @('artifacts/Baseera-v0.1.0-win-x64.zip', 'artifacts/Baseera-Translate-v0.1.0.zip')) {
+    Copy-Item -LiteralPath 'LICENSE', 'packaging/desktop/START-HERE.html' -Destination 'artifacts/Baseera-v0.2.0-Windows-x64'
+    $browserStage = 'artifacts/Baseera-v0.2.0-Browser-Extension'
+    New-Item -ItemType Directory -Force -Path "$browserStage/extension" | Out-Null
+    Copy-Item -LiteralPath 'packaging/browser/START-HERE.html', 'LICENSE' -Destination $browserStage
+    Get-ChildItem -LiteralPath 'extension' -File | Where-Object { $_.Extension -in '.mjs', '.css', '.html', '.json' -and $_.Name -ne 'package.json' } | Copy-Item -Destination "$browserStage/extension"
+    Compress-Archive -Path 'artifacts/Baseera-v0.2.0-Windows-x64/*' -DestinationPath 'artifacts/Baseera-v0.2.0-Windows-x64.zip' -Force
+    Compress-Archive -Path "$browserStage/*" -DestinationPath 'artifacts/Baseera-v0.2.0-Browser-Extension.zip' -Force
+    Copy-Item -LiteralPath 'artifacts/Baseera-v0.2.0-Windows-x64/Baseera.exe' -Destination 'artifacts/Baseera-v0.2.0-Windows-x64.exe'
+    if ($Smoke) {
+        $process = Start-Process -FilePath 'artifacts/Baseera-v0.2.0-Windows-x64/Baseera.exe' -ArgumentList '--smoke artifacts/packaged-screenshots' -WindowStyle Hidden -PassThru -Wait
+        if ($process.ExitCode -ne 0) { exit $process.ExitCode }
+    }
+    $hashLines = foreach ($packagePath in @('artifacts/Baseera-v0.2.0-Windows-x64.zip', 'artifacts/Baseera-v0.2.0-Windows-x64.exe', 'artifacts/Baseera-v0.2.0-Browser-Extension.zip')) {
         $hasher = [System.Security.Cryptography.SHA256]::Create()
         try { $digest = [BitConverter]::ToString($hasher.ComputeHash([IO.File]::ReadAllBytes((Join-Path $PSScriptRoot $packagePath)))).Replace('-', '').ToLowerInvariant() }
         finally { $hasher.Dispose() }

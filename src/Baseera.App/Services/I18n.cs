@@ -9,6 +9,16 @@ public static class I18n
     }
     public static readonly Dictionary<string, string[]> Words = new()
     {
+        ["workspace"] = ["مساحة العمل", "WORKSPACE", "ESPACE DE TRAVAIL", "ESPACIO DE TRABAJO"],
+        ["refreshHint"] = ["حدّث القائمة لعرض التطبيقات المدعومة، ثم اختر ما تريد تحديثه.", "Refresh the list to find supported apps, then choose which ones to update.", "Actualisez la liste pour trouver les applications compatibles, puis choisissez celles à mettre à jour.", "Actualiza la lista para ver las aplicaciones compatibles y elegir cuáles actualizar."],
+        ["everyday"] = ["أدوات يومية. باختيارك أنت.", "EVERYDAY TOOLS. ON YOUR TERMS.", "VOS OUTILS. VOS CHOIX.", "TUS HERRAMIENTAS. TUS REGLAS."],
+        ["yourTools"] = ["أدواتك", "Your tools", "Vos outils", "Tus herramientas"],
+        ["manageTools"] = ["إدارة الأدوات", "Manage tools", "Gérer les outils", "Gestionar herramientas"],
+        ["openTool"] = ["فتح الأداة", "Open tool", "Ouvrir l’outil", "Abrir herramienta"],
+        ["setUp"] = ["إعداد الأداة", "Set up", "Configurer", "Configurar"],
+        ["minimize"] = ["تصغير", "Minimize", "Réduire", "Minimizar"],
+        ["maximize"] = ["تكبير أو استعادة", "Maximize or restore", "Agrandir ou restaurer", "Maximizar o restaurar"],
+        ["close"] = ["إغلاق", "Close", "Fermer", "Cerrar"],
         ["home"] = ["نظرة عامة", "Overview", "Vue d’ensemble", "Vista general"],
         ["scan"] = ["فحص الملفات", "File inspection", "Analyse des fichiers", "Análisis de archivos"],
         ["translate"] = ["ترجمة النوافذ", "Window translation", "Traduction des fenêtres", "Traducción de ventanas"],
@@ -77,7 +87,7 @@ public static class I18n
         ["remove"] = ["إزالة من القائمة", "Remove from list", "Retirer de la liste", "Quitar de la lista"],
         ["done"] = ["اكتملت العملية", "Completed", "Terminé", "Completado"],
         ["local"] = ["محلي على جهازك", "Local to your device", "Sur votre appareil", "Local en tu equipo"],
-        ["early"] = ["نسخة تجريبية 0.1", "Preview 0.1", "Aperçu 0.1", "Vista previa 0.1"],
+        ["early"] = ["بصيرة · نسخة تجريبية 0.2", "Baseera · Preview 0.2", "Baseera · Aperçu 0.2", "Baseera · Vista previa 0.2"],
         ["menu"] = ["فتح أو طي القائمة", "Expand or collapse navigation", "Développer ou réduire le menu", "Expandir o contraer menú"],
         ["empty"] = ["لا توجد عناصر بعد", "No items yet", "Aucun élément", "Todavía no hay elementos"],
         ["quality"] = ["جودة JPEG", "JPEG quality", "Qualité JPEG", "Calidad JPEG"],
