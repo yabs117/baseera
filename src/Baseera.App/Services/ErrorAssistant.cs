@@ -54,14 +54,15 @@ internal static class ErrorAssistant
     }
 
     internal static async Task<ErrorAdvice> Analyze(string description, ErrorImage? image, string language, CancellationToken ct,
-        HttpClient? suppliedClient = null, string? suppliedKey = null, string? suppliedModel = null)
+        HttpClient? suppliedClient = null, string? suppliedKey = null, string? suppliedModel = null, string? suppliedProvider = null)
     {
         description = description.Trim();
         if (description.Length > 12_000) throw new InvalidDataException(I18n.T("errorTextSize"));
         if (description.Length == 0 && image is null) throw new InvalidOperationException(I18n.T("errorNeedInput"));
-        string key = suppliedKey ?? Settings.GetKey();
-        string model = (suppliedModel ?? Settings.Current.GeminiModel).Trim();
-        if (string.IsNullOrWhiteSpace(key) || !ValidModel(model)) throw new InvalidOperationException(I18n.T("needsKey"));
+        string provider = suppliedProvider ?? AiCatalog.Provider;
+        string key = suppliedKey ?? Settings.GetKey(provider);
+        string model = (suppliedModel ?? (provider == "openrouter" ? Settings.Current.OpenRouterModel : Settings.Current.GeminiModel)).Trim();
+        if (string.IsNullOrWhiteSpace(key) || !AiCatalog.ValidModel(provider, model)) throw new InvalidOperationException(I18n.T("needsKey"));
         if (image is { Bytes.Length: > 8_000_000 }) throw new InvalidDataException(I18n.T("errorImageSize"));
 
         var prompt = "You are a cautious Windows troubleshooting assistant. Reply in " + language + ". " +
@@ -69,6 +70,11 @@ internal static class ErrorAssistant
             "and say what information is missing. Never claim certainty without evidence. Do not suggest disabling antivirus, bypassing security, " +
             "running unknown scripts or deleting user data. Do not invent URLs or exact commands. " +
             "Return concise JSON matching the schema. Error text:\n" + description;
+        if (provider == "openrouter")
+        {
+            string answer = await AiVision.CompleteOpenRouter(prompt, image?.Bytes, "image/jpeg", key, model, ct, suppliedClient);
+            return ParseAdvice(answer);
+        }
         var parts = new List<object> { new { text = prompt } };
         if (image is not null) parts.Add(new { inline_data = new { mime_type = "image/jpeg", data = Convert.ToBase64String(image.Bytes) } });
         var schema = new

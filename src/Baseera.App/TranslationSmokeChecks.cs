@@ -21,11 +21,14 @@ internal static class TranslationSmokeChecks
         form.Show(); await Task.Delay(100);
         Require(Selectable(), "normal open window excluded");
         Require(!WindowTranslator.IsSelectableWindow(form.Handle), "own application was included");
+        Require(WindowTranslator.ListWindows(includeOwnProcess: true, includeMinimized: true).Any(w => w.Handle == form.Handle), "open-window picker excluded an application window");
         form.Hide(); Require(!Selectable(), "hidden window included");
+        Require(!WindowTranslator.ListWindows(includeOwnProcess: true, includeMinimized: true).Any(w => w.Handle == form.Handle), "hidden window appeared in open-window picker");
         bool rejected = false;
         try { await WindowTranslator.CaptureWindow(form.Handle, CancellationToken.None); } catch (InvalidOperationException) { rejected = true; }
         Require(rejected, "hidden window reached capture");
         form.Show(); form.WindowState = Forms.FormWindowState.Minimized; Require(!Selectable(), "minimized window included");
+        Require(WindowTranslator.ListWindows(includeOwnProcess: true, includeMinimized: true).Any(w => w.Handle == form.Handle), "minimized open app missing from picker");
         form.WindowState = Forms.FormWindowState.Normal;
         form.Location = new System.Drawing.Point(-30000, -30000); Require(!Selectable(), "off-screen window included");
         form.Location = new System.Drawing.Point(100, 100); form.Text = ""; Require(!Selectable(), "untitled helper included"); form.Text = "Baseera window selection fixture";

@@ -12,7 +12,7 @@ internal sealed class ErrorAssistantWindow : Window
     private readonly bool realAnalyzer;
     private readonly Grid frame = new();
     private readonly PasswordBox key = new() { FlowDirection = FlowDirection.LeftToRight };
-    private readonly TextBox model = new() { FlowDirection = FlowDirection.LeftToRight };
+    private readonly ComboBox model = new() { FlowDirection = FlowDirection.LeftToRight, MaxDropDownHeight = 300 };
     private readonly TextBox problem = new() { AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
     private readonly ComboBox windows = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
     private readonly StackPanel result = new();
@@ -20,13 +20,20 @@ internal sealed class ErrorAssistantWindow : Window
     private Border connectionBorder = new();
     private readonly TextBlock feedback = new() { TextWrapping = TextWrapping.Wrap };
     private readonly TextBlock imageLabel = new() { TextWrapping = TextWrapping.Wrap };
-    private readonly System.Windows.Controls.Image preview = new() { MaxHeight = 132, Stretch = Stretch.Uniform };
+    private readonly System.Windows.Controls.Image preview = new() { MaxHeight = 260, MaxWidth = 690, Stretch = Stretch.Uniform, HorizontalAlignment = HorizontalAlignment.Left };
+    private readonly TextBlock windowCount = new() { TextWrapping = TextWrapping.Wrap };
     private Button analyzeButton = new(), cancelButton = new();
     private Button configureButton = new();
     private ErrorImage? image;
     private ErrorAdvice? advice;
     private CancellationTokenSource? active;
     private bool showConnection;
+    private string selectedProvider;
+    private IReadOnlyList<AiModelOption> modelOptions = [];
+    private string modelOptionsProvider = "";
+    private string modelOptionsKeyFingerprint = "";
+    private string? selectedAuthor;
+    private string? modelChoiceDraft;
 
     internal ErrorAssistantWindow(Window owner,
         Func<string, ErrorImage?, string, CancellationToken, Task<ErrorAdvice>>? analyze = null)
@@ -34,6 +41,8 @@ internal sealed class ErrorAssistantWindow : Window
         Owner = owner;
         realAnalyzer = analyze is null;
         this.analyze = analyze ?? ((description, picture, language, ct) => ErrorAssistant.Analyze(description, picture, language, ct));
+        selectedProvider = AiCatalog.Provider;
+        model.SelectionChanged += (_, _) => modelChoiceDraft = (model.SelectedItem as AiModelOption)?.Id;
         showConnection = analyze is null && !Configured();
         WindowStyle = WindowStyle.SingleBorderWindow; ResizeMode = ResizeMode.CanResize;
         ShowInTaskbar = false; WindowStartupLocation = WindowStartupLocation.CenterOwner;
@@ -49,6 +58,11 @@ internal sealed class ErrorAssistantWindow : Window
         SourceInitialized += (_, _) => WindowAppearance.Apply(this, Settings.Current.Dark);
         Closed += (_, _) => { active?.Cancel(); active?.Dispose(); };
         Loaded += (_, _) => { if (showConnection) key.Focus(); else problem.Focus(); };
+        PreviewKeyDown += (_, e) =>
+        {
+            if (e.Key == System.Windows.Input.Key.V && System.Windows.Input.Keyboard.Modifiers == System.Windows.Input.ModifierKeys.Control && HasClipboardImage())
+            { PasteClipboard(); e.Handled = true; }
+        };
         AllowDrop = true;
         DragOver += (_, e) => { e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop) ? DragDropEffects.Copy : DragDropEffects.None; e.Handled = true; };
         Drop += (_, e) =>
@@ -60,8 +74,7 @@ internal sealed class ErrorAssistantWindow : Window
 
     private static bool Configured()
     {
-        try { return !string.IsNullOrWhiteSpace(Settings.GetKey()) && ErrorAssistant.ValidModel(Settings.Current.GeminiModel); }
-        catch { return false; }
+        return AiCatalog.Configured();
     }
     private static Brush Brush(string key) => (Brush)Application.Current.FindResource(key);
     private static TextBlock Text(string content, int size = 13, bool muted = false) => new()
@@ -97,13 +110,41 @@ internal sealed class ErrorAssistantWindow : Window
         connection.Visibility = showConnection ? Visibility.Visible : Visibility.Collapsed;
         var connectTitle = Text(I18n.T("errorConnect"), 15); connectTitle.FontWeight = FontWeights.SemiBold; Add(connection, connectTitle, 6);
         Add(connection, Text(I18n.T("errorConnectHelp"), 12, true), 14);
-        Add(connection, Text(I18n.T("apiKey")), 0);
+        Add(connection, Text(I18n.T("aiService")), 5);
+        var service = new ComboBox { ItemsSource = new[] { "Gemini", "OpenRouter" }, SelectedIndex = selectedProvider == "openrouter" ? 1 : 0, FlowDirection = FlowDirection.LeftToRight };
+        service.SelectionChanged += (_, _) =>
+        {
+            string chosen = service.SelectedIndex == 1 ? "openrouter" : "gemini";
+            if (chosen == selectedProvider) return;
+            selectedProvider = chosen; selectedAuthor = null; modelChoiceDraft = null; modelOptions = []; modelOptionsProvider = ""; key.Clear(); Render();
+        };
+        Add(connection, service, 10);
+        if (selectedProvider == "openrouter") Add(connection, Text(I18n.T("aiOpenRouterInfo"), 12, true), 10);
+        Add(connection, Text(I18n.T("aiKey")), 5);
         Add(connection, key, 6);
         System.Windows.Automation.AutomationProperties.SetAutomationId(key, "ErrorAssistantApiKey");
-        if (Configured()) Add(connection, Text(I18n.T("keySaved"), 12, true), 10);
-        Add(connection, Text(I18n.T("model")), 0);
-        model.Text = Settings.Current.GeminiModel.Length > 0 ? Settings.Current.GeminiModel : ErrorAssistant.DefaultModel;
-        Add(connection, model, 6);
+        if (File.Exists(Path.Combine(Settings.Folder, selectedProvider == "openrouter" ? "openrouter-secrets.bin" : "secrets.bin")))
+            Add(connection, Text(I18n.T("keySaved"), 12, true), 10);
+        var load = Action("aiLoadModels", async () => await LoadModels()); load.HorizontalAlignment = HorizontalAlignment.Left; Add(connection, load, 7);
+        Add(connection, Text(I18n.T("aiModelsNote"), 12, true), 10);
+        string savedModel = modelChoiceDraft ?? (selectedProvider == "openrouter" ? Settings.Current.OpenRouterModel : Settings.Current.GeminiModel);
+        var choices = modelOptionsProvider == selectedProvider ? modelOptions.ToList() : [];
+        if (modelOptionsProvider != selectedProvider && savedModel.Length > 0 && choices.All(option => option.Id != savedModel))
+            choices.Insert(0, new AiModelOption(savedModel, savedModel, selectedProvider == "openrouter" ? savedModel.Split('/')[0] : "Google", "aiTierVaries"));
+        var authors = choices.Select(option => option.Author).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(name => name).ToArray();
+        var maker = new ComboBox { ItemsSource = new[] { I18n.T("aiAllMakers") }.Concat(authors).ToArray(), FlowDirection = FlowDirection.LeftToRight };
+        maker.SelectedItem = selectedAuthor is not null && authors.Contains(selectedAuthor) ? selectedAuthor : I18n.T("aiAllMakers");
+        if (selectedProvider == "openrouter" && authors.Length > 0)
+        { Add(connection, Text(I18n.T("aiMaker")), 5); Add(connection, maker, 10); }
+        Add(connection, Text(I18n.T("model")), 5);
+        void FilterModels()
+        {
+            string? author = maker.SelectedIndex > 0 ? maker.SelectedItem as string : null;
+            model.ItemsSource = author is null ? choices : choices.Where(option => option.Author == author).ToArray();
+            model.SelectedItem = (model.ItemsSource as IEnumerable<AiModelOption>)?.FirstOrDefault(option => option.Id == savedModel);
+        }
+        maker.SelectionChanged += (_, _) => { selectedAuthor = maker.SelectedIndex > 0 ? maker.SelectedItem as string : null; FilterModels(); };
+        FilterModels(); Add(connection, model, 6);
         System.Windows.Automation.AutomationProperties.SetAutomationId(model, "ErrorAssistantModel");
         var save = Action("errorSaveKey", SaveConnection, true); save.HorizontalAlignment = HorizontalAlignment.Left; Add(connection, save, 4);
         Add(connection, Text(I18n.T("errorKeyLocal"), 12, true), 0);
@@ -126,14 +167,16 @@ internal sealed class ErrorAssistantWindow : Window
         imageLabel.Text = image is null ? I18n.T("errorNoImage") : image.Label;
         imageLabel.Foreground = Brush("Muted"); Add(body, imageLabel, 8);
         preview.Visibility = image is null ? Visibility.Collapsed : Visibility.Visible;
-        if (image is not null) Add(body, preview, 12);
+        Add(body, preview, 12);
 
         Add(body, Text(I18n.T("errorCaptureWindow"), 13), 5);
         var captureRow = new Grid(); captureRow.ColumnDefinitions.Add(new ColumnDefinition()); captureRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        windows.ItemsSource = WindowTranslator.ListWindows(); windows.DisplayMemberPath = "Title"; windows.Tag = I18n.T("errorChooseWindow"); windows.Margin = new Thickness(0, 0, 10, 0);
+        RefreshWindows(); windows.DisplayMemberPath = "Title"; windows.Tag = I18n.T("errorChooseWindow"); windows.Margin = new Thickness(0, 0, 10, 0);
+        windows.DropDownOpened += (_, _) => RefreshWindows();
         System.Windows.Automation.AutomationProperties.SetAutomationId(windows, "ErrorWindowPicker"); captureRow.Children.Add(windows);
         var capture = Action("errorCapture", async () => await CaptureSelected()); capture.Margin = new Thickness(0); Grid.SetColumn(capture, 1); captureRow.Children.Add(capture); Add(body, captureRow, 8);
-        var refresh = Action("refresh", () => windows.ItemsSource = WindowTranslator.ListWindows()); refresh.HorizontalAlignment = HorizontalAlignment.Left; Add(body, refresh, 12);
+        windowCount.Foreground = Brush("Muted"); Add(body, windowCount, 5);
+        var refresh = Action("refresh", RefreshWindows); refresh.HorizontalAlignment = HorizontalAlignment.Left; Add(body, refresh, 12);
         Add(body, Text(I18n.T("errorPrivacy"), 12, true), 16);
 
         result.Children.Clear();
@@ -157,26 +200,48 @@ internal sealed class ErrorAssistantWindow : Window
 
     private void SaveConnection()
     {
+        string? selectedModel = (model.SelectedItem as AiModelOption)?.Id;
         bool savedKey;
-        try { savedKey = !string.IsNullOrWhiteSpace(Settings.GetKey()); } catch { savedKey = false; }
-        if ((!savedKey && string.IsNullOrWhiteSpace(key.Password)) || !ErrorAssistant.ValidModel(model.Text))
+        try { savedKey = !string.IsNullOrWhiteSpace(Settings.GetKey(selectedProvider)); } catch { savedKey = false; }
+        if ((!savedKey && string.IsNullOrWhiteSpace(key.Password)) || selectedModel is null || !AiCatalog.ValidModel(selectedProvider, selectedModel))
         { feedback.Text = I18n.T("errorKeyMissing"); return; }
+        if (key.Password.Length > 0 && (modelOptionsProvider != selectedProvider || modelOptionsKeyFingerprint !=
+            Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(key.Password.Trim())))))
+        { feedback.Text = I18n.T("aiRefreshAfterKey"); return; }
         try
         {
-            if (!string.IsNullOrWhiteSpace(key.Password)) Settings.SetKey(key.Password);
-            Settings.Current.GeminiModel = model.Text.Trim(); Settings.Save(); key.Clear();
+            if (!string.IsNullOrWhiteSpace(key.Password)) Settings.SetKey(selectedProvider, key.Password);
+            Settings.Current.AiProvider = selectedProvider;
+            if (selectedProvider == "openrouter") Settings.Current.OpenRouterModel = selectedModel;
+            else Settings.Current.GeminiModel = selectedModel;
+            Settings.Save(); key.Clear();
             showConnection = false; connectionBorder.Visibility = Visibility.Collapsed; configureButton.Visibility = Visibility.Visible;
             analyzeButton.IsEnabled = true;
             feedback.Text = I18n.T("errorKeySaved"); problem.Focus();
         }
         catch (Exception ex) { feedback.Text = I18n.T("errorSaveFailed") + " " + ex.Message; }
     }
+    private async Task LoadModels()
+    {
+        try
+        {
+            string provider = selectedProvider;
+            string availableKey = key.Password.Length > 0 ? key.Password : Settings.GetKey(provider);
+            feedback.Text = I18n.T("aiLoadingModels");
+            var found = await AiCatalog.ListVisionModels(provider, availableKey, CancellationToken.None);
+            if (provider != selectedProvider) return;
+            modelOptions = found; modelOptionsProvider = provider; selectedAuthor = null;
+            if (!found.Any(option => option.Id == modelChoiceDraft)) modelChoiceDraft = null;
+            modelOptionsKeyFingerprint = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(availableKey.Trim())));
+            Render(); feedback.Text = string.Format(I18n.T("aiModelsFound"), found.Count, found.Select(item => item.Author).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        }
+        catch (Exception ex) { feedback.Text = I18n.T("aiCatalogFailed") + " " + ex.Message; }
+    }
     private void PasteClipboard()
     {
         try
         {
             bool found = false;
-            if (Clipboard.ContainsText()) { problem.Text = Clipboard.GetText().Trim(); found = problem.Text.Length > 0; }
             if (Clipboard.ContainsImage())
             {
                 var bitmap = Clipboard.GetImage();
@@ -187,9 +252,36 @@ internal sealed class ErrorAssistantWindow : Window
                     SetImage(ErrorAssistant.Prepare(stream.ToArray(), I18n.T("errorClipboardImage"))); found = true;
                 }
             }
+            if (!found && Clipboard.GetDataObject()?.GetDataPresent("PNG") == true)
+            {
+                var png = Clipboard.GetData("PNG");
+                byte[]? bytes = png switch { MemoryStream stream => stream.ToArray(), byte[] data => data, _ => null };
+                if (bytes is not null) { SetImage(ErrorAssistant.Prepare(bytes, I18n.T("errorClipboardImage"))); found = true; }
+            }
+            if (!found && Clipboard.ContainsFileDropList())
+            {
+                var files = Clipboard.GetFileDropList();
+                string? path = files.Cast<string>().FirstOrDefault(file => new[] { ".png", ".jpg", ".jpeg", ".bmp" }.Contains(Path.GetExtension(file), StringComparer.OrdinalIgnoreCase));
+                if (path is not null) { SetImage(ErrorAssistant.PrepareFile(path)); found = true; }
+            }
+            if (!found && Clipboard.ContainsText()) { problem.Text = Clipboard.GetText().Trim(); found = problem.Text.Length > 0; }
             feedback.Text = found ? I18n.T("errorPasted") : I18n.T("errorEmptyClipboard");
         }
         catch (Exception ex) { feedback.Text = I18n.T("errorClipboardFailed") + " " + ex.Message; }
+    }
+    private static bool HasClipboardImage()
+    {
+        try { return Clipboard.ContainsImage() || Clipboard.ContainsFileDropList() || Clipboard.GetDataObject()?.GetDataPresent("PNG") == true; }
+        catch { return false; }
+    }
+    private void RefreshWindows()
+    {
+        var selected = (windows.SelectedItem as WindowChoice)?.Handle;
+        var ownHandle = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+        var available = WindowTranslator.ListWindows(includeOwnProcess: true, includeMinimized: true, exclude: ownHandle);
+        windows.ItemsSource = available;
+        windows.SelectedItem = available.FirstOrDefault(item => item.Handle == selected);
+        windowCount.Text = string.Format(I18n.T("errorWindowCount"), available.Count);
     }
     private void ChooseImage()
     {
@@ -209,6 +301,7 @@ internal sealed class ErrorAssistantWindow : Window
         if (value is null) return;
         using var stream = new MemoryStream(value.Bytes, false);
         var bitmap = new BitmapImage(); bitmap.BeginInit(); bitmap.CacheOption = BitmapCacheOption.OnLoad; bitmap.StreamSource = stream; bitmap.EndInit(); bitmap.Freeze(); preview.Source = bitmap;
+        _ = Dispatcher.InvokeAsync(() => preview.BringIntoView(), System.Windows.Threading.DispatcherPriority.Loaded);
     }
     private async Task CaptureSelected()
     {
@@ -216,11 +309,29 @@ internal sealed class ErrorAssistantWindow : Window
         try
         {
             feedback.Text = I18n.T("errorCapturing");
-            var capture = await WindowTranslator.CaptureWindow(choice.Handle, CancellationToken.None);
-            SetImage(ErrorAssistant.Prepare(capture.Png, choice.Title));
+            var ownerHandle = new System.Windows.Interop.WindowInteropHelper(Owner).Handle;
+            if (choice.Handle == ownerHandle) SetImage(CaptureOwner(choice.Title));
+            else
+            {
+                var capture = await WindowTranslator.CaptureWindow(choice.Handle, CancellationToken.None, includeOwnProcess: true);
+                SetImage(ErrorAssistant.Prepare(capture.Png, choice.Title));
+            }
             Activate(); feedback.Text = I18n.T("errorImageReady");
         }
         catch (Exception ex) { Activate(); feedback.Text = I18n.T("errorImageFailed") + " " + ex.Message; }
+    }
+    private ErrorImage CaptureOwner(string title)
+    {
+        Owner.UpdateLayout();
+        var dpi = VisualTreeHelper.GetDpi(Owner);
+        int width = (int)Math.Ceiling(Owner.ActualWidth * dpi.DpiScaleX);
+        int height = (int)Math.Ceiling(Owner.ActualHeight * dpi.DpiScaleY);
+        if (width < 1 || height < 1 || (long)width * height > 40_000_000) throw new InvalidDataException(I18n.T("errorImageSize"));
+        var bitmap = new RenderTargetBitmap(width, height, dpi.PixelsPerInchX, dpi.PixelsPerInchY, PixelFormats.Pbgra32);
+        bitmap.Render(Owner);
+        var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
+        using var output = new MemoryStream(); encoder.Save(output);
+        return ErrorAssistant.Prepare(output.ToArray(), title);
     }
     private async Task Analyze()
     {

@@ -5,21 +5,21 @@ ventanas con Gemini, actualizaciones WinGet elegidas y conversión de imágenes/
 Interfaz en árabe (RTL), inglés, francés y español.
 
 Requisitos: Windows 10/11 x64. El runtime .NET está incluido. Para compilar con SDK 10:
-`./build.ps1 -Test -Publish`. Abre `artifacts/Baseera-v0.4.6-Windows-x64/Baseera.exe`.
+`./build.ps1 -Test -Publish`. Abre `artifacts/Baseera-v0.4.7-Windows-x64/Baseera.exe`.
 La extensión del navegador se descarga por separado: sigue `START-HERE.html` y carga la carpeta `extension` en Chrome/Edge. No abras sus archivos fuente con doble clic.
 
-Activa solo las herramientas que necesitas. La traducción requiere tu clave Gemini
-y un modelo compatible con imágenes. Envía la captura de la ventana elegida a Google
+Activa solo las herramientas que necesitas. Para traducir, añade una clave Gemini u OpenRouter, carga los modelos disponibles para ella y elige uno que acepte texto e imágenes. OpenRouter ofrece modelos de más de 20 creadores con una clave; las etiquetas gratis/de pago proceden de su catálogo. Envía la captura de la ventana elegida al servicio seleccionado
 cuando lo solicitas. Esc cierra la capa de traducción. La extensión en `extension/`
 reemplaza el texto de la página y permite restaurar el original.
 
 El asistente de errores aparece en «Tus herramientas» de la página principal y la barra lateral. Su página abre la ventana de análisis; si está activado, también se abre al iniciar Baseera normalmente. Puedes desactivarlo en Configuración.
-Pega el mensaje o una imagen, elige un archivo de imagen o captura una ventana visible
-y solicita un análisis con tu clave Gemini. Puedes cerrar la ventana sin configurar
+Pega el mensaje o una imagen, copia un archivo de imagen, elige un archivo o captura una ventana abierta; la vista previa aparece enseguida. Solicita un análisis con la clave elegida. Puedes cerrar la ventana sin configurar
 una clave y volver a abrirla con Ctrl+Shift+E desde Baseera. El texto y la imagen
-elegidos se envían a Google solo al pulsar Analizar. Revisa la captura antes de
+elegidos se envían al servicio elegido solo al pulsar Analizar (OpenRouter puede enviarlos al proveedor del modelo). Revisa la captura antes de
 enviarla: puede contener datos privados. Los pasos sugeridos no garantizan una
 solución y no cambian automáticamente la configuración de Windows.
+
+«Opiniones y comentarios», justo encima de Configuración, abre una incidencia de GitHub prellenada para que la revises y la envíes en el navegador. No se adjuntan imágenes ni claves API automáticamente.
 
 El análisis es estático y limitado: no certifica que un archivo sea seguro o malicioso.
 Las fuentes manuales admiten actualmente GitHub Releases para revisión; no ejecutan

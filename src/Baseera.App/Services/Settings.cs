@@ -23,6 +23,9 @@ public sealed class Preferences
     public string ScanPath { get; set; } = "";
     public bool ExplorerMenu { get; set; }
     public string GeminiModel { get; set; } = "";
+    public string AiProvider { get; set; } = "gemini";
+    public string OpenRouterModel { get; set; } = "";
+    public string OpenRouterAuthor { get; set; } = "";
     public string TargetLanguage { get; set; } = "Arabic";
     public string ReleasePage { get; set; } = "";
     public List<string> AutoUpdateIds { get; set; } = [];
@@ -52,15 +55,19 @@ public static class Settings
         File.Move(temp, Path.Combine(Folder, "settings.json"), true);
     }
     public static void SetKey(string key)
+        => SetKey("gemini", key);
+    public static void SetKey(string provider, string key)
     {
         Directory.CreateDirectory(Folder);
-        var path = Path.Combine(Folder, "secrets.bin");
+        var path = Path.Combine(Folder, provider == "openrouter" ? "openrouter-secrets.bin" : "secrets.bin");
         if (string.IsNullOrWhiteSpace(key)) { if (File.Exists(path)) File.Delete(path); return; }
         File.WriteAllBytes(path, Protect(Encoding.UTF8.GetBytes(key.Trim()), false));
     }
     public static string GetKey()
+        => GetKey("gemini");
+    public static string GetKey(string provider)
     {
-        var path = Path.Combine(Folder, "secrets.bin");
+        var path = Path.Combine(Folder, provider == "openrouter" ? "openrouter-secrets.bin" : "secrets.bin");
         return File.Exists(path) ? Encoding.UTF8.GetString(Protect(File.ReadAllBytes(path), true)) : "";
     }
     private static byte[] Protect(byte[] bytes, bool decrypt)

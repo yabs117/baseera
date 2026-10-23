@@ -53,7 +53,7 @@ public partial class App : Application
                 Settings.Current.UpdatesEnabled = true; Settings.Current.ConvertEnabled = true; Settings.Current.ErrorAssistantEnabled = true;
                 foreach (string language in new[] { "en", "ar" })
                 foreach (bool dark in new[] { false, true })
-                foreach (string page in new[] { "home", "scan", "translate", "updates", "convert", "errors", "settings" })
+                foreach (string page in new[] { "home", "scan", "translate", "updates", "convert", "errors", "feedback", "settings" })
                 {
                     Settings.Current.Language = language; Settings.Current.Dark = dark; window.ApplyTheme();
                     window.Navigate(page); await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);

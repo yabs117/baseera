@@ -51,21 +51,23 @@ public sealed partial class MainWindow
     {
         if (!Guard(body, "translate")) return;
         var capture = Stack(); capture.Children.Add(Text(I18n.T("selectedWindow"), 14));
-        var windows = new ComboBox { ItemsSource = WindowTranslator.ListWindows(), DisplayMemberPath = "Title", Tag = I18n.T("selectWindow"), HorizontalAlignment = HorizontalAlignment.Stretch, Margin = new Thickness(0, 5, 8, 16) };
+        var windows = new ComboBox { ItemsSource = WindowTranslator.ListWindows(includeOwnProcess: true, includeMinimized: true), DisplayMemberPath = "Title", Tag = I18n.T("selectWindow"), HorizontalAlignment = HorizontalAlignment.Stretch, Margin = new Thickness(0, 5, 8, 16) };
+        var windowCount = Text(string.Format(I18n.T("openWindowCount"), (windows.ItemsSource as List<WindowChoice>)?.Count ?? 0), 12, true);
         System.Windows.Automation.AutomationProperties.SetName(windows, I18n.T("selectedWindow"));
         void RefreshWindows()
         {
             var previous = (windows.SelectedItem as WindowChoice)?.Handle;
-            var available = WindowTranslator.ListWindows(); windows.ItemsSource = available;
+            var available = WindowTranslator.ListWindows(includeOwnProcess: true, includeMinimized: true); windows.ItemsSource = available;
             windows.SelectedItem = available.FirstOrDefault(item => item.Handle == previous);
+            windowCount.Text = string.Format(I18n.T("openWindowCount"), available.Count);
         }
         windows.DropDownOpened += (_, _) => RefreshWindows();
         var choice = new Grid(); choice.ColumnDefinitions.Add(new ColumnDefinition()); choice.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); choice.Children.Add(windows);
-        var refresh = Action("refresh", RefreshWindows); refresh.Margin = new Thickness(0, 5, 0, 16); refresh.VerticalAlignment = VerticalAlignment.Center; Grid.SetColumn(refresh, 1); choice.Children.Add(refresh); capture.Children.Add(choice);
+        var refresh = Action("refresh", RefreshWindows); refresh.Margin = new Thickness(0, 5, 0, 16); refresh.VerticalAlignment = VerticalAlignment.Center; Grid.SetColumn(refresh, 1); choice.Children.Add(refresh); capture.Children.Add(choice); capture.Children.Add(windowCount);
         capture.Children.Add(Text(I18n.T("target")));
         var target = new ComboBox { ItemsSource = new[] { "Arabic", "English", "French", "Spanish" }, SelectedItem = Settings.Current.TargetLanguage, Width = 220, HorizontalAlignment = HorizontalAlignment.Left };
         target.SelectionChanged += (_, _) => { Settings.Current.TargetLanguage = target.SelectedItem?.ToString() ?? "Arabic"; Settings.Save(); }; capture.Children.Add(target);
-        if (!File.Exists(Path.Combine(Settings.Folder, "secrets.bin")) || string.IsNullOrWhiteSpace(Settings.Current.GeminiModel))
+        if (!AiCatalog.Configured())
         {
             capture.Children.Add(Text(I18n.T("needsKey"), 12, true)); var settings = Action("settings", OpenTranslationSettings); settings.ToolTip = I18n.T("translationProvider"); System.Windows.Automation.AutomationProperties.SetAutomationId(settings, "TranslationProviderSettings"); settings.HorizontalAlignment = HorizontalAlignment.Left; capture.Children.Add(settings);
         }
@@ -74,8 +76,8 @@ public sealed partial class MainWindow
         {
             if (!Settings.Current.TranslationEnabled) return;
             if (windows.SelectedItem is not WindowChoice window) throw new InvalidOperationException(I18n.T("selectWindow"));
-            if (string.IsNullOrWhiteSpace(Settings.GetKey()) || string.IsNullOrWhiteSpace(Settings.Current.GeminiModel)) throw new InvalidOperationException(I18n.T("needsKey"));
-            overlay?.Close(); var image = await WindowTranslator.CaptureWindow(window.Handle, ct); var blocks = await WindowTranslator.Translate(image, ct);
+            if (!AiCatalog.Configured()) throw new InvalidOperationException(I18n.T("needsKey"));
+            overlay?.Close(); var image = await WindowTranslator.CaptureWindow(window.Handle, ct, includeOwnProcess: true); var blocks = await WindowTranslator.Translate(image, ct);
             ct.ThrowIfCancellationRequested(); if (!Settings.Current.TranslationEnabled) return;
             if (blocks.Count == 0) throw new InvalidOperationException(I18n.T("noText"));
             overlay = new TranslationOverlay(image, blocks); overlay.Show(); overlay.Activate();

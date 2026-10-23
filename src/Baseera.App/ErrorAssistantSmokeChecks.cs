@@ -56,6 +56,47 @@ internal static class ErrorAssistantSmokeChecks
         catch (InvalidOperationException) { rejectedEmpty = true; }
         if (!rejectedEmpty || calls != 1 || ErrorAssistant.ValidModel("bad/model")) throw new Exception("Invalid input was sent to Gemini.");
 
+        using var catalog = new HttpClient(new Reply((request, _) =>
+        {
+            if (request.RequestUri!.Host == "generativelanguage.googleapis.com")
+            {
+                if (request.Headers.GetValues("x-goog-api-key").Single() != "catalog-key") throw new Exception("Gemini catalog key missing.");
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(new { models = new object[]
+                {
+                    new { name = "models/gemini-3.8-flash", displayName = "Gemini Flash", supportedGenerationMethods = new[] { "generateContent" } },
+                    new { name = "models/gemini-tts", displayName = "Speech", supportedGenerationMethods = new[] { "generateContent" } },
+                    new { name = "models/text-embedding", displayName = "Embedding", supportedGenerationMethods = new[] { "embedContent" } }
+                } })) });
+            }
+            if (request.RequestUri.AbsolutePath != "/api/v1/models/user" || request.Headers.Authorization?.Parameter != "catalog-key")
+                throw new Exception("Account-scoped OpenRouter catalog was not used.");
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(new { data = new object[]
+            {
+                new { id = "openai/vision-free:free", name = "Vision Free", architecture = new { input_modalities = new[] { "text", "image" }, output_modalities = new[] { "text" } }, pricing = new { prompt = "0", completion = "0" } },
+                new { id = "anthropic/vision-paid", name = "Vision Paid", architecture = new { input_modalities = new[] { "text", "image" }, output_modalities = new[] { "text" } }, pricing = new { prompt = "0.000001", completion = "0.000002" } },
+                new { id = "other/text-only", name = "Text only", architecture = new { input_modalities = new[] { "text" }, output_modalities = new[] { "text" } }, pricing = new { prompt = "0", completion = "0" } }
+            } })) });
+        }));
+        var geminiModels = await AiCatalog.ListVisionModels("gemini", "catalog-key", CancellationToken.None, catalog);
+        var routedModels = await AiCatalog.ListVisionModels("openrouter", "catalog-key", CancellationToken.None, catalog);
+        if (geminiModels.Count != 1 || routedModels.Count != 2 || routedModels.Single(m => m.Author == "openai").Tier != "aiFree" ||
+            routedModels.Single(m => m.Author == "anthropic").Tier != "aiPaid")
+            throw new Exception("Vision model filtering or free/paid labels are incorrect.");
+        using var routedClient = new HttpClient(new Reply(async (request, ct) =>
+        {
+            if (request.RequestUri?.AbsolutePath != "/api/v1/chat/completions" || request.Headers.Authorization?.Parameter != "sample-key")
+                throw new Exception("OpenRouter completion target or key incorrect.");
+            using var payload = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(ct));
+            var content = payload.RootElement.GetProperty("messages")[0].GetProperty("content");
+            if (content[1].GetProperty("type").GetString() != "image_url" || !content[1].GetProperty("image_url").GetProperty("url").GetString()!.StartsWith("data:image/jpeg;base64,"))
+                throw new Exception("OpenRouter vision request omitted image input.");
+            string adviceJson = JsonSerializer.Serialize(new { summary = "Access denied", cause = "Permission is missing.", steps = new[] { "Check permissions." }, checks = Array.Empty<string>(), confidence = "Moderate" });
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(new { choices = new[] { new { message = new { content = adviceJson } } } })) };
+        }));
+        var routedAdvice = await ErrorAssistant.Analyze("Access denied", attachment, "English", CancellationToken.None,
+            routedClient, "sample-key", "openai/vision-free:free", "openrouter");
+        if (routedAdvice.Steps.Count != 1) throw new Exception("OpenRouter advice response was not parsed.");
+
         string originalLanguage = Settings.Current.Language;
         try
         {
@@ -67,7 +108,7 @@ internal static class ErrorAssistantSmokeChecks
                 setup.Show(); setup.UpdateLayout();
                 if (!Descendants(setup).OfType<PasswordBox>().Any(box => box.IsVisible &&
                     System.Windows.Automation.AutomationProperties.GetAutomationId(box) == "ErrorAssistantApiKey") ||
-                    !Descendants(setup).OfType<TextBox>().Any(box => box.IsVisible &&
+                    !Descendants(setup).OfType<ComboBox>().Any(box => box.IsVisible &&
                     System.Windows.Automation.AutomationProperties.GetAutomationId(box) == "ErrorAssistantModel"))
                     throw new Exception("First-run Gemini setup is unavailable.");
                 WindowAppearance.SavePreview(setup, Path.Combine(output, "error-assistant-setup.png"));
@@ -81,6 +122,13 @@ internal static class ErrorAssistantSmokeChecks
                 if (!WindowAppearance.HasNativeCaption(dialog)) throw new Exception("Native dialog frame missing.");
                 var input = Descendants(dialog).OfType<TextBox>().Single(t => System.Windows.Automation.AutomationProperties.GetAutomationId(t) == "ErrorDescription");
                 input.Text = "Error 0x80070005";
+                if (language == "en")
+                {
+                    var setter = typeof(ErrorAssistantWindow).GetMethod("SetImage", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+                    setter.Invoke(dialog, [attachment]); dialog.UpdateLayout();
+                    if (!Descendants(dialog).OfType<System.Windows.Controls.Image>().Any(view => view.IsVisible && view.Source is not null))
+                        throw new Exception("A pasted, chosen or captured image is not visible after attachment.");
+                }
                 var analyze = Descendants(dialog).OfType<Button>().Single(b => System.Windows.Automation.AutomationProperties.GetAutomationId(b) == "errorAnalyze");
                 analyze.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 await owner.Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);

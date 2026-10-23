@@ -6,7 +6,9 @@
 - First-run opt-in features, Arabic RTL, English, French, Spanish.
 - Bounded recursive ZIP inspection and folder scanning without extraction.
 - SHA-256, PE headers, executable/writable sections, content-based script indicators.
-- User-selected window capture, Gemini vision translation and dismissible overlay.
+- Open-window capture, Gemini and OpenRouter vision translation and dismissible overlay.
+- Error assistant with visible pasted/selected/captured image preview and account-scoped model selection.
+- Feedback and bug reporting through a prefilled GitHub issue reviewed in the browser.
 - Chrome/Edge extension for in-place text replacement and original restoration.
 - Selected WinGet packages updated on app start and every six hours while open.
 - Baseera self-update checks, in-app download/progress, digest verification, same-path replacement, restart acknowledgement and rollback backup.
@@ -19,7 +21,7 @@
 
 - RAR/7z support, unpacking obfuscated executables, dynamic behavior analysis in disposable VMs.
 - Antivirus engine integration and independently measured false-positive/false-negative rates.
-- Continuous translation, global translation hotkey, local OCR, providers other than Gemini.
+- Continuous translation, global translation hotkey, local OCR, direct API integration for other model providers beyond Gemini (OpenRouter currently routes their models).
 - Overlay tracking after window movement, click-through interaction, exclusive-fullscreen games,
   protected windows, and comprehensive mixed-DPI/multi-monitor validation.
 - General website release adapters and trusted unattended custom-source installation.
