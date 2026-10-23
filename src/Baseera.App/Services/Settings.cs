@@ -24,8 +24,7 @@ public sealed class Preferences
     public bool ExplorerMenu { get; set; }
     public string GeminiModel { get; set; } = "";
     public string AiProvider { get; set; } = "gemini";
-    public string OpenRouterModel { get; set; } = "";
-    public string OpenRouterAuthor { get; set; } = "";
+    public Dictionary<string, string> AiModels { get; set; } = [];
     public string TargetLanguage { get; set; } = "Arabic";
     public string ReleasePage { get; set; } = "";
     public List<string> AutoUpdateIds { get; set; } = [];
@@ -46,6 +45,8 @@ public static class Settings
             catch (JsonException) { Current = new(); }
         }
         if (!new[] { "ar", "en", "fr", "es" }.Contains(Current.Language)) Current.Language = "ar";
+        Current.AiModels ??= [];
+        if (!AiProviders.Contains(Current.AiProvider)) Current.AiProvider = "gemini";
     }
     public static void Save()
     {
@@ -56,10 +57,22 @@ public static class Settings
     }
     public static void SetKey(string key)
         => SetKey("gemini", key);
+    internal static string GetModel(string provider) => provider == "gemini" ? Current.GeminiModel : Current.AiModels.GetValueOrDefault(provider, "");
+    internal static void SetModel(string provider, string model)
+    {
+        _ = AiProviders.Get(provider);
+        if (provider == "gemini") Current.GeminiModel = model;
+        else Current.AiModels[provider] = model;
+    }
+    internal static string KeyPath(string provider)
+    {
+        _ = AiProviders.Get(provider);
+        return Path.Combine(Folder, provider == "gemini" ? "secrets.bin" : provider + "-secrets.bin");
+    }
     public static void SetKey(string provider, string key)
     {
         Directory.CreateDirectory(Folder);
-        var path = Path.Combine(Folder, provider == "openrouter" ? "openrouter-secrets.bin" : "secrets.bin");
+        var path = KeyPath(provider);
         if (string.IsNullOrWhiteSpace(key)) { if (File.Exists(path)) File.Delete(path); return; }
         File.WriteAllBytes(path, Protect(Encoding.UTF8.GetBytes(key.Trim()), false));
     }
@@ -67,7 +80,7 @@ public static class Settings
         => GetKey("gemini");
     public static string GetKey(string provider)
     {
-        var path = Path.Combine(Folder, provider == "openrouter" ? "openrouter-secrets.bin" : "secrets.bin");
+        var path = KeyPath(provider);
         return File.Exists(path) ? Encoding.UTF8.GetString(Protect(File.ReadAllBytes(path), true)) : "";
     }
     private static byte[] Protect(byte[] bytes, bool decrypt)

@@ -1,4 +1,3 @@
-using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 
@@ -6,41 +5,63 @@ namespace Baseera.App.Services;
 
 internal static class AiVision
 {
-    internal static async Task<string> CompleteOpenRouter(string prompt, byte[]? image, string mimeType, string key, string model,
+    internal static async Task<string> Complete(string providerId, string prompt, byte[]? image, string mimeType, string key, string model,
         CancellationToken ct, HttpClient? suppliedClient = null)
     {
-        if (string.IsNullOrWhiteSpace(key) || !AiCatalog.ValidModel("openrouter", model))
-            throw new InvalidOperationException(I18n.T("needsKey"));
-        using var owned = suppliedClient is null ? new HttpClient { Timeout = TimeSpan.FromSeconds(90) } : null;
-        using var request = new HttpRequestMessage(HttpMethod.Post, "https://openrouter.ai/api/v1/chat/completions");
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", key.Trim());
-        request.Headers.Add("HTTP-Referer", "https://github.com/yabs117/baseera");
-        request.Headers.Add("X-Title", "Baseera");
-        object content = image is null ? prompt : new object[]
+        var provider = AiProviders.Get(providerId);
+        if (string.IsNullOrWhiteSpace(key) || !AiCatalog.ValidModel(providerId, model)) throw new InvalidOperationException(I18n.T("needsKey"));
+        using var owned = suppliedClient is null ? AiCatalog.Client(TimeSpan.FromSeconds(120)) : null;
+        string data = image is null ? "" : Convert.ToBase64String(image);
+        string endpoint;
+        object payload;
+        switch (provider.Protocol)
         {
-            new { type = "text", text = prompt },
-            new { type = "image_url", image_url = new { url = $"data:{mimeType};base64,{Convert.ToBase64String(image)}" } }
-        };
-        request.Content = new StringContent(JsonSerializer.Serialize(new { model, messages = new[] { new { role = "user", content } }, max_tokens = 2200 }), Encoding.UTF8, "application/json");
-        using var response = await (suppliedClient ?? owned!).SendAsync(request, ct);
-        if (!response.IsSuccessStatusCode) throw new InvalidOperationException($"OpenRouter HTTP {(int)response.StatusCode}. {I18n.T("errorApiFailed")}");
-        if (response.Content.Headers.ContentLength is > 2_000_000) throw new InvalidDataException(I18n.T("errorApiFailed"));
-        await using var stream = await response.Content.ReadAsStreamAsync(ct);
-        using var buffer = new MemoryStream();
-        var chunk = new byte[8192]; int read;
-        while ((read = await stream.ReadAsync(chunk, ct)) > 0)
-        { if (buffer.Length + read > 2_000_000) throw new InvalidDataException(I18n.T("errorApiFailed")); buffer.Write(chunk, 0, read); }
-        using var document = JsonDocument.Parse(buffer.ToArray());
-        var message = document.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content");
-        string text = message.ValueKind == JsonValueKind.String ? message.GetString() ?? "" :
-            string.Concat(message.EnumerateArray().Where(part => part.TryGetProperty("text", out _)).Select(part => part.GetProperty("text").GetString()));
-        text = text.Trim();
-        if (text.StartsWith("```", StringComparison.Ordinal))
-        {
-            int firstLine = text.IndexOf('\n'); int lastFence = text.LastIndexOf("```", StringComparison.Ordinal);
-            if (firstLine > 0 && lastFence > firstLine) text = text[(firstLine + 1)..lastFence].Trim();
+            case "responses":
+                endpoint = "responses";
+                var input = new List<object> { new { type = "input_text", text = prompt } };
+                if (image is not null) input.Add(new { type = "input_image", image_url = $"data:{mimeType};base64,{data}" });
+                payload = new { model, input = new[] { new { role = "user", content = input } }, max_output_tokens = 8192, store = false };
+                break;
+            case "anthropic":
+                endpoint = "messages";
+                var blocks = new List<object> { new { type = "text", text = prompt } };
+                if (image is not null) blocks.Add(new { type = "image", source = new { type = "base64", media_type = mimeType, data } });
+                payload = new { model, max_tokens = 4096, messages = new[] { new { role = "user", content = blocks } } };
+                break;
+            default:
+                endpoint = provider.Protocol == "cohere" ? "chat" : "chat/completions";
+                var content = new List<object> { new { type = "text", text = prompt } };
+                if (image is not null) content.Add(new { type = "image_url", image_url = new { url = $"data:{mimeType};base64,{data}" } });
+                payload = new { model, messages = new[] { new { role = "user", content } }, max_tokens = 8192, stream = false };
+                break;
         }
-        if (text.Length == 0) throw new InvalidDataException(I18n.T("errorApiFailed"));
-        return text;
+        using var request = new HttpRequestMessage(HttpMethod.Post, provider.BaseUrl + endpoint);
+        AiCatalog.Authenticate(request, provider, key);
+        request.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+        using var response = await (suppliedClient ?? owned!).SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+        if (!response.IsSuccessStatusCode) throw new InvalidOperationException($"{provider.Name} HTTP {(int)response.StatusCode}. {I18n.T("errorApiFailed")}");
+        using var document = await AiCatalog.ReadJson(response, 2_000_000, ct);
+        var root = document.RootElement;
+        string answer = provider.Protocol switch
+        {
+            "responses" => string.Concat(root.GetProperty("output").EnumerateArray()
+                .Where(item => item.TryGetProperty("type", out var type) && type.GetString() == "message")
+                .SelectMany(item => item.GetProperty("content").EnumerateArray())
+                .Where(part => part.TryGetProperty("type", out var type) && type.GetString() == "output_text")
+                .Select(part => part.GetProperty("text").GetString())),
+            "anthropic" => Text(root.GetProperty("content")),
+            "cohere" => Text(root.GetProperty("message").GetProperty("content")),
+            _ => Text(root.GetProperty("choices")[0].GetProperty("message").GetProperty("content"))
+        };
+        answer = answer.Trim();
+        if (answer.StartsWith("```", StringComparison.Ordinal))
+        {
+            int firstLine = answer.IndexOf('\n'), lastFence = answer.LastIndexOf("```", StringComparison.Ordinal);
+            if (firstLine > 0 && lastFence > firstLine) answer = answer[(firstLine + 1)..lastFence].Trim();
+        }
+        if (answer.Length == 0) throw new InvalidDataException(I18n.T("errorApiFailed"));
+        return answer;
     }
+    private static string Text(JsonElement content) => content.ValueKind == JsonValueKind.String ? content.GetString() ?? "" :
+        string.Concat(content.EnumerateArray().Where(part => part.TryGetProperty("text", out _)).Select(part => part.GetProperty("text").GetString()));
 }

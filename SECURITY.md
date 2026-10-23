@@ -10,8 +10,9 @@ incomplete. Native parsers and image decoders remain an attack surface; do not
 treat this preview as a hardened sandbox for hostile samples.
 
 Window translation and error analysis send only user-selected text or screenshots
-to the configured AI service when requested. Gemini requests go to Google;
-OpenRouter requests may be routed onward to the selected model provider.
+directly to the configured AI service when requested. Each service has a separate
+key and official endpoint. Credentials are never reused across services, and
+authenticated requests do not follow redirects. See [AI services](docs/AI-SERVICES.md).
 Each desktop key uses Windows DPAPI for the current user. A screenshot is kept
 in memory for the request, not written to the app's data directory. Other software
 running as the same user is outside this storage protection boundary.

@@ -16,18 +16,11 @@ public sealed partial class MainWindow
         if (operationBar is not null) operationBar.Visibility = key.Length == 0 && operation is null ? Visibility.Collapsed : Visibility.Visible;
     }
     private bool? startupDraft, startupScanDraft, explorerDraft;
-    private string providerKeyDraft = "";
-    private string? modelDraft;
-    private string? aiProviderDraft;
-    private string? aiAuthorDraft;
-    private IReadOnlyList<AiModelOption> aiModels = [];
-    private string aiModelsProvider = "";
-    private string aiModelsKeyFingerprint = "";
+    private readonly AiConnectionDraft aiConnectionDraft = new();
     private string feedbackTitleDraft = "", feedbackBodyDraft = "";
     private int feedbackKindDraft;
     private bool Arabic => Settings.Current.Language == "ar";
     private static readonly string[] Tools = ["scan", "translate", "updates", "convert", "errors"];
-    private static string KeyFingerprint(string value) => Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(value.Trim())));
     private static Brush Resource(string key) => (Brush)Application.Current.FindResource(key);
     private static StackPanel Stack() => new() { Orientation = Orientation.Vertical };
     private FontWeight HeadingWeight => Arabic ? FontWeights.Medium : FontWeights.SemiBold;
@@ -197,9 +190,8 @@ public sealed partial class MainWindow
         {
             pendingTranslationSettings = false;
             var scroll = scroller;
-            string selectedProvider = aiProviderDraft ?? AiCatalog.Provider;
-            var secret = selectedProvider == "openrouter" ? "openrouter-secrets.bin" : "secrets.bin";
-            var input = !File.Exists(Path.Combine(Settings.Folder, secret)) ? (System.Windows.Controls.Control?)translationKeyInput : translationModelInput;
+            string selectedProvider = aiConnectionDraft.Provider;
+            var input = !File.Exists(Settings.KeyPath(selectedProvider)) ? (System.Windows.Controls.Control?)translationKeyInput : translationModelInput;
             _ = Dispatcher.InvokeAsync(() =>
             {
                 if (!ReferenceEquals(translationProviderSection, section)) return;
@@ -355,83 +347,9 @@ public sealed partial class MainWindow
             Settings.Save(); Settings.ApplyWindowsIntegration(); ApplyExplorerShortcut(); startupDraft = startupScanDraft = explorerDraft = null; Render(true); return Task.CompletedTask;
         }, true); apply.HorizontalAlignment = HorizontalAlignment.Left; windows.Children.Add(apply); body.Children.Add(Card(windows));
         var provider = Stack(); SectionHeading(provider, "translationProvider");
-        string providerName = aiProviderDraft ?? AiCatalog.Provider;
-        provider.Children.Add(Text(I18n.T("aiService")));
-        var service = new ComboBox { ItemsSource = new[] { "Gemini", "OpenRouter" }, SelectedIndex = providerName == "openrouter" ? 1 : 0, FlowDirection = FlowDirection.LeftToRight };
-        service.SelectionChanged += (_, _) =>
-        {
-            string selected = service.SelectedIndex == 1 ? "openrouter" : "gemini";
-            if (selected == providerName) return;
-            aiProviderDraft = selected; aiAuthorDraft = null; providerKeyDraft = ""; modelDraft = null; Render(true);
-        };
-        provider.Children.Add(service);
-        if (providerName == "openrouter") provider.Children.Add(Text(I18n.T("aiOpenRouterInfo"), 12, true));
-        provider.Children.Add(Text(I18n.T("aiKey")));
-        var key = new PasswordBox { FlowDirection = FlowDirection.LeftToRight, Password = providerKeyDraft };
-        key.PasswordChanged += (_, _) => providerKeyDraft = key.Password; provider.Children.Add(key);
-        translationKeyInput = key; System.Windows.Automation.AutomationProperties.SetName(key, I18n.T("aiKey"));
-        System.Windows.Automation.AutomationProperties.SetAutomationId(key, "AiApiKey");
-        string secret = providerName == "openrouter" ? "openrouter-secrets.bin" : "secrets.bin";
-        if (File.Exists(Path.Combine(Settings.Folder, secret)))
-        {
-            provider.Children.Add(Text(I18n.T("keySaved"), 12, true));
-            var forget = Action("forgetKey", () => { providerKeyDraft = ""; Settings.SetKey(providerName, ""); Render(true); });
-            forget.HorizontalAlignment = HorizontalAlignment.Left; provider.Children.Add(forget);
-        }
-        var load = AsyncAction("aiLoadModels", async ct =>
-        {
-            string availableKey = key.Password.Length > 0 ? key.Password : Settings.GetKey(providerName);
-            var found = await AiCatalog.ListVisionModels(providerName, availableKey, ct);
-            if ((aiProviderDraft ?? AiCatalog.Provider) != providerName) return;
-            aiModels = found; aiModelsProvider = providerName; aiModelsKeyFingerprint = KeyFingerprint(availableKey);
-            if (!found.Any(option => option.Id == modelDraft)) modelDraft = null;
-            Render(true);
-        });
-        load.HorizontalAlignment = HorizontalAlignment.Left; provider.Children.Add(load);
-        provider.Children.Add(Text(I18n.T("aiModelsNote"), 12, true));
-        if (aiModelsProvider == providerName)
-            provider.Children.Add(Text(string.Format(I18n.T("aiModelsFound"), aiModels.Count, aiModels.Select(item => item.Author).Distinct(StringComparer.OrdinalIgnoreCase).Count()), 12, true));
-        string selectedModel = modelDraft ?? (providerName == "openrouter" ? Settings.Current.OpenRouterModel : Settings.Current.GeminiModel);
-        var available = aiModelsProvider == providerName ? aiModels.ToList() : [];
-        if (aiModelsProvider != providerName && selectedModel.Length > 0 && available.All(option => option.Id != selectedModel))
-            available.Insert(0, new AiModelOption(selectedModel, selectedModel, providerName == "openrouter" ? selectedModel.Split('/')[0] : "Google", "aiTierVaries"));
-        var authors = available.Select(option => option.Author).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(name => name).ToArray();
-        var maker = new ComboBox { ItemsSource = new[] { I18n.T("aiAllMakers") }.Concat(authors).ToArray(), SelectedIndex = 0, FlowDirection = FlowDirection.LeftToRight };
-        if (providerName == "openrouter" && authors.Length > 0)
-        {
-            provider.Children.Add(Text(I18n.T("aiMaker")));
-            maker.SelectedItem = aiAuthorDraft is not null && authors.Contains(aiAuthorDraft) ? aiAuthorDraft : I18n.T("aiAllMakers");
-            provider.Children.Add(maker);
-        }
-        provider.Children.Add(Text(I18n.T("model")));
-        var model = new ComboBox { FlowDirection = FlowDirection.LeftToRight, MaxDropDownHeight = 300 };
-        void FilterModels()
-        {
-            string? author = maker.SelectedIndex > 0 ? maker.SelectedItem as string : null;
-            model.ItemsSource = author is null ? available : available.Where(option => option.Author == author).ToArray();
-            model.SelectedItem = (model.ItemsSource as IEnumerable<AiModelOption>)?.FirstOrDefault(option => option.Id == (modelDraft ?? selectedModel));
-        }
-        maker.SelectionChanged += (_, _) => { aiAuthorDraft = maker.SelectedIndex > 0 ? maker.SelectedItem as string : null; FilterModels(); };
-        FilterModels();
-        model.SelectionChanged += (_, _) => modelDraft = (model.SelectedItem as AiModelOption)?.Id;
-        provider.Children.Add(model);
-        translationModelInput = model; System.Windows.Automation.AutomationProperties.SetName(model, I18n.T("model"));
-        System.Windows.Automation.AutomationProperties.SetAutomationId(model, "AiModelPicker");
-        var save = AsyncAction("save", _ =>
-        {
-            string? chosen = (model.SelectedItem as AiModelOption)?.Id;
-            if (chosen is null || !AiCatalog.ValidModel(providerName, chosen) ||
-                (key.Password.Length == 0 && !File.Exists(Path.Combine(Settings.Folder, secret))))
-                throw new InvalidOperationException(I18n.T("aiChooseModel"));
-            if (key.Password.Length > 0 && (aiModelsProvider != providerName || aiModelsKeyFingerprint != KeyFingerprint(key.Password)))
-                throw new InvalidOperationException(I18n.T("aiRefreshAfterKey"));
-            if (key.Password.Length > 0) Settings.SetKey(providerName, key.Password);
-            Settings.Current.AiProvider = providerName;
-            if (providerName == "openrouter") { Settings.Current.OpenRouterModel = chosen; Settings.Current.OpenRouterAuthor = (model.SelectedItem as AiModelOption)?.Author ?? ""; }
-            else Settings.Current.GeminiModel = chosen;
-            Settings.Save(); providerKeyDraft = ""; modelDraft = null; aiProviderDraft = null; Render(true); return Task.CompletedTask;
-        }, true);
-        save.HorizontalAlignment = HorizontalAlignment.Left; provider.Children.Add(save);
+        var connection = new AiConnectionPanel(aiConnectionDraft, () => SetOperationStatus("done"));
+        provider.Children.Add(connection);
+        translationKeyInput = connection.KeyInput; translationModelInput = connection.ModelInput;
         translationProviderSection = Card(provider);
         System.Windows.Automation.AutomationProperties.SetAutomationId(translationProviderSection, "TranslationProviderSection");
         if (emphasizeTranslationSettings) translationProviderSection.BorderBrush = Resource("Accent");
@@ -479,14 +397,16 @@ public sealed partial class MainWindow
         SystemCommands.MinimizeWindow(this); await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
         if (WindowState != WindowState.Minimized) throw new InvalidOperationException("Native minimize failed.");
         SystemCommands.RestoreWindow(this); await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
-        modelDraft = "gemini-3.8-flash";
+        aiConnectionDraft.Provider = "gemini"; aiConnectionDraft.For("gemini").Model = "gemini-3.8-flash";
+        aiConnectionDraft.For("gemini").Models = [new("gemini-3.8-flash", "Gemini Flash", "Google", "aiTierVaries")];
         Navigate("settings"); await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
         var password = Descendants(frame).OfType<PasswordBox>().Single(); password.Password = "baseera-ui-draft-not-a-real-key";
+        aiConnectionDraft.For("gemini").Models = [new("gemini-3.8-flash", "Gemini Flash", "Google", "aiTierVaries")];
         var theme = Descendants(frame).OfType<Button>().Single(b => System.Windows.Automation.AutomationProperties.GetName(b) == I18n.T("dark"));
         theme.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
         var picker = Descendants(frame).OfType<ComboBox>().Single(c => System.Windows.Automation.AutomationProperties.GetAutomationId(c) == "AiModelPicker");
         if (Descendants(frame).OfType<PasswordBox>().Single().Password != "baseera-ui-draft-not-a-real-key" || (picker.SelectedItem as AiModelOption)?.Id != "gemini-3.8-flash")
             throw new InvalidOperationException("Appearance change discarded unsaved translation settings.");
-        providerKeyDraft = ""; modelDraft = null;
+        aiConnectionDraft.Services.Clear();
     }
 }

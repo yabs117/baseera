@@ -56,50 +56,12 @@ internal static class ErrorAssistantSmokeChecks
         catch (InvalidOperationException) { rejectedEmpty = true; }
         if (!rejectedEmpty || calls != 1 || ErrorAssistant.ValidModel("bad/model")) throw new Exception("Invalid input was sent to Gemini.");
 
-        using var catalog = new HttpClient(new Reply((request, _) =>
-        {
-            if (request.RequestUri!.Host == "generativelanguage.googleapis.com")
-            {
-                if (request.Headers.GetValues("x-goog-api-key").Single() != "catalog-key") throw new Exception("Gemini catalog key missing.");
-                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(new { models = new object[]
-                {
-                    new { name = "models/gemini-3.8-flash", displayName = "Gemini Flash", supportedGenerationMethods = new[] { "generateContent" } },
-                    new { name = "models/gemini-tts", displayName = "Speech", supportedGenerationMethods = new[] { "generateContent" } },
-                    new { name = "models/text-embedding", displayName = "Embedding", supportedGenerationMethods = new[] { "embedContent" } }
-                } })) });
-            }
-            if (request.RequestUri.AbsolutePath != "/api/v1/models/user" || request.Headers.Authorization?.Parameter != "catalog-key")
-                throw new Exception("Account-scoped OpenRouter catalog was not used.");
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(new { data = new object[]
-            {
-                new { id = "openai/vision-free:free", name = "Vision Free", architecture = new { input_modalities = new[] { "text", "image" }, output_modalities = new[] { "text" } }, pricing = new { prompt = "0", completion = "0" } },
-                new { id = "anthropic/vision-paid", name = "Vision Paid", architecture = new { input_modalities = new[] { "text", "image" }, output_modalities = new[] { "text" } }, pricing = new { prompt = "0.000001", completion = "0.000002" } },
-                new { id = "other/text-only", name = "Text only", architecture = new { input_modalities = new[] { "text" }, output_modalities = new[] { "text" } }, pricing = new { prompt = "0", completion = "0" } }
-            } })) });
-        }));
-        var geminiModels = await AiCatalog.ListVisionModels("gemini", "catalog-key", CancellationToken.None, catalog);
-        var routedModels = await AiCatalog.ListVisionModels("openrouter", "catalog-key", CancellationToken.None, catalog);
-        if (geminiModels.Count != 1 || routedModels.Count != 2 || routedModels.Single(m => m.Author == "openai").Tier != "aiFree" ||
-            routedModels.Single(m => m.Author == "anthropic").Tier != "aiPaid")
-            throw new Exception("Vision model filtering or free/paid labels are incorrect.");
-        using var routedClient = new HttpClient(new Reply(async (request, ct) =>
-        {
-            if (request.RequestUri?.AbsolutePath != "/api/v1/chat/completions" || request.Headers.Authorization?.Parameter != "sample-key")
-                throw new Exception("OpenRouter completion target or key incorrect.");
-            using var payload = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(ct));
-            var content = payload.RootElement.GetProperty("messages")[0].GetProperty("content");
-            if (content[1].GetProperty("type").GetString() != "image_url" || !content[1].GetProperty("image_url").GetProperty("url").GetString()!.StartsWith("data:image/jpeg;base64,"))
-                throw new Exception("OpenRouter vision request omitted image input.");
-            string adviceJson = JsonSerializer.Serialize(new { summary = "Access denied", cause = "Permission is missing.", steps = new[] { "Check permissions." }, checks = Array.Empty<string>(), confidence = "Moderate" });
-            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(new { choices = new[] { new { message = new { content = adviceJson } } } })) };
-        }));
-        var routedAdvice = await ErrorAssistant.Analyze("Access denied", attachment, "English", CancellationToken.None,
-            routedClient, "sample-key", "openai/vision-free:free", "openrouter");
-        if (routedAdvice.Steps.Count != 1) throw new Exception("OpenRouter advice response was not parsed.");
+        await AiProviderSmokeChecks.Run(owner, output);
 
         string originalLanguage = Settings.Current.Language;
         try
         {
+            Settings.Current.Language = "en"; owner.ApplyTheme(); owner.Render();
             bool hasKey;
             try { hasKey = !string.IsNullOrWhiteSpace(Settings.GetKey()); } catch { hasKey = false; }
             if (!hasKey)
@@ -112,6 +74,18 @@ internal static class ErrorAssistantSmokeChecks
                     System.Windows.Automation.AutomationProperties.GetAutomationId(box) == "ErrorAssistantModel"))
                     throw new Exception("First-run Gemini setup is unavailable.");
                 WindowAppearance.SavePreview(setup, Path.Combine(output, "error-assistant-setup.png"));
+                var connection = Descendants(setup).OfType<AiConnectionPanel>().Single();
+                foreach (var provider in AiProviders.All.Concat(AiProviders.All.Reverse()))
+                {
+                    connection.Service.SelectedItem = provider; setup.UpdateLayout();
+                    if (!connection.IsVisible || !ReferenceEquals(connection, Descendants(setup).OfType<AiConnectionPanel>().Single()))
+                        throw new Exception("Service switch replaced or detached the connection panel.");
+                }
+                connection.Service.SelectedItem = AiProviders.Get("openai");
+                setup.UpdateLayout();
+                await owner.Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                await Task.Delay(150);
+                WindowAppearance.SavePreview(setup, Path.Combine(output, "ai-services-dialog-en.png"));
                 setup.Close();
             }
             foreach (string language in new[] { "ar", "en", "fr", "es" })

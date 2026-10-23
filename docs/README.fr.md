@@ -5,17 +5,17 @@ fenêtres avec Gemini, mises à jour WinGet choisies et conversion d’images/PD
 L’interface est disponible en arabe (RTL), anglais, français et espagnol.
 
 Prérequis : Windows 10/11 x64. Le runtime .NET est inclus. Pour compiler avec le SDK 10 :
-`./build.ps1 -Test -Publish`. Lancez `artifacts/Baseera-v0.4.7-Windows-x64/Baseera.exe`.
+`./build.ps1 -Test -Publish`. Lancez `artifacts/Baseera-v0.4.8-Windows-x64/Baseera.exe`.
 L’extension de navigateur est un téléchargement séparé : suivez `START-HERE.html` et chargez le dossier `extension` dans Chrome/Edge. Ne lancez pas ses fichiers source par double-clic.
 
 Activez uniquement les outils voulus lors du premier lancement. Pour la traduction,
-ajoutez une clé Gemini ou OpenRouter, chargez les modèles proposés pour cette clé et choisissez-en un qui accepte texte et image. OpenRouter donne accès aux modèles de plus de 20 éditeurs avec une clé ; les étiquettes gratuit/payant proviennent de son catalogue. La capture est envoyée au service choisi sur demande. Échap ferme la couche.
+choisissez parmi 20 services directs, dont Gemini, OpenAI (modèles ChatGPT), Claude et Grok. Ajoutez la clé propre au service, puis chargez les modèles avec vision. OpenRouter est supprimé ; le plantage lors du changement de service est corrigé. L’accès et le prix dépendent du compte. [Services et vérification](AI-SERVICES.md). La capture est envoyée sur demande. Échap ferme la couche.
 L’extension dans `extension/` traduit le texte de la page en place et restaure l’original.
 
 L’assistant d’erreurs figure dans « Vos outils », sur l’accueil et dans la barre latérale. Sa page ouvre la fenêtre d’analyse ; lorsqu’il est activé, elle s’ouvre aussi au démarrage normal. Vous pouvez désactiver cet outil dans les paramètres. Collez
 un message ou une image, collez un fichier image copié, choisissez un fichier ou capturez une fenêtre ouverte ; l’aperçu apparaît aussitôt. Demandez ensuite une analyse avec la clé choisie. Vous pouvez fermer l’assistant sans
 configurer de clé et le rouvrir avec Ctrl+Shift+E depuis Baseera. Le texte et l’image
-choisis sont envoyés au service choisi seulement après votre clic (OpenRouter peut les transmettre au fournisseur du modèle). Vérifiez la capture avant
+choisis sont envoyés au service choisi seulement après votre clic directement. Vérifiez la capture avant
 l’envoi : elle peut contenir des données privées. Les conseils ne sont pas une
 réparation garantie et aucun réglage Windows n’est modifié automatiquement.
 

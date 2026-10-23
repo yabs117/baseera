@@ -70,6 +70,7 @@ public partial class App : Application
                 }
                 SmokeChecks.Run(output);
                 await window.CheckNavigation();
+                window.CheckAiServices();
                 await WelcomeSmokeChecks.Run(window);
                 await SelfUpdateSmokeChecks.Run(output);
                 await window.CheckSelfUpdateControls();

@@ -6,7 +6,7 @@ image conversion, and an error assistant that explains copied Windows errors.
 
 [العربية](docs/README.ar.md) · [Français](docs/README.fr.md) · [Español](docs/README.es.md)
 
-[Download Windows app](https://github.com/yabs117/baseera/releases/download/v0.4.7-preview/Baseera-v0.4.7-Windows-x64.exe) · [Release notes](https://github.com/yabs117/baseera/releases/tag/v0.4.7-preview) · [Roadmap](docs/ROADMAP.md)
+[Download Windows app](https://github.com/yabs117/baseera/releases/download/v0.4.8-preview/Baseera-v0.4.8-Windows-x64.exe) · [Release notes](https://github.com/yabs117/baseera/releases/tag/v0.4.8-preview) · [Roadmap](docs/ROADMAP.md)
 
 ![Baseera overview — English, light appearance](docs/images/baseera-en.png)
 
@@ -18,7 +18,7 @@ image conversion, and an error assistant that explains copied Windows errors.
 
 </details>
 
-**Early preview, version 0.4.7.** This is a new project, not a certified antivirus
+**Early preview, version 0.4.8.** This is a new project, not a certified antivirus
 or a claim of 100% malware detection. Read the [capability status](docs/ROADMAP.md)
 and [security scope](SECURITY.md) before relying on it.
 
@@ -60,13 +60,22 @@ settings. The dialog does not open for Windows auto-start or file-conversion lau
 
 ![Error assistant preview with a pasted sample image](docs/images/error-assistant-en.png)
 
-Settings can load the models available to your own Gemini key or to an OpenRouter
-key. The picker only shows models whose catalog metadata supports text and image
-input with text output. OpenRouter exposes models from 20+ makers through one key;
-its free/paid labels use the current model pricing metadata. Gemini does not expose
-an account-specific price tier in its model list, so the UI marks its tier as
-account-dependent. A paid model may still require credit. No model ID entry is
-required. OpenRouter sends requests onward to the chosen model provider.
+Choose from **20 direct AI services**: Gemini, OpenAI (ChatGPT models), Claude,
+Grok, Mistral, Cohere, Qwen, Z.ai, Kimi, StepFun, Together AI, Fireworks, Groq,
+NVIDIA NIM, SambaNova, Nebius, DeepInfra, SiliconFlow, Novita and Hyperbolic.
+Each service uses its own key and direct official endpoint. OpenRouter is removed.
+Load models from the chosen service and select from the image-capable list; no
+model ID entry is required. Some services return a global catalog, so listed models
+may still require account activation, regional access, quota or credit. Pricing
+comes from service metadata; absent prices are marked account-dependent.
+See [service endpoints, filtering and verification](docs/AI-SERVICES.md).
+
+The 0.4.8 update fixes the assistant crash when switching services. Connection
+controls are created once and updated in place. Model loading is cancelled when
+the service/key changes, and obsolete replies cannot overwrite the current choice.
+API keys and billing are separate from consumer chat subscriptions.
+
+![Direct AI service setup](docs/images/ai-services-dialog-en.png)
 
 <details>
 <summary>Error assistant in Your tools</summary>
@@ -129,9 +138,9 @@ Requires **Windows 10/11, x64**. The runtime is included; no separate .NET insta
 
 | Download | How to use |
 | --- | --- |
-| [Windows app (.exe)](https://github.com/yabs117/baseera/releases/download/v0.4.7-preview/Baseera-v0.4.7-Windows-x64.exe) | Save to a permanent folder and open it. This is the desktop application. |
-| [Windows ZIP with instructions](https://github.com/yabs117/baseera/releases/download/v0.4.7-preview/Baseera-v0.4.7-Windows-x64.zip) | Extract the whole ZIP, then open `Baseera.exe`. |
-| [Optional browser extension](https://github.com/yabs117/baseera/releases/download/v0.4.7-preview/Baseera-v0.4.7-Browser-Extension.zip) | Extract, read `START-HERE.html`, then load the inner `extension` folder in Chrome/Edge. |
+| [Windows app (.exe)](https://github.com/yabs117/baseera/releases/download/v0.4.8-preview/Baseera-v0.4.8-Windows-x64.exe) | Save to a permanent folder and open it. This is the desktop application. |
+| [Windows ZIP with instructions](https://github.com/yabs117/baseera/releases/download/v0.4.8-preview/Baseera-v0.4.8-Windows-x64.zip) | Extract the whole ZIP, then open `Baseera.exe`. |
+| [Optional browser extension](https://github.com/yabs117/baseera/releases/download/v0.4.8-preview/Baseera-v0.4.8-Browser-Extension.zip) | Extract, read `START-HERE.html`, then load the inner `extension` folder in Chrome/Edge. |
 
 Source ZIP downloads from GitHub are source code, not compiled applications.
 The browser extension is installed **inside the browser**. Do not double-click its
@@ -172,10 +181,10 @@ The browser extension is still updated separately through the browser.
 
 </details>
 
-For translation and error help, enter a Gemini or OpenRouter API key in Settings,
+For translation and error help, choose your AI service and enter its own API key in Settings,
 load the models returned for that key, and select one from the image-capable list.
 No key is bundled. Screenshots and error text are sent only on request to the
-selected service (and, for OpenRouter, its model provider). Local file inspection
+selected service. Local file inspection
 and conversion do not use AI or send files.
 
 ## Build and verify
@@ -192,7 +201,7 @@ Install the .NET 10 SDK on Windows. There are no third-party NuGet dependencies.
 node --test extension/test/protocol.test.js
 ```
 
-The self-contained executable is produced in `artifacts/Baseera-v0.4.7-Windows-x64/`.
+The self-contained executable is produced in `artifacts/Baseera-v0.4.8-Windows-x64/`.
 `-Smoke -Publish` also checks the packaged executable. `-Smoke` uses a separate local data directory and does not run updates or
 register Explorer hooks. It renders the actual WPF screens and tests conversion,
 PDF generation, translation-box validation, localization coverage and DPAPI storage.

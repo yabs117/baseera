@@ -11,8 +11,6 @@ internal sealed class ErrorAssistantWindow : Window
     private readonly Func<string, ErrorImage?, string, CancellationToken, Task<ErrorAdvice>> analyze;
     private readonly bool realAnalyzer;
     private readonly Grid frame = new();
-    private readonly PasswordBox key = new() { FlowDirection = FlowDirection.LeftToRight };
-    private readonly ComboBox model = new() { FlowDirection = FlowDirection.LeftToRight, MaxDropDownHeight = 300 };
     private readonly TextBox problem = new() { AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
     private readonly ComboBox windows = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
     private readonly StackPanel result = new();
@@ -28,12 +26,7 @@ internal sealed class ErrorAssistantWindow : Window
     private ErrorAdvice? advice;
     private CancellationTokenSource? active;
     private bool showConnection;
-    private string selectedProvider;
-    private IReadOnlyList<AiModelOption> modelOptions = [];
-    private string modelOptionsProvider = "";
-    private string modelOptionsKeyFingerprint = "";
-    private string? selectedAuthor;
-    private string? modelChoiceDraft;
+    private AiConnectionPanel connectionPanel = null!;
 
     internal ErrorAssistantWindow(Window owner,
         Func<string, ErrorImage?, string, CancellationToken, Task<ErrorAdvice>>? analyze = null)
@@ -41,8 +34,6 @@ internal sealed class ErrorAssistantWindow : Window
         Owner = owner;
         realAnalyzer = analyze is null;
         this.analyze = analyze ?? ((description, picture, language, ct) => ErrorAssistant.Analyze(description, picture, language, ct));
-        selectedProvider = AiCatalog.Provider;
-        model.SelectionChanged += (_, _) => modelChoiceDraft = (model.SelectedItem as AiModelOption)?.Id;
         showConnection = analyze is null && !Configured();
         WindowStyle = WindowStyle.SingleBorderWindow; ResizeMode = ResizeMode.CanResize;
         ShowInTaskbar = false; WindowStartupLocation = WindowStartupLocation.CenterOwner;
@@ -57,7 +48,7 @@ internal sealed class ErrorAssistantWindow : Window
         Content = frame;
         SourceInitialized += (_, _) => WindowAppearance.Apply(this, Settings.Current.Dark);
         Closed += (_, _) => { active?.Cancel(); active?.Dispose(); };
-        Loaded += (_, _) => { if (showConnection) key.Focus(); else problem.Focus(); };
+        Loaded += (_, _) => { if (showConnection) connectionPanel.KeyInput.Focus(); else problem.Focus(); };
         PreviewKeyDown += (_, e) =>
         {
             if (e.Key == System.Windows.Input.Key.V && System.Windows.Input.Keyboard.Modifiers == System.Windows.Input.ModifierKeys.Control && HasClipboardImage())
@@ -110,48 +101,18 @@ internal sealed class ErrorAssistantWindow : Window
         connection.Visibility = showConnection ? Visibility.Visible : Visibility.Collapsed;
         var connectTitle = Text(I18n.T("errorConnect"), 15); connectTitle.FontWeight = FontWeights.SemiBold; Add(connection, connectTitle, 6);
         Add(connection, Text(I18n.T("errorConnectHelp"), 12, true), 14);
-        Add(connection, Text(I18n.T("aiService")), 5);
-        var service = new ComboBox { ItemsSource = new[] { "Gemini", "OpenRouter" }, SelectedIndex = selectedProvider == "openrouter" ? 1 : 0, FlowDirection = FlowDirection.LeftToRight };
-        service.SelectionChanged += (_, _) =>
+        connectionPanel = new AiConnectionPanel(new AiConnectionDraft(), () =>
         {
-            string chosen = service.SelectedIndex == 1 ? "openrouter" : "gemini";
-            if (chosen == selectedProvider) return;
-            selectedProvider = chosen; selectedAuthor = null; modelChoiceDraft = null; modelOptions = []; modelOptionsProvider = ""; key.Clear(); Render();
-        };
-        Add(connection, service, 10);
-        if (selectedProvider == "openrouter") Add(connection, Text(I18n.T("aiOpenRouterInfo"), 12, true), 10);
-        Add(connection, Text(I18n.T("aiKey")), 5);
-        Add(connection, key, 6);
-        System.Windows.Automation.AutomationProperties.SetAutomationId(key, "ErrorAssistantApiKey");
-        if (File.Exists(Path.Combine(Settings.Folder, selectedProvider == "openrouter" ? "openrouter-secrets.bin" : "secrets.bin")))
-            Add(connection, Text(I18n.T("keySaved"), 12, true), 10);
-        var load = Action("aiLoadModels", async () => await LoadModels()); load.HorizontalAlignment = HorizontalAlignment.Left; Add(connection, load, 7);
-        Add(connection, Text(I18n.T("aiModelsNote"), 12, true), 10);
-        string savedModel = modelChoiceDraft ?? (selectedProvider == "openrouter" ? Settings.Current.OpenRouterModel : Settings.Current.GeminiModel);
-        var choices = modelOptionsProvider == selectedProvider ? modelOptions.ToList() : [];
-        if (modelOptionsProvider != selectedProvider && savedModel.Length > 0 && choices.All(option => option.Id != savedModel))
-            choices.Insert(0, new AiModelOption(savedModel, savedModel, selectedProvider == "openrouter" ? savedModel.Split('/')[0] : "Google", "aiTierVaries"));
-        var authors = choices.Select(option => option.Author).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(name => name).ToArray();
-        var maker = new ComboBox { ItemsSource = new[] { I18n.T("aiAllMakers") }.Concat(authors).ToArray(), FlowDirection = FlowDirection.LeftToRight };
-        maker.SelectedItem = selectedAuthor is not null && authors.Contains(selectedAuthor) ? selectedAuthor : I18n.T("aiAllMakers");
-        if (selectedProvider == "openrouter" && authors.Length > 0)
-        { Add(connection, Text(I18n.T("aiMaker")), 5); Add(connection, maker, 10); }
-        Add(connection, Text(I18n.T("model")), 5);
-        void FilterModels()
-        {
-            string? author = maker.SelectedIndex > 0 ? maker.SelectedItem as string : null;
-            model.ItemsSource = author is null ? choices : choices.Where(option => option.Author == author).ToArray();
-            model.SelectedItem = (model.ItemsSource as IEnumerable<AiModelOption>)?.FirstOrDefault(option => option.Id == savedModel);
-        }
-        maker.SelectionChanged += (_, _) => { selectedAuthor = maker.SelectedIndex > 0 ? maker.SelectedItem as string : null; FilterModels(); };
-        FilterModels(); Add(connection, model, 6);
-        System.Windows.Automation.AutomationProperties.SetAutomationId(model, "ErrorAssistantModel");
-        var save = Action("errorSaveKey", SaveConnection, true); save.HorizontalAlignment = HorizontalAlignment.Left; Add(connection, save, 4);
+            showConnection = false; connectionBorder.Visibility = Visibility.Collapsed;
+            configureButton.Visibility = Visibility.Visible; analyzeButton.IsEnabled = true;
+            feedback.Text = I18n.T("errorKeySaved"); problem.Focus();
+        }, dialog: true);
+        Add(connection, connectionPanel, 4);
         Add(connection, Text(I18n.T("errorKeyLocal"), 12, true), 0);
         connectionBorder = new Border { Background = Brush("Surface"), BorderBrush = Brush("Line"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(5), Padding = new Thickness(18), Child = connection,
             Visibility = showConnection ? Visibility.Visible : Visibility.Collapsed };
         Add(body, connectionBorder, 14);
-        configureButton = Action("errorConfigure", () => { showConnection = true; connectionBorder.Visibility = Visibility.Visible; configureButton.Visibility = Visibility.Collapsed; key.Focus(); });
+        configureButton = Action("errorConfigure", () => { showConnection = true; connectionBorder.Visibility = Visibility.Visible; configureButton.Visibility = Visibility.Collapsed; connectionPanel.KeyInput.Focus(); });
         configureButton.HorizontalAlignment = HorizontalAlignment.Left; configureButton.Visibility = showConnection ? Visibility.Collapsed : Visibility.Visible; Add(body, configureButton, 14);
 
         Add(body, Text(I18n.T("errorDescription"), 15), 5);
@@ -198,45 +159,6 @@ internal sealed class ErrorAssistantWindow : Window
         Grid.SetRow(footerBorder, 2); frame.Children.Add(footerBorder);
     }
 
-    private void SaveConnection()
-    {
-        string? selectedModel = (model.SelectedItem as AiModelOption)?.Id;
-        bool savedKey;
-        try { savedKey = !string.IsNullOrWhiteSpace(Settings.GetKey(selectedProvider)); } catch { savedKey = false; }
-        if ((!savedKey && string.IsNullOrWhiteSpace(key.Password)) || selectedModel is null || !AiCatalog.ValidModel(selectedProvider, selectedModel))
-        { feedback.Text = I18n.T("errorKeyMissing"); return; }
-        if (key.Password.Length > 0 && (modelOptionsProvider != selectedProvider || modelOptionsKeyFingerprint !=
-            Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(key.Password.Trim())))))
-        { feedback.Text = I18n.T("aiRefreshAfterKey"); return; }
-        try
-        {
-            if (!string.IsNullOrWhiteSpace(key.Password)) Settings.SetKey(selectedProvider, key.Password);
-            Settings.Current.AiProvider = selectedProvider;
-            if (selectedProvider == "openrouter") Settings.Current.OpenRouterModel = selectedModel;
-            else Settings.Current.GeminiModel = selectedModel;
-            Settings.Save(); key.Clear();
-            showConnection = false; connectionBorder.Visibility = Visibility.Collapsed; configureButton.Visibility = Visibility.Visible;
-            analyzeButton.IsEnabled = true;
-            feedback.Text = I18n.T("errorKeySaved"); problem.Focus();
-        }
-        catch (Exception ex) { feedback.Text = I18n.T("errorSaveFailed") + " " + ex.Message; }
-    }
-    private async Task LoadModels()
-    {
-        try
-        {
-            string provider = selectedProvider;
-            string availableKey = key.Password.Length > 0 ? key.Password : Settings.GetKey(provider);
-            feedback.Text = I18n.T("aiLoadingModels");
-            var found = await AiCatalog.ListVisionModels(provider, availableKey, CancellationToken.None);
-            if (provider != selectedProvider) return;
-            modelOptions = found; modelOptionsProvider = provider; selectedAuthor = null;
-            if (!found.Any(option => option.Id == modelChoiceDraft)) modelChoiceDraft = null;
-            modelOptionsKeyFingerprint = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(availableKey.Trim())));
-            Render(); feedback.Text = string.Format(I18n.T("aiModelsFound"), found.Count, found.Select(item => item.Author).Distinct(StringComparer.OrdinalIgnoreCase).Count());
-        }
-        catch (Exception ex) { feedback.Text = I18n.T("aiCatalogFailed") + " " + ex.Message; }
-    }
     private void PasteClipboard()
     {
         try
@@ -336,7 +258,7 @@ internal sealed class ErrorAssistantWindow : Window
     private async Task Analyze()
     {
         if (active is not null) return;
-        if (!Configured() && realAnalyzer) { showConnection = true; connectionBorder.Visibility = Visibility.Visible; configureButton.Visibility = Visibility.Collapsed; feedback.Text = I18n.T("errorKeyMissing"); key.Focus(); return; }
+        if (!Configured() && realAnalyzer) { showConnection = true; connectionBorder.Visibility = Visibility.Visible; configureButton.Visibility = Visibility.Collapsed; feedback.Text = I18n.T("errorKeyMissing"); connectionPanel.KeyInput.Focus(); return; }
         if (string.IsNullOrWhiteSpace(problem.Text) && image is null) { feedback.Text = I18n.T("errorNeedInput"); return; }
         active = new CancellationTokenSource(); analyzeButton.IsEnabled = false; cancelButton.IsEnabled = true;
         feedback.Text = I18n.T("errorAnalyzing"); advice = null; result.Children.Clear();

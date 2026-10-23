@@ -92,12 +92,12 @@ public static class WindowTranslator
             "Return only JSON {blocks:[{text:string,x:number,y:number,width:number,height:number}]}. " +
             "Coordinates are fractions from 0 to 1 of the full screenshot. Group adjacent words into readable lines/paragraphs. " +
             "Do not invent text. Maximum 150 blocks. Omit text already in the target language.";
-        if (provider == "openrouter")
+        if (provider != "gemini")
         {
-            string answer = await AiVision.CompleteOpenRouter(prompt, capture.Png, "image/png", key, model, ct);
+            string answer = await AiVision.Complete(provider, prompt, capture.Png, "image/png", key, model, ct);
             return ParseBlocks(answer);
         }
-        using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(90) };
+        using var client = AiCatalog.Client(TimeSpan.FromSeconds(90));
         using var request = new HttpRequestMessage(HttpMethod.Post, $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent");
         request.Headers.Add("x-goog-api-key", key);
         var schema = new
