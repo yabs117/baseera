@@ -24,9 +24,10 @@ public sealed partial class MainWindow : Window
     private ScanReport? report;
     private string updateLog = "";
     private ExplorerShortcut? explorerShortcut;
+    private ErrorAssistantWindow? errorAssistant;
     private readonly bool smokeMode;
     private readonly System.Windows.Threading.DispatcherTimer updateTimer = new() { Interval = TimeSpan.FromHours(6) };
-    public MainWindow(string? conversionFile = null, bool smoke = false)
+    public MainWindow(string? conversionFile = null, bool smoke = false, bool launchErrorAssistant = true)
     {
         smokeMode = smoke;
         Title = "Baseera"; Width = 1160; Height = 820; MinWidth = 940; MinHeight = 680;
@@ -38,6 +39,11 @@ public sealed partial class MainWindow : Window
         if (conversionFile is not null && File.Exists(conversionFile)) { images.Add(conversionFile); page = "convert"; }
         Content = frame;
         ApplyTheme(); Render();
+        PreviewKeyDown += (_, e) =>
+        {
+            if (e.Key == System.Windows.Input.Key.E && System.Windows.Input.Keyboard.Modifiers == (System.Windows.Input.ModifierKeys.Control | System.Windows.Input.ModifierKeys.Shift))
+            { e.Handled = true; ShowErrorAssistant(); }
+        };
         Closed += (_, _) => { operation?.Cancel(); lifetime.Cancel(); updateTimer.Stop(); selfUpdateTimer.Stop(); overlay?.Close(); explorerShortcut?.Dispose(); };
         if (!smoke)
         {
@@ -52,6 +58,7 @@ public sealed partial class MainWindow : Window
                     catch (Exception ex) { SetOperationStatus("selfFailed", ex.Message); }
                 }
                 ShowStartupWelcome();
+                if (launchErrorAssistant) ShowErrorAssistant();
                 await CheckSelfUpdate();
                 if (!Settings.Current.Onboarded) return;
                 if (Settings.Current.ScanEnabled && Settings.Current.ScanAtStartup && (File.Exists(Settings.Current.ScanPath) || Directory.Exists(Settings.Current.ScanPath)))
@@ -59,6 +66,13 @@ public sealed partial class MainWindow : Window
                 await AutomaticUpdates();
             };
         }
+    }
+    private void ShowErrorAssistant()
+    {
+        if (errorAssistant?.IsVisible == true) { errorAssistant.Activate(); return; }
+        errorAssistant = new ErrorAssistantWindow(this);
+        try { errorAssistant.ShowDialog(); }
+        finally { errorAssistant = null; }
     }
     internal bool ShowStartupWelcome()
     {

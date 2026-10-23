@@ -1,0 +1,263 @@
+using System.Windows.Media.Imaging;
+using Baseera.App.Services;
+using Clipboard = System.Windows.Clipboard;
+using DataFormats = System.Windows.DataFormats;
+using DragDropEffects = System.Windows.DragDropEffects;
+
+namespace Baseera.App;
+
+internal sealed class ErrorAssistantWindow : Window
+{
+    private readonly Func<string, ErrorImage?, string, CancellationToken, Task<ErrorAdvice>> analyze;
+    private readonly bool realAnalyzer;
+    private readonly Grid frame = new();
+    private readonly PasswordBox key = new() { FlowDirection = FlowDirection.LeftToRight };
+    private readonly TextBox model = new() { FlowDirection = FlowDirection.LeftToRight };
+    private readonly TextBox problem = new() { AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+    private readonly ComboBox windows = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
+    private readonly StackPanel result = new();
+    private readonly StackPanel connection = new();
+    private Border connectionBorder = new();
+    private readonly TextBlock feedback = new() { TextWrapping = TextWrapping.Wrap };
+    private readonly TextBlock imageLabel = new() { TextWrapping = TextWrapping.Wrap };
+    private readonly System.Windows.Controls.Image preview = new() { MaxHeight = 132, Stretch = Stretch.Uniform };
+    private Button analyzeButton = new(), cancelButton = new();
+    private Button configureButton = new();
+    private ErrorImage? image;
+    private ErrorAdvice? advice;
+    private CancellationTokenSource? active;
+    private bool showConnection;
+
+    internal ErrorAssistantWindow(Window owner,
+        Func<string, ErrorImage?, string, CancellationToken, Task<ErrorAdvice>>? analyze = null)
+    {
+        Owner = owner;
+        realAnalyzer = analyze is null;
+        this.analyze = analyze ?? ((description, picture, language, ct) => ErrorAssistant.Analyze(description, picture, language, ct));
+        showConnection = analyze is null && !Configured();
+        WindowStyle = WindowStyle.SingleBorderWindow; ResizeMode = ResizeMode.CanResize;
+        ShowInTaskbar = false; WindowStartupLocation = WindowStartupLocation.CenterOwner;
+        Width = Math.Min(820, SystemParameters.WorkArea.Width - 28);
+        Height = Math.Min(790, SystemParameters.WorkArea.Height - 28);
+        MinWidth = Math.Min(600, Width); MinHeight = Math.Min(550, Height);
+        FontFamily = Brand.InterfaceFont; FontSize = 13; Icon = Brand.WindowIcon;
+        UseLayoutRounding = true; SnapsToDevicePixels = true;
+        FlowDirection = FlowDirection.LeftToRight;
+        Title = I18n.T("errorAssistantTitle");
+        SetResourceReference(BackgroundProperty, "Bg"); SetResourceReference(ForegroundProperty, "Ink");
+        Content = frame;
+        SourceInitialized += (_, _) => WindowAppearance.Apply(this, Settings.Current.Dark);
+        Closed += (_, _) => { active?.Cancel(); active?.Dispose(); };
+        Loaded += (_, _) => { if (showConnection) key.Focus(); else problem.Focus(); };
+        AllowDrop = true;
+        DragOver += (_, e) => { e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop) ? DragDropEffects.Copy : DragDropEffects.None; e.Handled = true; };
+        Drop += (_, e) =>
+        {
+            if (e.Data.GetData(DataFormats.FileDrop) is string[] files && files.Length == 1) TryLoadImage(() => ErrorAssistant.PrepareFile(files[0]));
+        };
+        Render();
+    }
+
+    private static bool Configured()
+    {
+        try { return !string.IsNullOrWhiteSpace(Settings.GetKey()) && ErrorAssistant.ValidModel(Settings.Current.GeminiModel); }
+        catch { return false; }
+    }
+    private static Brush Brush(string key) => (Brush)Application.Current.FindResource(key);
+    private static TextBlock Text(string content, int size = 13, bool muted = false) => new()
+    { Text = content, FontSize = size, Foreground = Brush(muted ? "Muted" : "Ink"), TextWrapping = TextWrapping.Wrap };
+    private static Button Action(string label, Action click, bool primary = false)
+    {
+        var button = new Button { Content = Text(I18n.T(label), 13), MinWidth = 105 };
+        if (primary) { button.Background = Brush("Accent"); button.BorderBrush = button.Background; ((TextBlock)button.Content).Foreground = Brush("OnAccent"); }
+        System.Windows.Automation.AutomationProperties.SetAutomationId(button, label);
+        button.Click += (_, _) => click(); return button;
+    }
+    private static void Add(StackPanel stack, UIElement child, double bottom = 12)
+    { child.SetValue(MarginProperty, new Thickness(0, 0, 0, bottom)); stack.Children.Add(child); }
+
+    private void Render()
+    {
+        bool arabic = Settings.Current.Language == "ar";
+        frame.FlowDirection = arabic ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
+        frame.SetResourceReference(System.Windows.Controls.Panel.BackgroundProperty, "Bg");
+        frame.Children.Clear(); frame.RowDefinitions.Clear();
+        frame.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        frame.RowDefinitions.Add(new RowDefinition());
+        frame.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+        var header = new StackPanel { Margin = new Thickness(28, 24, 28, 20) };
+        var title = Text(I18n.T("errorAssistantTitle"), 26); title.FontWeight = arabic ? FontWeights.Medium : FontWeights.SemiBold; Add(header, title, 6);
+        Add(header, Text(I18n.T("errorAssistantIntro"), 13, true), 0);
+        var shortcut = Text(I18n.T("errorShortcut"), 12, true); shortcut.Margin = new Thickness(0, 8, 0, 0); header.Children.Add(shortcut);
+        frame.Children.Add(header);
+
+        var body = new StackPanel { Margin = new Thickness(28, 0, 28, 20) };
+        connection.Children.Clear();
+        connection.Visibility = showConnection ? Visibility.Visible : Visibility.Collapsed;
+        var connectTitle = Text(I18n.T("errorConnect"), 15); connectTitle.FontWeight = FontWeights.SemiBold; Add(connection, connectTitle, 6);
+        Add(connection, Text(I18n.T("errorConnectHelp"), 12, true), 14);
+        Add(connection, Text(I18n.T("apiKey")), 0);
+        Add(connection, key, 6);
+        System.Windows.Automation.AutomationProperties.SetAutomationId(key, "ErrorAssistantApiKey");
+        if (Configured()) Add(connection, Text(I18n.T("keySaved"), 12, true), 10);
+        Add(connection, Text(I18n.T("model")), 0);
+        model.Text = Settings.Current.GeminiModel.Length > 0 ? Settings.Current.GeminiModel : ErrorAssistant.DefaultModel;
+        Add(connection, model, 6);
+        System.Windows.Automation.AutomationProperties.SetAutomationId(model, "ErrorAssistantModel");
+        var save = Action("errorSaveKey", SaveConnection, true); save.HorizontalAlignment = HorizontalAlignment.Left; Add(connection, save, 4);
+        Add(connection, Text(I18n.T("errorKeyLocal"), 12, true), 0);
+        connectionBorder = new Border { Background = Brush("Surface"), BorderBrush = Brush("Line"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(5), Padding = new Thickness(18), Child = connection,
+            Visibility = showConnection ? Visibility.Visible : Visibility.Collapsed };
+        Add(body, connectionBorder, 14);
+        configureButton = Action("errorConfigure", () => { showConnection = true; connectionBorder.Visibility = Visibility.Visible; configureButton.Visibility = Visibility.Collapsed; key.Focus(); });
+        configureButton.HorizontalAlignment = HorizontalAlignment.Left; configureButton.Visibility = showConnection ? Visibility.Collapsed : Visibility.Visible; Add(body, configureButton, 14);
+
+        Add(body, Text(I18n.T("errorDescription"), 15), 5);
+        problem.Height = 130; problem.Tag = I18n.T("errorDescriptionHint"); problem.FlowDirection = FlowDirection.LeftToRight;
+        System.Windows.Automation.AutomationProperties.SetAutomationId(problem, "ErrorDescription");
+        Add(body, problem, 12);
+
+        var attachment = new StackPanel { Orientation = Orientation.Horizontal };
+        Add(attachment, Action("errorPaste", PasteClipboard), 0);
+        Add(attachment, Action("errorChooseImage", ChooseImage), 0);
+        Add(attachment, Action("errorRemoveImage", () => SetImage(null)), 0);
+        Add(body, attachment, 8);
+        imageLabel.Text = image is null ? I18n.T("errorNoImage") : image.Label;
+        imageLabel.Foreground = Brush("Muted"); Add(body, imageLabel, 8);
+        preview.Visibility = image is null ? Visibility.Collapsed : Visibility.Visible;
+        if (image is not null) Add(body, preview, 12);
+
+        Add(body, Text(I18n.T("errorCaptureWindow"), 13), 5);
+        var captureRow = new Grid(); captureRow.ColumnDefinitions.Add(new ColumnDefinition()); captureRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        windows.ItemsSource = WindowTranslator.ListWindows(); windows.DisplayMemberPath = "Title"; windows.Tag = I18n.T("errorChooseWindow"); windows.Margin = new Thickness(0, 0, 10, 0);
+        System.Windows.Automation.AutomationProperties.SetAutomationId(windows, "ErrorWindowPicker"); captureRow.Children.Add(windows);
+        var capture = Action("errorCapture", async () => await CaptureSelected()); capture.Margin = new Thickness(0); Grid.SetColumn(capture, 1); captureRow.Children.Add(capture); Add(body, captureRow, 8);
+        var refresh = Action("refresh", () => windows.ItemsSource = WindowTranslator.ListWindows()); refresh.HorizontalAlignment = HorizontalAlignment.Left; Add(body, refresh, 12);
+        Add(body, Text(I18n.T("errorPrivacy"), 12, true), 16);
+
+        result.Children.Clear();
+        System.Windows.Automation.AutomationProperties.SetAutomationId(result, "ErrorAdviceResult");
+        if (advice is not null) RenderAdvice();
+        Add(body, result, 0);
+        var scroll = new ScrollViewer { Content = body, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
+        Grid.SetRow(scroll, 1); frame.Children.Add(scroll);
+
+        var footer = new DockPanel { Background = Brush("Surface"), LastChildFill = false, Margin = new Thickness(0), HorizontalAlignment = HorizontalAlignment.Stretch };
+        var actions = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(28, 16, 28, 10), HorizontalAlignment = HorizontalAlignment.Right };
+        cancelButton = Action("cancel", () => active?.Cancel()); cancelButton.IsEnabled = active is not null; Add(actions, cancelButton, 0);
+        analyzeButton = Action("errorAnalyze", async () => await Analyze(), true);
+        analyzeButton.IsEnabled = active is null && (!realAnalyzer || Configured()); Add(actions, analyzeButton, 0);
+        var close = Action("errorClose", Close); Add(actions, close, 0); footer.Children.Add(actions);
+        feedback.Foreground = Brush("Muted"); feedback.VerticalAlignment = VerticalAlignment.Center;
+        feedback.Margin = new Thickness(28, 16, 0, 10); DockPanel.SetDock(feedback, Dock.Left); footer.Children.Add(feedback);
+        var footerBorder = new Border { Child = footer, Background = Brush("Surface"), BorderBrush = Brush("Line"), BorderThickness = new Thickness(0, 1, 0, 0) };
+        Grid.SetRow(footerBorder, 2); frame.Children.Add(footerBorder);
+    }
+
+    private void SaveConnection()
+    {
+        bool savedKey;
+        try { savedKey = !string.IsNullOrWhiteSpace(Settings.GetKey()); } catch { savedKey = false; }
+        if ((!savedKey && string.IsNullOrWhiteSpace(key.Password)) || !ErrorAssistant.ValidModel(model.Text))
+        { feedback.Text = I18n.T("errorKeyMissing"); return; }
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(key.Password)) Settings.SetKey(key.Password);
+            Settings.Current.GeminiModel = model.Text.Trim(); Settings.Save(); key.Clear();
+            showConnection = false; connectionBorder.Visibility = Visibility.Collapsed; configureButton.Visibility = Visibility.Visible;
+            analyzeButton.IsEnabled = true;
+            feedback.Text = I18n.T("errorKeySaved"); problem.Focus();
+        }
+        catch (Exception ex) { feedback.Text = I18n.T("errorSaveFailed") + " " + ex.Message; }
+    }
+    private void PasteClipboard()
+    {
+        try
+        {
+            bool found = false;
+            if (Clipboard.ContainsText()) { problem.Text = Clipboard.GetText().Trim(); found = problem.Text.Length > 0; }
+            if (Clipboard.ContainsImage())
+            {
+                var bitmap = Clipboard.GetImage();
+                if (bitmap is not null)
+                {
+                    if ((long)bitmap.PixelWidth * bitmap.PixelHeight > 40_000_000) throw new InvalidDataException(I18n.T("errorImageSize"));
+                    using var stream = new MemoryStream(); var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap)); encoder.Save(stream);
+                    SetImage(ErrorAssistant.Prepare(stream.ToArray(), I18n.T("errorClipboardImage"))); found = true;
+                }
+            }
+            feedback.Text = found ? I18n.T("errorPasted") : I18n.T("errorEmptyClipboard");
+        }
+        catch (Exception ex) { feedback.Text = I18n.T("errorClipboardFailed") + " " + ex.Message; }
+    }
+    private void ChooseImage()
+    {
+        var dialog = new OpenFileDialog { Filter = "Images (*.png;*.jpg;*.jpeg;*.bmp)|*.png;*.jpg;*.jpeg;*.bmp", CheckFileExists = true, Multiselect = false };
+        if (dialog.ShowDialog(this) == true) TryLoadImage(() => ErrorAssistant.PrepareFile(dialog.FileName));
+    }
+    private void TryLoadImage(Func<ErrorImage> load)
+    {
+        try { SetImage(load()); feedback.Text = I18n.T("errorImageReady"); }
+        catch (Exception ex) { feedback.Text = I18n.T("errorImageFailed") + " " + ex.Message; }
+    }
+    private void SetImage(ErrorImage? value)
+    {
+        image = value;
+        imageLabel.Text = value?.Label ?? I18n.T("errorNoImage");
+        preview.Source = null; preview.Visibility = value is null ? Visibility.Collapsed : Visibility.Visible;
+        if (value is null) return;
+        using var stream = new MemoryStream(value.Bytes, false);
+        var bitmap = new BitmapImage(); bitmap.BeginInit(); bitmap.CacheOption = BitmapCacheOption.OnLoad; bitmap.StreamSource = stream; bitmap.EndInit(); bitmap.Freeze(); preview.Source = bitmap;
+    }
+    private async Task CaptureSelected()
+    {
+        if (windows.SelectedItem is not WindowChoice choice) { feedback.Text = I18n.T("errorChooseWindow"); return; }
+        try
+        {
+            feedback.Text = I18n.T("errorCapturing");
+            var capture = await WindowTranslator.CaptureWindow(choice.Handle, CancellationToken.None);
+            SetImage(ErrorAssistant.Prepare(capture.Png, choice.Title));
+            Activate(); feedback.Text = I18n.T("errorImageReady");
+        }
+        catch (Exception ex) { Activate(); feedback.Text = I18n.T("errorImageFailed") + " " + ex.Message; }
+    }
+    private async Task Analyze()
+    {
+        if (active is not null) return;
+        if (!Configured() && realAnalyzer) { showConnection = true; connectionBorder.Visibility = Visibility.Visible; configureButton.Visibility = Visibility.Collapsed; feedback.Text = I18n.T("errorKeyMissing"); key.Focus(); return; }
+        if (string.IsNullOrWhiteSpace(problem.Text) && image is null) { feedback.Text = I18n.T("errorNeedInput"); return; }
+        active = new CancellationTokenSource(); analyzeButton.IsEnabled = false; cancelButton.IsEnabled = true;
+        feedback.Text = I18n.T("errorAnalyzing"); advice = null; result.Children.Clear();
+        try
+        {
+            string language = Settings.Current.Language switch { "ar" => "Arabic", "fr" => "French", "es" => "Spanish", _ => "English" };
+            advice = await analyze(problem.Text, image, language, active.Token);
+            RenderAdvice(); feedback.Text = I18n.T("errorReady");
+        }
+        catch (OperationCanceledException) { feedback.Text = I18n.T("cancel"); }
+        catch (Exception ex) { feedback.Text = I18n.T("errorAnalysisFailed") + " " + ex.Message; }
+        finally { active.Dispose(); active = null; analyzeButton.IsEnabled = true; cancelButton.IsEnabled = false; }
+    }
+    private void RenderAdvice()
+    {
+        if (advice is null) return;
+        result.Children.Clear();
+        var summary = Text(advice.Summary, 18); summary.FontWeight = FontWeights.SemiBold; Add(result, summary, 8);
+        Add(result, Text(I18n.T("errorLikelyCause"), 14), 4); Add(result, Text(advice.Cause), 14);
+        Add(result, Text(I18n.T("errorSuggestedSteps"), 14), 6);
+        for (int i = 0; i < advice.Steps.Count; i++) Add(result, Text($"{i + 1}. {advice.Steps[i]}"), 8);
+        if (advice.Checks.Count > 0)
+        {
+            Add(result, Text(I18n.T("errorFurtherChecks"), 14), 6);
+            foreach (string check in advice.Checks) Add(result, Text("• " + check), 6);
+        }
+        Add(result, Text(I18n.T("errorConfidence") + ": " + advice.Confidence, 12, true), 6);
+        var copy = Action("errorCopyAdvice", () =>
+        {
+            try { Clipboard.SetText(advice.Summary + "\n\n" + advice.Cause + "\n\n" + string.Join("\n", advice.Steps.Select((step, i) => $"{i + 1}. {step}"))); feedback.Text = I18n.T("errorCopied"); }
+            catch (Exception ex) { feedback.Text = I18n.T("errorClipboardFailed") + " " + ex.Message; }
+        });
+        copy.HorizontalAlignment = HorizontalAlignment.Left; Add(result, copy, 0);
+    }
+}

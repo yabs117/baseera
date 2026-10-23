@@ -19,7 +19,7 @@ public partial class App : Application
         Settings.Load();
         bool smoke = e.Args.Contains("--smoke");
         string? input = e.Args.Length > 1 && e.Args[0] == "--convert" ? e.Args[1] : null;
-        var window = new MainWindow(input, smoke); MainWindow = window;
+        var window = new MainWindow(input, smoke, e.Args.Length == 0); MainWindow = window;
         if (!smoke && e.Args.Length == 2 && e.Args[0] == "--update-result") window.UpdateReceipt = e.Args[1];
         if (smoke) window.Loaded += async (_, _) =>
         {
@@ -75,6 +75,7 @@ public partial class App : Application
                 await window.CheckSelfUpdateControls();
                 await window.CheckStatusLocalization(output);
                 await TranslationSmokeChecks.Run();
+                await ErrorAssistantSmokeChecks.Run(window, output);
                 window.Activate();
                 await window.CheckTranslationSettingsLink(output);
                 await window.CheckAppList(output);
