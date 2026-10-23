@@ -6,6 +6,15 @@ namespace Baseera.App;
 public sealed partial class MainWindow
 {
     private Border? operationBar;
+    private string operationStatusKey = "", operationStatusDetail = "";
+    private string OperationStatusText => operationStatusKey.Length == 0 ? "" : I18n.T(operationStatusKey) + operationStatusDetail;
+    private void SetOperationStatus(string key, string? detail = null)
+    {
+        operationStatusKey = key;
+        operationStatusDetail = string.IsNullOrEmpty(detail) ? "" : " " + detail;
+        status.Text = OperationStatusText;
+        if (operationBar is not null) operationBar.Visibility = key.Length == 0 && operation is null ? Visibility.Collapsed : Visibility.Visible;
+    }
     private bool? startupDraft, startupScanDraft, explorerDraft;
     private string providerKeyDraft = "";
     private string? modelDraft;
@@ -49,10 +58,10 @@ public sealed partial class MainWindow
         operation = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
         if (cancelOperation is not null) cancelOperation.Visibility = Visibility.Visible;
         if (operationBar is not null) operationBar.Visibility = Visibility.Visible;
-        status.Text = I18n.T("working");
-        try { await work(operation.Token); status.Text = I18n.T("done"); }
-        catch (OperationCanceledException) { status.Text = I18n.T("cancel"); }
-        catch (Exception ex) { status.Text = I18n.T("error"); MessageBox.Show(this, ex.Message, I18n.T("error"), MessageBoxButton.OK, MessageBoxImage.Warning); }
+        SetOperationStatus("working");
+        try { await work(operation.Token); SetOperationStatus("done"); }
+        catch (OperationCanceledException) { SetOperationStatus("cancel"); }
+        catch (Exception ex) { SetOperationStatus("error"); MessageBox.Show(this, ex.Message, I18n.T("error"), MessageBoxButton.OK, MessageBoxImage.Warning); }
         finally { operation.Dispose(); operation = null; if (cancelOperation is not null) cancelOperation.Visibility = Visibility.Collapsed; }
     }
 
@@ -119,7 +128,8 @@ public sealed partial class MainWindow
         double offset = preserveScroll ? scroller.VerticalOffset : 0;
         frame.Children.Clear(); frame.RowDefinitions.Clear(); frame.Children.Add(shell);
         scroller = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
-        status = new TextBlock { Text = status.Text, Foreground = Resource("Muted"), FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
+        status = new TextBlock { Text = OperationStatusText, Foreground = Resource("Muted"), FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
+        System.Windows.Automation.AutomationProperties.SetAutomationId(status, "OperationStatus");
         shell.Children.Clear(); shell.ColumnDefinitions.Clear(); shell.RowDefinitions.Clear();
         shell.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); shell.ColumnDefinitions.Add(new ColumnDefinition());
         var navigation = new DockPanel { Margin = new Thickness(8, 10, 8, 14) };

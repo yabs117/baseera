@@ -73,6 +73,7 @@ public partial class App : Application
                 await WelcomeSmokeChecks.Run(window);
                 await SelfUpdateSmokeChecks.Run(output);
                 await window.CheckSelfUpdateControls();
+                await window.CheckStatusLocalization(output);
                 await TranslationSmokeChecks.Run();
                 window.Activate();
                 await window.CheckTranslationSettingsLink(output);

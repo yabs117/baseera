@@ -48,8 +48,8 @@ public sealed partial class MainWindow : Window
             {
                 if (UpdateReceipt is not null)
                 {
-                    try { var error = SelfUpdater.Acknowledge(UpdateReceipt); if (error is not null) status.Text = I18n.T("selfRestored") + " " + error; }
-                    catch (Exception ex) { status.Text = I18n.T("selfFailed") + " " + ex.Message; }
+                    try { var error = SelfUpdater.Acknowledge(UpdateReceipt); if (error is not null) SetOperationStatus("selfRestored", error); }
+                    catch (Exception ex) { SetOperationStatus("selfFailed", ex.Message); }
                 }
                 ShowStartupWelcome();
                 await CheckSelfUpdate();
@@ -84,7 +84,7 @@ public sealed partial class MainWindow : Window
         automaticUpdate = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
         try { updateLog = await Updater.UpdateSelected(automaticUpdate.Token); if (page == "updates") Render(); }
         catch (OperationCanceledException) { }
-        catch (Exception ex) { updateLog = ex.Message; status.Text = I18n.T("error"); }
+        catch (Exception ex) { updateLog = ex.Message; SetOperationStatus("error"); }
         finally { automaticUpdate.Dispose(); automaticUpdate = null; }
     }
 }

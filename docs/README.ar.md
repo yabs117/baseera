@@ -18,9 +18,9 @@
 ./build.ps1 -Test -Publish
 ```
 
-الملف التنفيذي في `artifacts/Baseera-v0.4.3-Windows-x64/Baseera.exe`.
+الملف التنفيذي في `artifacts/Baseera-v0.4.4-Windows-x64/Baseera.exe`.
 
-حمّل [تطبيق ويندوز](https://github.com/yabs117/baseera/releases/download/v0.4.3-preview/Baseera-v0.4.3-Windows-x64.exe) مباشرة.
+حمّل [تطبيق ويندوز](https://github.com/yabs117/baseera/releases/download/v0.4.4-preview/Baseera-v0.4.4-Windows-x64.exe) مباشرة.
 إضافة المتصفح حزمة اختيارية منفصلة: اقرأ `START-HERE.html` وثبّتها من المتصفح، ولا تفتح ملفات الشيفرة بالنقر المزدوج.
 
 ## الاستخدام

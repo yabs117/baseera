@@ -10,7 +10,7 @@ public sealed partial class MainWindow
     private bool checkingSelf, showingSelf;
     private SelfRelease? pendingSelf;
     private readonly HashSet<string> offeredSelf = [];
-    private string selfStatus = "";
+    private string selfStatusKey = "";
     internal string? UpdateReceipt { get; set; }
 
     private async Task CheckSelfUpdate(bool manual = false, Func<CancellationToken, Task<SelfRelease?>>? check = null)
@@ -22,10 +22,10 @@ public sealed partial class MainWindow
             if (manual || DateTime.UtcNow >= nextSelfCheck)
             {
                 refreshed = true;
-                selfStatus = I18n.T("selfChecking"); if (manual) Render(true);
+                selfStatusKey = "selfChecking"; if (manual) Render(true);
                 pendingSelf = await (check ?? SelfUpdater.Check)(lifetime.Token);
                 nextSelfCheck = DateTime.UtcNow.AddHours(2);
-                selfStatus = I18n.T(pendingSelf is null ? "selfLatest" : "selfAvailable");
+                selfStatusKey = pendingSelf is null ? "selfLatest" : "selfAvailable";
                 if (manual) Render(true);
             }
             bool busy = operation is not null || automaticUpdate is not null || OwnedWindows.Cast<Window>().Any(w => w.IsVisible);
@@ -33,13 +33,13 @@ public sealed partial class MainWindow
             {
                 // Keep drafts in memory until saved. Updating should not silently discard them.
                 if (providerKeyDraft.Length > 0 || modelDraft is not null || startupDraft is not null || startupScanDraft is not null || explorerDraft is not null)
-                { selfStatus = I18n.T("selfSaveDrafts"); if (manual) Render(true); return; }
+                { selfStatusKey = "selfSaveDrafts"; if (manual) Render(true); return; }
                 showingSelf = true; offeredSelf.Add(pendingSelf.Tag);
                 new UpdateWindow(this, pendingSelf).ShowDialog();
             }
         }
         catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { }
-        catch { nextSelfCheck = DateTime.UtcNow.AddMinutes(15); selfStatus = I18n.T("selfCheckFailed"); if (manual) Render(true); }
+        catch { nextSelfCheck = DateTime.UtcNow.AddMinutes(15); selfStatusKey = "selfCheckFailed"; if (manual) Render(true); }
         finally
         {
             checkingSelf = showingSelf = false;
@@ -74,7 +74,12 @@ public sealed partial class MainWindow
         content.Children.Add(Text(I18n.T("selfSettingsNote"), 12, true));
         content.Children.Add(Toggle("selfAuto", Settings.Current.CheckBaseeraUpdates, enabled => { Settings.Current.CheckBaseeraUpdates = enabled; Settings.Save(); }));
         var check = Action("selfCheck", async () => await CheckSelfUpdate(true)); check.IsEnabled = !checkingSelf; check.HorizontalAlignment = HorizontalAlignment.Left; content.Children.Add(check);
-        if (selfStatus.Length > 0) content.Children.Add(Text(selfStatus, 12, true));
+        if (selfStatusKey.Length > 0)
+        {
+            var message = Text(I18n.T(selfStatusKey), 12, true);
+            System.Windows.Automation.AutomationProperties.SetAutomationId(message, "SelfUpdateStatus");
+            content.Children.Add(message);
+        }
         body.Children.Add(Card(content));
     }
 }
