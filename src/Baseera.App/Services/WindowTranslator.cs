@@ -20,6 +20,7 @@ public static class WindowTranslator
     [DllImport("user32.dll")] private static extern bool IsWindowVisible(IntPtr hwnd);
     [DllImport("user32.dll")] private static extern bool IsIconic(IntPtr hwnd);
     [DllImport("user32.dll")] private static extern bool IsWindow(IntPtr hwnd);
+    [DllImport("user32.dll")] private static extern bool IsWindowEnabled(IntPtr hwnd);
     [DllImport("user32.dll")] private static extern IntPtr GetShellWindow();
     [DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
     [DllImport("user32.dll")] private static extern IntPtr GetWindow(IntPtr hwnd, uint command);
@@ -32,12 +33,15 @@ public static class WindowTranslator
     [DllImport("dwmapi.dll")] private static extern int DwmGetWindowAttribute(IntPtr hwnd, int attribute, out int value, int size);
     internal static bool IsSelectableWindow(IntPtr hwnd, bool excludeOwnProcess = true)
     {
-        if (!IsWindow(hwnd) || hwnd == GetShellWindow() || !IsWindowVisible(hwnd) || IsIconic(hwnd)) return false;
+        if (!IsWindow(hwnd) || hwnd == GetShellWindow() || !IsWindowVisible(hwnd) || !IsWindowEnabled(hwnd) || IsIconic(hwnd)) return false;
         GetWindowThreadProcessId(hwnd, out uint pid);
         if (pid == 0 || (excludeOwnProcess && pid == Environment.ProcessId)) return false;
         long styles = GetWindowLongPtr(hwnd, -20).ToInt64();
         const long toolWindow = 0x80, noActivate = 0x08000000, appWindow = 0x40000;
-        if ((styles & (toolWindow | noActivate)) != 0 || (GetWindow(hwnd, 4) != IntPtr.Zero && (styles & appWindow) == 0)) return false;
+        if ((styles & (toolWindow | noActivate)) != 0) return false;
+        var owner = GetWindow(hwnd, 4);
+        // Keep an active modal dialog, rather than its disabled parent, selectable.
+        if (owner != IntPtr.Zero && (styles & appWindow) == 0 && IsWindowEnabled(owner)) return false;
         // WS_VISIBLE alone includes suspended/UWP and other-virtual-desktop windows.
         if (DwmGetWindowAttribute(hwnd, 14, out int cloaked, sizeof(int)) != 0 || cloaked != 0) return false;
         if (!GetWindowRect(hwnd, out var rect) || rect.Right <= rect.Left || rect.Bottom <= rect.Top) return false;

@@ -34,6 +34,21 @@ internal static class TranslationSmokeChecks
         cloak = 0; DwmSetWindowAttribute(form.Handle, 13, ref cloak, sizeof(int)); await Task.Delay(100); Require(Selectable(), "uncloaked window did not return");
         using (var owned = new Forms.Form { Text = "Baseera owned helper fixture", ShowInTaskbar = false })
         { owned.Show(form); Require(!WindowTranslator.IsSelectableWindow(owned.Handle, false), "owned helper window included"); }
+        using (var modal = new Forms.Form { Text = "Baseera modal fixture", ShowInTaskbar = false })
+        {
+            Exception? failure = null;
+            modal.Shown += (_, _) => modal.BeginInvoke(new Action(() =>
+            {
+                try
+                {
+                    Require(WindowTranslator.IsSelectableWindow(modal.Handle, false), "real modal dialog excluded");
+                    Require(!Selectable(), "disabled modal owner included");
+                }
+                catch (Exception ex) { failure = ex; }
+                finally { modal.Close(); }
+            }));
+            modal.ShowDialog(form); if (failure is not null) throw failure;
+        }
         using (var tool = new Forms.Form { Text = "Baseera tool fixture", FormBorderStyle = Forms.FormBorderStyle.FixedToolWindow, ShowInTaskbar = false })
         { tool.Show(); Require(!WindowTranslator.IsSelectableWindow(tool.Handle, false), "tool window included"); }
         using (var passive = new PassiveForm { Text = "Baseera passive fixture" })
