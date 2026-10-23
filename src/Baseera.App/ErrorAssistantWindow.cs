@@ -15,6 +15,7 @@ internal sealed class ErrorAssistantWindow : Window
     private readonly ComboBox windows = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
     private readonly StackPanel result = new();
     private readonly StackPanel connection = new();
+    private StackPanel planNotice = new();
     private Border connectionBorder = new();
     private readonly TextBlock feedback = new() { TextWrapping = TextWrapping.Wrap };
     private readonly TextBlock imageLabel = new() { TextWrapping = TextWrapping.Wrap };
@@ -48,7 +49,7 @@ internal sealed class ErrorAssistantWindow : Window
         Content = frame;
         SourceInitialized += (_, _) => WindowAppearance.Apply(this, Settings.Current.Dark);
         Closed += (_, _) => { active?.Cancel(); active?.Dispose(); };
-        Loaded += (_, _) => { if (showConnection) connectionPanel.KeyInput.Focus(); else problem.Focus(); };
+        Loaded += (_, _) => { if (showConnection) connectionPanel.MissingInput.Focus(); else problem.Focus(); };
         PreviewKeyDown += (_, e) =>
         {
             if (e.Key == System.Windows.Input.Key.V && System.Windows.Input.Keyboard.Modifiers == System.Windows.Input.ModifierKeys.Control && HasClipboardImage())
@@ -105,6 +106,7 @@ internal sealed class ErrorAssistantWindow : Window
         {
             showConnection = false; connectionBorder.Visibility = Visibility.Collapsed;
             configureButton.Visibility = Visibility.Visible; analyzeButton.IsEnabled = true;
+            planNotice.Visibility = ChatGptAuth.Selected ? Visibility.Visible : Visibility.Collapsed;
             feedback.Text = I18n.T("errorKeySaved"); problem.Focus();
         }, dialog: true);
         Add(connection, connectionPanel, 4);
@@ -112,8 +114,9 @@ internal sealed class ErrorAssistantWindow : Window
         connectionBorder = new Border { Background = Brush("Surface"), BorderBrush = Brush("Line"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(5), Padding = new Thickness(18), Child = connection,
             Visibility = showConnection ? Visibility.Visible : Visibility.Collapsed };
         Add(body, connectionBorder, 14);
-        configureButton = Action("errorConfigure", () => { showConnection = true; connectionBorder.Visibility = Visibility.Visible; configureButton.Visibility = Visibility.Collapsed; connectionPanel.KeyInput.Focus(); });
+        configureButton = Action("errorConfigure", () => { showConnection = true; connectionBorder.Visibility = Visibility.Visible; configureButton.Visibility = Visibility.Collapsed; connectionPanel.MissingInput.Focus(); });
         configureButton.HorizontalAlignment = HorizontalAlignment.Left; configureButton.Visibility = showConnection ? Visibility.Collapsed : Visibility.Visible; Add(body, configureButton, 14);
+        planNotice = ChatGptUi.PlanNotice(); planNotice.Visibility = ChatGptAuth.Selected ? Visibility.Visible : Visibility.Collapsed; Add(body, planNotice, 8);
 
         Add(body, Text(I18n.T("errorDescription"), 15), 5);
         problem.Height = 130; problem.Tag = I18n.T("errorDescriptionHint"); problem.FlowDirection = FlowDirection.LeftToRight;
@@ -258,7 +261,7 @@ internal sealed class ErrorAssistantWindow : Window
     private async Task Analyze()
     {
         if (active is not null) return;
-        if (!Configured() && realAnalyzer) { showConnection = true; connectionBorder.Visibility = Visibility.Visible; configureButton.Visibility = Visibility.Collapsed; feedback.Text = I18n.T("errorKeyMissing"); connectionPanel.KeyInput.Focus(); return; }
+        if (!Configured() && realAnalyzer) { showConnection = true; connectionBorder.Visibility = Visibility.Visible; configureButton.Visibility = Visibility.Collapsed; feedback.Text = I18n.T("errorKeyMissing"); connectionPanel.MissingInput.Focus(); return; }
         if (string.IsNullOrWhiteSpace(problem.Text) && image is null) { feedback.Text = I18n.T("errorNeedInput"); return; }
         active = new CancellationTokenSource(); analyzeButton.IsEnabled = false; cancelButton.IsEnabled = true;
         feedback.Text = I18n.T("errorAnalyzing"); advice = null; result.Children.Clear();
@@ -269,7 +272,11 @@ internal sealed class ErrorAssistantWindow : Window
             RenderAdvice(); feedback.Text = I18n.T("errorReady");
         }
         catch (OperationCanceledException) { feedback.Text = I18n.T("cancel"); }
-        catch (Exception ex) { feedback.Text = I18n.T("errorAnalysisFailed") + " " + ex.Message; }
+        catch (Exception ex)
+        {
+            feedback.Text = I18n.T("errorAnalysisFailed") + " " + ex.Message;
+            if (ex is ChatGptException { Key: "chatGptUsageLimit" }) ChatGptUi.ShowUsageLimit(this);
+        }
         finally { active.Dispose(); active = null; analyzeButton.IsEnabled = true; cancelButton.IsEnabled = false; }
     }
     private void RenderAdvice()

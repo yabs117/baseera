@@ -14,10 +14,11 @@ internal static class WindowAppearance
         _ = DwmSetWindowAttribute(handle, 20, ref enabled, sizeof(int));
     }
 
-    internal static bool HasNativeCaption(Window window)
+    internal static bool HasNativeCaption(Window window, bool requireMinMax = true)
     {
         long style = GetWindowLongPtr(new WindowInteropHelper(window).Handle, -16).ToInt64();
-        const long required = 0x00C00000 | 0x00080000 | 0x00020000 | 0x00010000;
+        long required = 0x00C00000 | 0x00080000;
+        if (requireMinMax) required |= 0x00020000 | 0x00010000;
         return (style & required) == required;
     }
     internal static bool IsInputEnabled(Window window) => IsWindowEnabled(new WindowInteropHelper(window).Handle);

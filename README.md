@@ -6,7 +6,7 @@ image conversion, and an error assistant that explains copied Windows errors.
 
 [العربية](docs/README.ar.md) · [Français](docs/README.fr.md) · [Español](docs/README.es.md)
 
-[Download Windows app](https://github.com/yabs117/baseera/releases/download/v0.4.8-preview/Baseera-v0.4.8-Windows-x64.exe) · [Release notes](https://github.com/yabs117/baseera/releases/tag/v0.4.8-preview) · [Roadmap](docs/ROADMAP.md)
+[Download Windows app](https://github.com/yabs117/baseera/releases/download/v0.4.9-preview/Baseera-v0.4.9-Windows-x64.exe) · [Release notes](https://github.com/yabs117/baseera/releases/tag/v0.4.9-preview) · [Roadmap](docs/ROADMAP.md)
 
 ![Baseera overview — English, light appearance](docs/images/baseera-en.png)
 
@@ -18,7 +18,7 @@ image conversion, and an error assistant that explains copied Windows errors.
 
 </details>
 
-**Early preview, version 0.4.8.** This is a new project, not a certified antivirus
+**Early preview, version 0.4.9.** This is a new project, not a certified antivirus
 or a claim of 100% malware detection. Read the [capability status](docs/ROADMAP.md)
 and [security scope](SECURITY.md) before relying on it.
 
@@ -63,17 +63,23 @@ settings. The dialog does not open for Windows auto-start or file-conversion lau
 Choose from **20 direct AI services**: Gemini, OpenAI (ChatGPT models), Claude,
 Grok, Mistral, Cohere, Qwen, Z.ai, Kimi, StepFun, Together AI, Fireworks, Groq,
 NVIDIA NIM, SambaNova, Nebius, DeepInfra, SiliconFlow, Novita and Hyperbolic.
-Each service uses its own key and direct official endpoint. OpenRouter is removed.
+Each service uses its own key and direct official endpoint. OpenAI also offers
+**Continue with ChatGPT** below the provider: eligible accounts can sign in through
+the official browser flow, choose an account model and save it without an API key.
+The app keeps account sessions and API-key billing separate. OpenRouter is removed.
 Load models from the chosen service and select from the image-capable list; no
 model ID entry is required. Some services return a global catalog, so listed models
 may still require account activation, regional access, quota or credit. Pricing
 comes from service metadata; absent prices are marked account-dependent.
 See [service endpoints, filtering and verification](docs/AI-SERVICES.md).
 
-The 0.4.8 update fixes the assistant crash when switching services. Connection
-controls are created once and updated in place. Model loading is cancelled when
+Connection controls are created once and updated in place to prevent the previous
+service-switch crash. Model loading is cancelled when
 the service/key changes, and obsolete replies cannot overwrite the current choice.
-API keys and billing are separate from consumer chat subscriptions.
+API-key billing remains separate from consumer chat subscriptions. The optional
+ChatGPT account method uses the eligible plan or credits with consent and account
+limits. Account choice, automatic session renewal, sign-out, a first-sign-in
+confirmation and a Manage usage link are included. See [ChatGPT sign-in](docs/CHATGPT-SIGN-IN.md).
 
 ![Direct AI service setup](docs/images/ai-services-dialog-en.png)
 
@@ -138,9 +144,9 @@ Requires **Windows 10/11, x64**. The runtime is included; no separate .NET insta
 
 | Download | How to use |
 | --- | --- |
-| [Windows app (.exe)](https://github.com/yabs117/baseera/releases/download/v0.4.8-preview/Baseera-v0.4.8-Windows-x64.exe) | Save to a permanent folder and open it. This is the desktop application. |
-| [Windows ZIP with instructions](https://github.com/yabs117/baseera/releases/download/v0.4.8-preview/Baseera-v0.4.8-Windows-x64.zip) | Extract the whole ZIP, then open `Baseera.exe`. |
-| [Optional browser extension](https://github.com/yabs117/baseera/releases/download/v0.4.8-preview/Baseera-v0.4.8-Browser-Extension.zip) | Extract, read `START-HERE.html`, then load the inner `extension` folder in Chrome/Edge. |
+| [Windows app (.exe)](https://github.com/yabs117/baseera/releases/download/v0.4.9-preview/Baseera-v0.4.9-Windows-x64.exe) | Save to a permanent folder and open it. This is the desktop application. |
+| [Windows ZIP with instructions](https://github.com/yabs117/baseera/releases/download/v0.4.9-preview/Baseera-v0.4.9-Windows-x64.zip) | Extract the whole ZIP, then open `Baseera.exe`. |
+| [Optional browser extension](https://github.com/yabs117/baseera/releases/download/v0.4.9-preview/Baseera-v0.4.9-Browser-Extension.zip) | Extract, read `START-HERE.html`, then load the inner `extension` folder in Chrome/Edge. |
 
 Source ZIP downloads from GitHub are source code, not compiled applications.
 The browser extension is installed **inside the browser**. Do not double-click its
@@ -183,6 +189,8 @@ The browser extension is still updated separately through the browser.
 
 For translation and error help, choose your AI service and enter its own API key in Settings,
 load the models returned for that key, and select one from the image-capable list.
+For OpenAI, you can instead choose ChatGPT account, complete browser sign-in, load
+its models and save the connection.
 No key is bundled. Screenshots and error text are sent only on request to the
 selected service. Local file inspection
 and conversion do not use AI or send files.
@@ -201,7 +209,7 @@ Install the .NET 10 SDK on Windows. There are no third-party NuGet dependencies.
 node --test extension/test/protocol.test.js
 ```
 
-The self-contained executable is produced in `artifacts/Baseera-v0.4.8-Windows-x64/`.
+The self-contained executable is produced in `artifacts/Baseera-v0.4.9-Windows-x64/`.
 `-Smoke -Publish` also checks the packaged executable. `-Smoke` uses a separate local data directory and does not run updates or
 register Explorer hooks. It renders the actual WPF screens and tests conversion,
 PDF generation, translation-box validation, localization coverage and DPAPI storage.

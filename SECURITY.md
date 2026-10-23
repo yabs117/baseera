@@ -52,3 +52,11 @@ are not part of the replacement. A writable application folder is required.
 For a suspected vulnerability, use GitHub's private vulnerability reporting if
 enabled. Otherwise open an issue requesting a private contact without including
 exploit payloads, secrets, personal data or samples. Do not post live malware.
+
+ChatGPT account sign-in uses the official OpenAI OSS OAuth flow, PKCE, state/nonce
+validation, signed ID-token verification and separate plan-use permission. Account
+identities and tokens are stored atomically with Windows DPAPI, separately from API
+keys. Refreshes are serialized and sign-out attempts revocation before clearing
+local tokens. Failed revocation is reported. No browser cookies or credentials from
+other apps are read. Plan requests require completed SSE responses and never fall
+back to API-key billing automatically. See [sign-in scope and tests](docs/CHATGPT-SIGN-IN.md).

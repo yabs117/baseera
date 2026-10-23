@@ -62,7 +62,12 @@ public sealed partial class MainWindow
         SetOperationStatus("working");
         try { await work(operation.Token); SetOperationStatus("done"); }
         catch (OperationCanceledException) { SetOperationStatus("cancel"); }
-        catch (Exception ex) { SetOperationStatus("error"); MessageBox.Show(this, ex.Message, I18n.T("error"), MessageBoxButton.OK, MessageBoxImage.Warning); }
+        catch (Exception ex)
+        {
+            SetOperationStatus("error");
+            if (ex is ChatGptException { Key: "chatGptUsageLimit" }) ChatGptUi.ShowUsageLimit(this);
+            else MessageBox.Show(this, ex.Message, I18n.T("error"), MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
         finally { operation.Dispose(); operation = null; if (cancelOperation is not null) cancelOperation.Visibility = Visibility.Collapsed; }
     }
 
@@ -116,7 +121,7 @@ public sealed partial class MainWindow
     public void Navigate(string destination) { page = destination; emphasizeTranslationSettings = pendingTranslationSettings = false; Render(); }
     private bool emphasizeTranslationSettings, pendingTranslationSettings;
     private Border? translationProviderSection;
-    private PasswordBox? translationKeyInput;
+    private System.Windows.Controls.Control? translationKeyInput;
     private ComboBox? translationModelInput;
     private void OpenTranslationSettings()
     {
@@ -190,15 +195,14 @@ public sealed partial class MainWindow
         {
             pendingTranslationSettings = false;
             var scroll = scroller;
-            string selectedProvider = aiConnectionDraft.Provider;
-            var input = !File.Exists(Settings.KeyPath(selectedProvider)) ? (System.Windows.Controls.Control?)translationKeyInput : translationModelInput;
+            var input = translationKeyInput;
             _ = Dispatcher.InvokeAsync(() =>
             {
                 if (!ReferenceEquals(translationProviderSection, section)) return;
                 UpdateLayout();
                 double top = section.TransformToAncestor(scroll).Transform(new System.Windows.Point()).Y + scroll.VerticalOffset;
                 scroll.ScrollToVerticalOffset(Math.Max(0, top - 12)); scroll.UpdateLayout();
-                input?.Focus(); if (input is not null) System.Windows.Input.Keyboard.Focus(input);
+                input?.Focus(); if (input is not null) { System.Windows.Input.Keyboard.Focus(input); input.BringIntoView(); }
             }, System.Windows.Threading.DispatcherPriority.Loaded);
         }
     }
@@ -349,7 +353,7 @@ public sealed partial class MainWindow
         var provider = Stack(); SectionHeading(provider, "translationProvider");
         var connection = new AiConnectionPanel(aiConnectionDraft, () => SetOperationStatus("done"));
         provider.Children.Add(connection);
-        translationKeyInput = connection.KeyInput; translationModelInput = connection.ModelInput;
+        translationKeyInput = connection.MissingInput; translationModelInput = connection.ModelInput;
         translationProviderSection = Card(provider);
         System.Windows.Automation.AutomationProperties.SetAutomationId(translationProviderSection, "TranslationProviderSection");
         if (emphasizeTranslationSettings) translationProviderSection.BorderBrush = Resource("Accent");

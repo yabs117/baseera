@@ -25,6 +25,9 @@ public sealed class Preferences
     public string GeminiModel { get; set; } = "";
     public string AiProvider { get; set; } = "gemini";
     public Dictionary<string, string> AiModels { get; set; } = [];
+    public string OpenAiAuth { get; set; } = "api";
+    public string ChatGptAccount { get; set; } = "";
+    public string ChatGptModel { get; set; } = "";
     public string TargetLanguage { get; set; } = "Arabic";
     public string ReleasePage { get; set; } = "";
     public List<string> AutoUpdateIds { get; set; } = [];
@@ -46,6 +49,7 @@ public static class Settings
         }
         if (!new[] { "ar", "en", "fr", "es" }.Contains(Current.Language)) Current.Language = "ar";
         Current.AiModels ??= [];
+        if (Current.OpenAiAuth is not ("api" or "chatgpt")) Current.OpenAiAuth = "api";
         if (!AiProviders.Contains(Current.AiProvider)) Current.AiProvider = "gemini";
     }
     public static void Save()
@@ -96,6 +100,14 @@ public static class Settings
             var result = new byte[output.Size]; Marshal.Copy(output.Data, result, 0, output.Size); return result;
         }
         finally { Marshal.FreeHGlobal(input.Data); if (output.Data != IntPtr.Zero) LocalFree(output.Data); Array.Clear(bytes); }
+    }
+    internal static byte[] ReadProtected(string name) => Protect(File.ReadAllBytes(Path.Combine(Folder, name)), true);
+    internal static void WriteProtected(string name, byte[] bytes)
+    {
+        Directory.CreateDirectory(Folder);
+        string target = Path.Combine(Folder, name), temporary = target + "." + Guid.NewGuid().ToString("N") + ".tmp";
+        try { File.WriteAllBytes(temporary, Protect(bytes, false)); File.Move(temporary, target, true); }
+        finally { if (File.Exists(temporary)) File.Delete(temporary); }
     }
     [StructLayout(LayoutKind.Sequential)] private struct Blob { public int Size; public IntPtr Data; }
     [DllImport("crypt32.dll", CharSet = CharSet.Unicode, SetLastError = true)] private static extern bool CryptProtectData(ref Blob input, string? description, IntPtr entropy, IntPtr reserved, IntPtr prompt, int flags, out Blob output);

@@ -22,3 +22,9 @@ faces. The browser extension uses the supplied upright and italic variable fonts
 Their license is in `src/Baseera.App/Assets/Fonts/Noto-OFL.txt`,
 `extension/assets/Noto-OFL.txt`, and `Noto-OFL.txt` in the Windows ZIP. Both font
 licenses are also embedded in the standalone Windows executable.
+
+The unmodified ChatGPT logo in `src/Baseera.App/Assets/Brand/chatgpt-logo-white.svg`
+is an OpenAI brand asset used on the official sign-in button. OpenAI and ChatGPT
+marks belong to OpenAI and are not relicensed under the application’s MIT license.
+Asset source: https://developers.openai.com/assets/siwc/chatgpt-logo-white.svg
+Usage guidance: https://developers.openai.com/siwc/ui-ux-guidelines

@@ -32,7 +32,7 @@ public sealed partial class MainWindow
             if (pendingSelf is not null && !busy && (manual || (IsActive && WindowState != WindowState.Minimized && !offeredSelf.Contains(pendingSelf.Tag))))
             {
                 // Keep drafts in memory until saved. Updating should not silently discard them.
-                if (aiConnectionDraft.Services.Any(pair => pair.Value.Key.Length > 0 || pair.Value.Model != Settings.GetModel(pair.Key)) || startupDraft is not null || startupScanDraft is not null || explorerDraft is not null)
+                if (aiConnectionDraft.Services.Any(pair => pair.Value.Key.Length > 0 || pair.Value.Model != Settings.GetModel(pair.Key)) || aiConnectionDraft.OpenAiMode != Settings.Current.OpenAiAuth || aiConnectionDraft.ChatGptAccount != Settings.Current.ChatGptAccount || aiConnectionDraft.ChatGpt.Model != Settings.Current.ChatGptModel || startupDraft is not null || startupScanDraft is not null || explorerDraft is not null)
                 { selfStatusKey = "selfSaveDrafts"; if (manual) Render(true); return; }
                 showingSelf = true; offeredSelf.Add(pendingSelf.Tag);
                 new UpdateWindow(this, pendingSelf).ShowDialog();

@@ -60,9 +60,10 @@ internal static class ErrorAssistant
         if (description.Length > 12_000) throw new InvalidDataException(I18n.T("errorTextSize"));
         if (description.Length == 0 && image is null) throw new InvalidOperationException(I18n.T("errorNeedInput"));
         string provider = suppliedProvider ?? AiCatalog.Provider;
-        string key = suppliedKey ?? Settings.GetKey(provider);
-        string model = (suppliedModel ?? Settings.GetModel(provider)).Trim();
-        if (string.IsNullOrWhiteSpace(key) || !AiCatalog.ValidModel(provider, model)) throw new InvalidOperationException(I18n.T("needsKey"));
+        bool chatGpt = suppliedProvider is null && suppliedKey is null && ChatGptAuth.Selected;
+        string key = suppliedKey ?? (chatGpt ? "" : Settings.GetKey(provider));
+        string model = (suppliedModel ?? (chatGpt ? AiCatalog.Model : Settings.GetModel(provider))).Trim();
+        if ((!chatGpt && string.IsNullOrWhiteSpace(key)) || !AiCatalog.ValidModel(provider, model)) throw new InvalidOperationException(I18n.T("needsKey"));
         if (image is { Bytes.Length: > 8_000_000 }) throw new InvalidDataException(I18n.T("errorImageSize"));
 
         var prompt = "You are a cautious Windows troubleshooting assistant. Reply in " + language + ". " +
@@ -73,7 +74,7 @@ internal static class ErrorAssistant
             "checks (array of 0-5 strings), confidence (string). Do not wrap the JSON in prose. Error text:\n" + description;
         if (provider != "gemini")
         {
-            string answer = await AiVision.Complete(provider, prompt, image?.Bytes, "image/jpeg", key, model, ct, suppliedClient);
+            string answer = await AiVision.Complete(provider, prompt, image?.Bytes, "image/jpeg", key, model, ct, suppliedClient, useChatGpt: chatGpt);
             return ParseAdvice(answer);
         }
         var parts = new List<object> { new { text = prompt } };

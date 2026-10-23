@@ -5,7 +5,7 @@ ventanas con Gemini, actualizaciones WinGet elegidas y conversión de imágenes/
 Interfaz en árabe (RTL), inglés, francés y español.
 
 Requisitos: Windows 10/11 x64. El runtime .NET está incluido. Para compilar con SDK 10:
-`./build.ps1 -Test -Publish`. Abre `artifacts/Baseera-v0.4.8-Windows-x64/Baseera.exe`.
+`./build.ps1 -Test -Publish`. Abre `artifacts/Baseera-v0.4.9-Windows-x64/Baseera.exe`.
 La extensión del navegador se descarga por separado: sigue `START-HERE.html` y carga la carpeta `extension` en Chrome/Edge. No abras sus archivos fuente con doble clic.
 
 Activa solo las herramientas que necesitas. Elige entre 20 servicios directos, como Gemini, OpenAI (modelos ChatGPT), Claude y Grok. Introduce la clave del servicio y carga sus modelos con visión. Se eliminó OpenRouter y se corrigió el cierre al cambiar de servicio. El acceso y los precios dependen de la cuenta. [Servicios y pruebas](AI-SERVICES.md). Envía la captura al servicio seleccionado
@@ -26,3 +26,5 @@ Las fuentes manuales admiten actualmente GitHub Releases para revisión; no ejec
 sus instaladores automáticamente. Consulta [capacidades y límites](ROADMAP.md).
 
 Desde 0.4.0, Baseera consulta su repositorio oficial al iniciar y cada dos horas. El diálogo permite descargar, verificar, reemplazar esta copia y reiniciar conservando la configuración. Guarda una copia para restaurar la versión anterior si falla. Búsqueda manual y opción automática en Configuración → Actualizaciones de Baseera. Usa una carpeta con permiso de escritura. Las versiones anteriores necesitan descargar 0.4.0 manualmente.
+
+**Conexión sin clave:** elige OpenAI y « Continuar con ChatGPT ». Completa el acceso y la autorización en el navegador, carga los modelos de la cuenta y guarda. Se necesita un plan apto y permiso de uso. Los otros servicios siguen usando claves API. [Detalles y límites](CHATGPT-SIGN-IN.md).

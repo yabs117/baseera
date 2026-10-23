@@ -7,6 +7,10 @@ namespace Baseera.App;
 internal sealed class AiConnectionDraft
 {
     internal string Provider = AiCatalog.Provider;
+    internal string OpenAiMode = Settings.Current.OpenAiAuth;
+    internal string ChatGptAccount = Settings.Current.ChatGptAccount;
+    internal AiServiceDraft ChatGpt = new() { Model = Settings.Current.ChatGptModel };
+    internal AiServiceDraft Current => Provider == "openai" && OpenAiMode == "chatgpt" ? ChatGpt : For(Provider);
     internal readonly Dictionary<string, AiServiceDraft> Services = [];
     internal AiServiceDraft For(string provider)
     {
@@ -21,13 +25,14 @@ internal sealed class AiServiceDraft
 }
 
 // Build once. Provider changes replace data, never reparent live WPF elements.
-internal sealed class AiConnectionPanel : StackPanel
+internal sealed partial class AiConnectionPanel : StackPanel
 {
     internal readonly ComboBox Service = new() { FlowDirection = FlowDirection.LeftToRight, MaxDropDownHeight = 320 };
     internal readonly PasswordBox KeyInput = new() { FlowDirection = FlowDirection.LeftToRight };
     internal readonly ComboBox ModelInput = new() { FlowDirection = FlowDirection.LeftToRight, MaxDropDownHeight = 300 };
     private readonly TextBlock status = new() { TextWrapping = TextWrapping.Wrap }, savedKey = new() { TextWrapping = TextWrapping.Wrap };
     private readonly Button load, save, forget;
+    private readonly TextBlock keyLabel;
     private readonly AiConnectionDraft draft;
     private readonly Action saved;
     private readonly Func<string, string, CancellationToken, Task<IReadOnlyList<AiModelOption>>> list;
@@ -44,9 +49,10 @@ internal sealed class AiConnectionPanel : StackPanel
         AddLabel("aiService"); Service.ItemsSource = AiProviders.All;
         Service.SelectedItem = AiProviders.Get(draft.Provider); AddControl(Service);
         Id(Service, dialog ? "ErrorAssistantService" : "AiService");
+        BuildSignInArea();
         var note = new TextBlock { Text = I18n.T("aiDirectServices"), TextWrapping = TextWrapping.Wrap, FontSize = 12 };
         note.SetResourceReference(TextBlock.ForegroundProperty, "Muted"); AddControl(note);
-        AddLabel("aiKey"); AddControl(KeyInput);
+        keyLabel = AddLabel("aiKey"); AddControl(KeyInput);
         Id(KeyInput, dialog ? "ErrorAssistantApiKey" : "AiApiKey");
         System.Windows.Automation.AutomationProperties.SetName(KeyInput, I18n.T("aiKey"));
         savedKey.Text = I18n.T("keySaved"); savedKey.SetResourceReference(TextBlock.ForegroundProperty, "Muted"); AddControl(savedKey);
@@ -64,7 +70,7 @@ internal sealed class AiConnectionPanel : StackPanel
         Service.SelectionChanged += (_, _) =>
         {
             if (updating || Service.SelectedItem is not AiProvider selected || selected.Id == draft.Provider) return;
-            CancelLoad(); draft.Provider = selected.Id; RefreshProvider();
+            CancelLoad(); CancelSignIn(); draft.Provider = selected.Id; RefreshProvider();
         };
         KeyInput.PasswordChanged += (_, _) =>
         {
@@ -76,13 +82,13 @@ internal sealed class AiConnectionPanel : StackPanel
         };
         ModelInput.SelectionChanged += (_, _) =>
         {
-            if (!updating) draft.For(draft.Provider).Model = (ModelInput.SelectedItem as AiModelOption)?.Id ?? "";
+            if (!updating) draft.Current.Model = (ModelInput.SelectedItem as AiModelOption)?.Id ?? "";
         };
-        Unloaded += (_, _) => CancelLoad();
+        Unloaded += (_, _) => { CancelLoad(); CancelSignIn(); };
         RefreshProvider();
     }
     private static void Id(DependencyObject element, string id) => System.Windows.Automation.AutomationProperties.SetAutomationId(element, id);
-    private void AddLabel(string key) => AddControl(new TextBlock { Text = I18n.T(key), TextWrapping = TextWrapping.Wrap });
+    private TextBlock AddLabel(string key) { var label = new TextBlock { Text = I18n.T(key), TextWrapping = TextWrapping.Wrap }; AddControl(label); return label; }
     private void AddControl(FrameworkElement control) { control.Margin = new Thickness(0, 0, 0, 10); Children.Add(control); }
     private static Button Button(string key, Action click)
     {
@@ -97,16 +103,18 @@ internal sealed class AiConnectionPanel : StackPanel
         updating = true;
         try
         {
-            var state = draft.For(draft.Provider);
+            var state = draft.Current;
             KeyInput.Password = state.Key;
             var available = state.Models.ToList();
-            string storedModel = Settings.GetModel(draft.Provider);
+            string storedModel = UsingChatGpt ? Settings.Current.ChatGptModel : Settings.GetModel(draft.Provider);
             if (state.Models.Count == 0 && storedModel.Length > 0 && storedModel == state.Model)
                 available.Add(new(storedModel, storedModel, AiCatalog.Label(draft.Provider), "aiTierVaries"));
             ModelInput.ItemsSource = available;
             ModelInput.SelectedItem = available.FirstOrDefault(option => option.Id == state.Model);
             bool hasKey = File.Exists(Settings.KeyPath(draft.Provider));
-            savedKey.Visibility = forget.Visibility = hasKey ? Visibility.Visible : Visibility.Collapsed;
+            keyLabel.Visibility = KeyInput.Visibility = UsingChatGpt ? Visibility.Collapsed : Visibility.Visible;
+            savedKey.Visibility = forget.Visibility = hasKey && !UsingChatGpt ? Visibility.Visible : Visibility.Collapsed;
+            RefreshSignInArea();
             status.Text = "";
         }
         finally { updating = false; }
@@ -119,15 +127,15 @@ internal sealed class AiConnectionPanel : StackPanel
     internal async Task LoadModels()
     {
         CancelLoad();
-        int version = revision; string provider = draft.Provider;
+        int version = revision; string provider = draft.Provider; bool chatGpt = UsingChatGpt;
         using var cancellation = new CancellationTokenSource(); loading = cancellation;
         try
         {
-            string key = KeyInput.Password.Length > 0 ? KeyInput.Password : Settings.GetKey(provider);
+            string key = chatGpt ? "" : KeyInput.Password.Length > 0 ? KeyInput.Password : Settings.GetKey(provider);
             load.IsEnabled = false; status.Text = I18n.T("aiLoadingModels");
-            var models = await list(provider, key, cancellation.Token);
+            var models = chatGpt ? await ChatGptAuth.Models(draft.ChatGptAccount, cancellation.Token) : await list(provider, key, cancellation.Token);
             if (version != revision || cancellation.IsCancellationRequested || provider != draft.Provider) return;
-            var state = draft.For(provider); state.Models = models; state.Fingerprint = Fingerprint(key);
+            var state = draft.Current; state.Models = models; state.Fingerprint = chatGpt ? ChatGptAuth.Fingerprint(draft.ChatGptAccount) : Fingerprint(key);
             if (!models.Any(option => option.Id == state.Model)) state.Model = "";
             RefreshProvider();
             status.Text = models.Count == 0 ? I18n.T("aiNoVisionModels") : string.Format(I18n.T("aiModelsFound"), models.Count, 1);
@@ -140,6 +148,7 @@ internal sealed class AiConnectionPanel : StackPanel
     {
         try
         {
+            if (UsingChatGpt) { SaveChatGpt(); return; }
             var state = draft.For(draft.Provider);
             string key = state.Key.Length > 0 ? state.Key : Settings.GetKey(draft.Provider);
             if (string.IsNullOrWhiteSpace(key)) throw new InvalidOperationException(I18n.T("aiNeedKey"));
@@ -149,6 +158,7 @@ internal sealed class AiConnectionPanel : StackPanel
             if (!unchanged && (state.Fingerprint != Fingerprint(key) || !state.Models.Any(option => option.Id == chosen.Id)))
                 throw new InvalidOperationException(I18n.T("aiRefreshAfterKey"));
             Settings.SetKey(draft.Provider, key); Settings.SetModel(draft.Provider, chosen.Id);
+            if (draft.Provider == "openai") Settings.Current.OpenAiAuth = "api";
             Settings.Current.AiProvider = draft.Provider; Settings.Save();
             state.Key = ""; updating = true; KeyInput.Clear(); updating = false;
             RefreshProvider(); status.Text = I18n.T("errorKeySaved"); saved();

@@ -6,8 +6,13 @@ namespace Baseera.App.Services;
 internal static class AiVision
 {
     internal static async Task<string> Complete(string providerId, string prompt, byte[]? image, string mimeType, string key, string model,
-        CancellationToken ct, HttpClient? suppliedClient = null)
+        CancellationToken ct, HttpClient? suppliedClient = null, bool useChatGpt = false)
     {
+        if (useChatGpt)
+        {
+            if (providerId != "openai") throw new InvalidOperationException(I18n.T("chatGptInvalidResponse"));
+            return CleanText(await ChatGptAuth.Complete(Settings.Current.ChatGptAccount, model, prompt, image, mimeType, ct, suppliedClient));
+        }
         var provider = AiProviders.Get(providerId);
         if (string.IsNullOrWhiteSpace(key) || !AiCatalog.ValidModel(providerId, model)) throw new InvalidOperationException(I18n.T("needsKey"));
         using var owned = suppliedClient is null ? AiCatalog.Client(TimeSpan.FromSeconds(120)) : null;
@@ -53,6 +58,10 @@ internal static class AiVision
             "cohere" => Text(root.GetProperty("message").GetProperty("content")),
             _ => Text(root.GetProperty("choices")[0].GetProperty("message").GetProperty("content"))
         };
+        return CleanText(answer);
+    }
+    private static string CleanText(string answer)
+    {
         answer = answer.Trim();
         if (answer.StartsWith("```", StringComparison.Ordinal))
         {

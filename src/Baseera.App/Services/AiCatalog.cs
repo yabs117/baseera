@@ -13,12 +13,12 @@ internal sealed record AiModelOption(string Id, string Name, string Author, stri
 internal static class AiCatalog
 {
     internal static string Provider => AiProviders.Contains(Settings.Current.AiProvider) ? Settings.Current.AiProvider : "gemini";
-    internal static string Model => Settings.GetModel(Provider);
+    internal static string Model => Provider == "openai" && Settings.Current.OpenAiAuth == "chatgpt" ? Settings.Current.ChatGptModel : Settings.GetModel(Provider);
     internal static bool ValidModel(string provider, string model) => AiProviders.Contains(provider) &&
         Regex.IsMatch(model, "^[A-Za-z0-9][A-Za-z0-9._:/@+-]{1,249}$");
     internal static bool Configured()
     {
-        try { return !string.IsNullOrWhiteSpace(Settings.GetKey(Provider)) && ValidModel(Provider, Model); }
+        try { return ValidModel(Provider, Model) && (ChatGptAuth.Selected ? ChatGptAuth.Connected(Settings.Current.ChatGptAccount) : !string.IsNullOrWhiteSpace(Settings.GetKey(Provider))); }
         catch { return false; }
     }
     internal static string Label(string provider) => AiProviders.Get(provider).Name;

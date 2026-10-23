@@ -57,6 +57,7 @@ internal static class ErrorAssistantSmokeChecks
         if (!rejectedEmpty || calls != 1 || ErrorAssistant.ValidModel("bad/model")) throw new Exception("Invalid input was sent to Gemini.");
 
         await AiProviderSmokeChecks.Run(owner, output);
+        await ChatGptSmokeChecks.Run(owner, output);
 
         string originalLanguage = Settings.Current.Language;
         try

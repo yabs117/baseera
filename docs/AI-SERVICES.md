@@ -1,7 +1,9 @@
 # Direct AI services
 
 The desktop app connects directly to one of these 20 services. Each service has
-its own API key, saved separately with Windows DPAPI. OpenRouter has been removed.
+its own API key, saved separately with Windows DPAPI. OpenAI additionally supports
+[official ChatGPT account sign-in](CHATGPT-SIGN-IN.md) without a manually entered
+API key. Other service adapters remain in API-key mode. OpenRouter has been removed.
 Existing Gemini credentials continue to work; an old OpenRouter selection returns
 to Gemini and requires choosing/configuring a direct service. An old OpenRouter
 key is never sent to another company.
