@@ -35,3 +35,5 @@ must describe the project as new and must not claim adoption, stars, security
 assurance, or maintainer history that has not occurred.
 
 - [x] Provider/model identity above error guidance; progressive, Unicode-aware answers with Show all, reduced motion and animation lifecycle checks.
+
+- [x] Shared Baseera troubleshooting instructions in provider-specific instruction channels; language-aware welcome and response headings independent of interface language.

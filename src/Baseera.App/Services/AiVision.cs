@@ -1,17 +1,18 @@
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace Baseera.App.Services;
 
 internal static class AiVision
 {
     internal static async Task<string> Complete(string providerId, string prompt, byte[]? image, string mimeType, string key, string model,
-        CancellationToken ct, HttpClient? suppliedClient = null, bool useChatGpt = false)
+        CancellationToken ct, HttpClient? suppliedClient = null, bool useChatGpt = false, string? instructions = null)
     {
         if (useChatGpt)
         {
             if (providerId != "openai") throw new InvalidOperationException(I18n.T("chatGptInvalidResponse"));
-            return CleanText(await ChatGptAuth.Complete(Settings.Current.ChatGptAccount, model, prompt, image, mimeType, ct, suppliedClient));
+            return CleanText(await ChatGptAuth.Complete(Settings.Current.ChatGptAccount, model, prompt, image, mimeType, ct, suppliedClient, instructions));
         }
         var provider = AiProviders.Get(providerId);
         if (string.IsNullOrWhiteSpace(key) || !AiCatalog.ValidModel(providerId, model)) throw new InvalidOperationException(I18n.T("needsKey"));
@@ -42,7 +43,14 @@ internal static class AiVision
         }
         using var request = new HttpRequestMessage(HttpMethod.Post, provider.BaseUrl + endpoint);
         AiCatalog.Authenticate(request, provider, key);
-        request.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+        var body = JsonSerializer.SerializeToNode(payload)!.AsObject();
+        if (!string.IsNullOrWhiteSpace(instructions))
+        {
+            if (provider.Protocol == "responses") body["instructions"] = instructions;
+            else if (provider.Protocol == "anthropic") body["system"] = instructions;
+            else body["messages"]!.AsArray().Insert(0, JsonSerializer.SerializeToNode(new { role = "system", content = instructions }));
+        }
+        request.Content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json");
         using var response = await (suppliedClient ?? owned!).SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
         if (!response.IsSuccessStatusCode) throw new InvalidOperationException($"{provider.Name} HTTP {(int)response.StatusCode}. {I18n.T("errorApiFailed")}");
         using var document = await AiCatalog.ReadJson(response, 2_000_000, ct);

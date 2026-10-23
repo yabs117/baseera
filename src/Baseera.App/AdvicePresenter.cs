@@ -78,21 +78,26 @@ internal sealed class AdvicePresenter : Border, IDisposable
         if (disposed) return;
         timer.Stop(); elapsed.Reset(); current = revealed = total = 0; parts.Clear(); content.Children.Clear();
         copy.Visibility = Visibility.Collapsed; content.Visibility = Visibility.Visible;
+        var locale = advice.Locale ?? AdviceLocale.Interface;
+        content.FlowDirection = locale.RightToLeft ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
+        content.Language = System.Windows.Markup.XmlLanguage.GetLanguage(locale.Language);
+        var greeting = Add(locale.Greeting, 14, bottom: 14);
+        AutomationProperties.SetAutomationId(greeting, "AdviceGreeting");
         Add(advice.Summary, 18, bold: true, bottom: 16);
-        Add(I18n.T("errorLikelyCause"), 14, bold: true, bottom: 4);
+        Add(locale.CauseTitle, 14, bold: true, bottom: 4);
         Add(advice.Cause, bottom: 18);
-        Add(I18n.T("errorSuggestedSteps"), 14, bold: true, bottom: 8);
+        Add(locale.StepsTitle, 14, bold: true, bottom: 8);
         for (int i = 0; i < advice.Steps.Count; i++) Add(advice.Steps[i], number: (i + 1).ToString(CultureInfo.InvariantCulture), bottom: 10);
         if (advice.Checks.Count > 0)
         {
-            Add(I18n.T("errorFurtherChecks"), 14, bold: true, bottom: 8);
+            Add(locale.ChecksTitle, 14, bold: true, bottom: 8);
             foreach (string check in advice.Checks) Add(check, number: "·", bottom: 8);
         }
-        Add(I18n.T("errorConfidence") + ": " + advice.Confidence, 12, muted: true, bottom: 0);
-        completeText = advice.Summary + "\n\n" + I18n.T("errorLikelyCause") + "\n" + advice.Cause + "\n\n" +
-            I18n.T("errorSuggestedSteps") + "\n" + string.Join("\n", advice.Steps.Select((step, i) => $"{i + 1}. {step}")) +
-            (advice.Checks.Count == 0 ? "" : "\n\n" + I18n.T("errorFurtherChecks") + "\n" + string.Join("\n", advice.Checks.Select(check => "• " + check))) +
-            "\n\n" + I18n.T("errorConfidence") + ": " + advice.Confidence;
+        Add(locale.ConfidenceTitle + ": " + advice.Confidence, 12, muted: true, bottom: 0);
+        completeText = locale.Greeting + "\n\n" + advice.Summary + "\n\n" + locale.CauseTitle + "\n" + advice.Cause + "\n\n" +
+            locale.StepsTitle + "\n" + string.Join("\n", advice.Steps.Select((step, i) => $"{i + 1}. {step}")) +
+            (advice.Checks.Count == 0 ? "" : "\n\n" + locale.ChecksTitle + "\n" + string.Join("\n", advice.Checks.Select(check => "• " + check))) +
+            "\n\n" + locale.ConfidenceTitle + ": " + advice.Confidence;
         IsTyping = true; state.Text = I18n.T("adviceWriting"); revealAll.Visibility = Visibility.Visible;
         // Text elements preserve Arabic marks, combining accents and joined emoji. No UTF-16 slicing.
         // Ordinary answers run at 52 elements/sec; long answers take at most 32 seconds.
@@ -101,7 +106,7 @@ internal sealed class AdvicePresenter : Border, IDisposable
         elapsed.Start(); timer.Start();
     }
 
-    private void Add(string value, int size = 13, bool bold = false, bool muted = false, string? number = null, double bottom = 8)
+    private TextBlock Add(string value, int size = 13, bool bold = false, bool muted = false, string? number = null, double bottom = 8)
     {
         var text = Text("", size, muted); if (bold) text.FontWeight = FontWeights.SemiBold;
         FrameworkElement container = text;
@@ -114,6 +119,7 @@ internal sealed class AdvicePresenter : Border, IDisposable
         container.Margin = new Thickness(0, 0, 0, bottom); container.Visibility = Visibility.Collapsed; content.Children.Add(container);
         var elements = StringInfo.ParseCombiningCharacters(value); total += elements.Length;
         parts.Add(new(container, text, value, elements));
+        return text;
     }
 
     private void Tick(object? sender, EventArgs args)

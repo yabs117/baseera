@@ -44,14 +44,21 @@ internal static class AiProviderSmokeChecks
                 Require(request.RequestUri.AbsoluteUri == provider.BaseUrl + expectedPath, "Wrong generation route: " + provider.Id);
                 var root = body.RootElement;
                 Require(root.GetProperty("model").GetString() == "vision-model", "Selected model changed.");
-                string advice = "{\"summary\":\"Test\",\"cause\":\"Test cause\",\"steps\":[\"Check permissions.\"],\"checks\":[],\"confidence\":\"Uncertain\"}";
+                string advice = ErrorLanguageSmokeChecks.Fixture("en");
+                string instructions = provider.Protocol switch
+                {
+                    "responses" => root.GetProperty("instructions").GetString()!,
+                    "anthropic" => root.GetProperty("system").GetString()!,
+                    _ => root.GetProperty("messages")[0].GetProperty("content").GetString()!
+                };
+                Require(instructions == ErrorAssistantPrompt.Instructions, "Baseera instructions missing: " + provider.Id);
                 if (provider.Protocol == "responses")
                 {
                     var parts = root.GetProperty("input")[0].GetProperty("content");
                     Require(parts[1].GetProperty("type").GetString() == "input_image" && parts[1].GetProperty("image_url").GetString()!.StartsWith("data:image/jpeg;base64,"), "Responses image missing.");
                     return Json(new { output = new[] { new { type = "message", content = new[] { new { type = "output_text", text = advice } } } } });
                 }
-                var content = root.GetProperty("messages")[0].GetProperty("content");
+                var content = root.GetProperty("messages")[provider.Protocol == "anthropic" ? 0 : 1].GetProperty("content");
                 if (provider.Protocol == "anthropic")
                 {
                     Require(content[1].GetProperty("source").GetProperty("media_type").GetString() == "image/jpeg", "Claude image missing.");

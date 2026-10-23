@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace Baseera.App.Services;
 
@@ -110,7 +111,7 @@ internal static partial class ChatGptAuth
         }
         return result.DistinctBy(model => model.Id).ToArray(); // Preserve the account catalog's order.
     }
-    internal static async Task<string> Complete(string clientId, string model, string prompt, byte[]? image, string mimeType, CancellationToken ct, HttpClient? suppliedClient = null)
+    internal static async Task<string> Complete(string clientId, string model, string prompt, byte[]? image, string mimeType, CancellationToken ct, HttpClient? suppliedClient = null, string? instructions = null)
     {
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, SessionToken(clientId));
         string token = await AccessToken(clientId, linked.Token, suppliedClient);
@@ -121,7 +122,9 @@ internal static partial class ChatGptAuth
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         request.Headers.Accept.ParseAdd("text/event-stream");
         // ChatGPT-plan requests intentionally omit API-only fields such as max_output_tokens and temperature.
-        request.Content = new StringContent(JsonSerializer.Serialize(new { model, input = new[] { new { role = "user", content } }, store = false, stream = true }), Encoding.UTF8, "application/json");
+        var body = JsonSerializer.SerializeToNode(new { model, input = new[] { new { role = "user", content } }, store = false, stream = true })!.AsObject();
+        if (!string.IsNullOrWhiteSpace(instructions)) body["instructions"] = instructions;
+        request.Content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json");
         using var response = await (suppliedClient ?? owned!).SendAsync(request, HttpCompletionOption.ResponseHeadersRead, linked.Token);
         if (!response.IsSuccessStatusCode)
         {

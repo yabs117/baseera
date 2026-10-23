@@ -43,7 +43,7 @@ internal static class ErrorAssistantSmokeChecks
                 parts[1].GetProperty("inline_data").GetProperty("mime_type").GetString() != "image/jpeg" ||
                 document.RootElement.GetProperty("generationConfig").GetProperty("responseMimeType").GetString() != "application/json")
                 throw new Exception("Error text, image or structured response was not requested.");
-            string advice = JsonSerializer.Serialize(new { summary = "Access denied", cause = "The requested operation may lack permission.",
+            string advice = JsonSerializer.Serialize(new { locale = ErrorLanguageSmokeChecks.LocaleObject("en"), summary = "Access denied", cause = "The requested operation may lack permission.",
                 steps = new[] { "Check the file permissions.", "Try the official app repair flow." },
                 checks = new[] { "Record the app name and operation." }, confidence = "Moderate" });
             string envelope = JsonSerializer.Serialize(new { candidates = new[] { new { content = new { parts = new[] { new { text = advice } } } } } });
@@ -58,6 +58,7 @@ internal static class ErrorAssistantSmokeChecks
 
         await AiProviderSmokeChecks.Run(owner, output);
         await ChatGptSmokeChecks.Run(owner, output);
+        await ErrorLanguageSmokeChecks.Run(owner, output);
         await AdvicePresentationSmokeChecks.Run(owner, output);
 
         string originalLanguage = Settings.Current.Language;

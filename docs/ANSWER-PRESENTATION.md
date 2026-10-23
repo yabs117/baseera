@@ -12,8 +12,8 @@ network request and sends no credentials or error information to an image host.
 
 ## Progressive display
 
-After the complete structured response passes validation, the summary, probable
-cause, suggested steps, further checks and confidence appear progressively. This is
+After the complete structured response passes validation, the welcome (added in
+0.4.11), summary, probable cause, suggested steps, further checks and confidence appear progressively. This is
 a local presentation effect, not live token streaming. It never reveals unfinished
 JSON or an incomplete API response as valid advice.
 
@@ -24,8 +24,9 @@ client-area animations are disabled, the answer appears immediately. Controls st
 responsive throughout the reveal.
 
 Text element boundaries preserve Arabic diacritics, combining accents and joined
-Unicode characters. Arabic content follows the existing RTL layout, while model
-IDs and the logo itself remain LTR. Sections and numbered steps use clearer spacing.
+Unicode characters. From 0.4.11 the answer body follows its own reply-language
+direction independently of the app interface, while model IDs and the logo itself
+remain LTR. Sections and numbered steps use clearer spacing.
 
 ![Arabic answer while revealing](images/advice-writing-ar.png)
 

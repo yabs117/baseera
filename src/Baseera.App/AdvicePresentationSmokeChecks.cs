@@ -71,8 +71,8 @@ internal static class AdvicePresentationSmokeChecks
                 settings.AiProvider = "openai";
                 // Force motion for this test even on CI hosts with Windows animation disabled.
                 presentation.Reveal(sample, animate: true); await Task.Delay(300);
-                var summary = Children(presentation).OfType<TextBlock>().First(t => sample.Summary.StartsWith(t.Text, StringComparison.Ordinal) && t.FontSize == 18);
-                if (!presentation.IsTyping || summary.Text.Length == 0 || summary.Text == sample.Summary ||
+                var greeting = Children(presentation).OfType<TextBlock>().First(t => AdviceLocale.Interface.Greeting.StartsWith(t.Text, StringComparison.Ordinal) && t.FontSize == 14);
+                if (!presentation.IsTyping || greeting.Text.Length == 0 || greeting.Text == AdviceLocale.Interface.Greeting ||
                     !Find<Button>(presentation, "AdviceRevealAll").IsVisible || Find<Button>(presentation, "errorCopyAdvice").IsVisible)
                     throw new Exception("Advice was not progressively revealed.");
                 if (language == "ar" && presentation.FlowDirection != FlowDirection.RightToLeft) throw new Exception("Arabic answer is not RTL.");

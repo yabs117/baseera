@@ -5,7 +5,7 @@ fenêtres avec Gemini, mises à jour WinGet choisies et conversion d’images/PD
 L’interface est disponible en arabe (RTL), anglais, français et espagnol.
 
 Prérequis : Windows 10/11 x64. Le runtime .NET est inclus. Pour compiler avec le SDK 10 :
-`./build.ps1 -Test -Publish`. Lancez `artifacts/Baseera-v0.4.10-Windows-x64/Baseera.exe`.
+`./build.ps1 -Test -Publish`. Lancez `artifacts/Baseera-v0.4.11-Windows-x64/Baseera.exe`.
 L’extension de navigateur est un téléchargement séparé : suivez `START-HERE.html` et chargez le dossier `extension` dans Chrome/Edge. Ne lancez pas ses fichiers source par double-clic.
 
 Activez uniquement les outils voulus lors du premier lancement. Pour la traduction,
@@ -31,3 +31,5 @@ Depuis 0.4.0, Baseera vérifie son dépôt officiel au lancement puis toutes les
 **Connexion sans clé :** choisissez OpenAI puis « Continuer avec ChatGPT ». Terminez la connexion et le consentement dans le navigateur, chargez les modèles du compte et enregistrez. Un forfait éligible et une autorisation sont nécessaires. Les autres services restent en mode clé API. [Détails et limites](CHATGPT-SIGN-IN.md).
 
 **Présentation des réponses :** logo du service et modèle utilisé au-dessus de la réponse, affichage progressif et bouton « Tout afficher ». Les préférences de réduction des animations Windows sont respectées. [Détails](ANSWER-PRESENTATION.md).
+
+**Instructions intégrées :** chaque analyse reçoit le rôle de dépannage Baseera et accepte du texte seul ou une capture. L’accueil, les titres et le sens du texte suivent la langue de l’utilisateur, indépendamment de l’interface. Les autres langues dépendent des capacités du modèle. [Détails](ERROR-ASSISTANT-PROMPT.md).

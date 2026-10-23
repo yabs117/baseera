@@ -6,7 +6,7 @@ image conversion, and an error assistant that explains copied Windows errors.
 
 [العربية](docs/README.ar.md) · [Français](docs/README.fr.md) · [Español](docs/README.es.md)
 
-[Download Windows app](https://github.com/yabs117/baseera/releases/download/v0.4.10-preview/Baseera-v0.4.10-Windows-x64.exe) · [Release notes](https://github.com/yabs117/baseera/releases/tag/v0.4.10-preview) · [Roadmap](docs/ROADMAP.md)
+[Download Windows app](https://github.com/yabs117/baseera/releases/download/v0.4.11-preview/Baseera-v0.4.11-Windows-x64.exe) · [Release notes](https://github.com/yabs117/baseera/releases/tag/v0.4.11-preview) · [Roadmap](docs/ROADMAP.md)
 
 ![Baseera overview — English, light appearance](docs/images/baseera-en.png)
 
@@ -18,7 +18,7 @@ image conversion, and an error assistant that explains copied Windows errors.
 
 </details>
 
-**Early preview, version 0.4.10.** This is a new project, not a certified antivirus
+**Early preview, version 0.4.11.** This is a new project, not a certified antivirus
 or a claim of 100% malware detection. Read the [capability status](docs/ROADMAP.md)
 and [security scope](SECURITY.md) before relying on it.
 
@@ -65,6 +65,12 @@ request. Validated guidance appears progressively at a measured pace, with **Sho
 for immediate reading. Arabic stays RTL, and Windows reduced-motion settings are
 respected. Reanalysis or closing the window stops the previous animation.
 [Presentation details and previews](docs/ANSWER-PRESENTATION.md).
+
+Built-in Baseera instructions accompany every error-assistance request, with text
+alone or a screenshot. The welcome sentence and all answer sections follow the
+language of the user’s explanation, independently of the app’s four interface
+languages. Other reply languages depend on the selected model’s language abilities.
+[Prompt, language selection and limits](docs/ERROR-ASSISTANT-PROMPT.md).
 
 Choose from **20 direct AI services**: Gemini, OpenAI (ChatGPT models), Claude,
 Grok, Mistral, Cohere, Qwen, Z.ai, Kimi, StepFun, Together AI, Fireworks, Groq,
@@ -150,9 +156,9 @@ Requires **Windows 10/11, x64**. The runtime is included; no separate .NET insta
 
 | Download | How to use |
 | --- | --- |
-| [Windows app (.exe)](https://github.com/yabs117/baseera/releases/download/v0.4.10-preview/Baseera-v0.4.10-Windows-x64.exe) | Save to a permanent folder and open it. This is the desktop application. |
-| [Windows ZIP with instructions](https://github.com/yabs117/baseera/releases/download/v0.4.10-preview/Baseera-v0.4.10-Windows-x64.zip) | Extract the whole ZIP, then open `Baseera.exe`. |
-| [Optional browser extension](https://github.com/yabs117/baseera/releases/download/v0.4.10-preview/Baseera-v0.4.10-Browser-Extension.zip) | Extract, read `START-HERE.html`, then load the inner `extension` folder in Chrome/Edge. |
+| [Windows app (.exe)](https://github.com/yabs117/baseera/releases/download/v0.4.11-preview/Baseera-v0.4.11-Windows-x64.exe) | Save to a permanent folder and open it. This is the desktop application. |
+| [Windows ZIP with instructions](https://github.com/yabs117/baseera/releases/download/v0.4.11-preview/Baseera-v0.4.11-Windows-x64.zip) | Extract the whole ZIP, then open `Baseera.exe`. |
+| [Optional browser extension](https://github.com/yabs117/baseera/releases/download/v0.4.11-preview/Baseera-v0.4.11-Browser-Extension.zip) | Extract, read `START-HERE.html`, then load the inner `extension` folder in Chrome/Edge. |
 
 Source ZIP downloads from GitHub are source code, not compiled applications.
 The browser extension is installed **inside the browser**. Do not double-click its
@@ -215,7 +221,7 @@ Install the .NET 10 SDK on Windows. There are no third-party NuGet dependencies.
 node --test extension/test/protocol.test.js
 ```
 
-The self-contained executable is produced in `artifacts/Baseera-v0.4.10-Windows-x64/`.
+The self-contained executable is produced in `artifacts/Baseera-v0.4.11-Windows-x64/`.
 `-Smoke -Publish` also checks the packaged executable. `-Smoke` uses a separate local data directory and does not run updates or
 register Explorer hooks. It renders the actual WPF screens and tests conversion,
 PDF generation, translation-box validation, localization coverage and DPAPI storage.

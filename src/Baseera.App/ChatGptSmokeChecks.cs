@@ -83,7 +83,8 @@ internal static class ChatGptSmokeChecks
                 !root.TryGetProperty("max_output_tokens", out _) && !root.TryGetProperty("temperature", out _) && !root.TryGetProperty("previous_response_id", out _), "ChatGPT plan request used unsupported fields.");
             Require(root.GetProperty("input")[0].GetProperty("content")[1].GetProperty("type").GetString() == "input_image", "OAuth image input missing.");
             inference++;
-            string answer = "{\"summary\":\"Test error\",\"cause\":\"Fixture cause\",\"steps\":[\"Review the error.\"],\"checks\":[],\"confidence\":\"Uncertain\"}";
+            Require(root.GetProperty("instructions").GetString() == ErrorAssistantPrompt.Instructions, "OAuth Baseera instructions missing.");
+            string answer = ErrorLanguageSmokeChecks.Fixture("en", "Test error");
             return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(
                 "data: " + JsonSerializer.Serialize(new { type = "response.output_text.delta", delta = answer }) + "\n\n" +
                 "data: " + JsonSerializer.Serialize(new { type = "response.completed", response = new { status = "completed" } }) + "\n\n", Encoding.UTF8, "text/event-stream") };

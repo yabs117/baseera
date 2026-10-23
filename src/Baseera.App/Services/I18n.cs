@@ -80,6 +80,7 @@ public static class I18n
         ["adviceWriting"] = ["جارٍ عرض الإجابة…", "Revealing answer…", "Affichage de la réponse…", "Mostrando respuesta…"],
         ["adviceRevealAll"] = ["إظهار الكل", "Show all", "Tout afficher", "Mostrar todo"],
         ["adviceComplete"] = ["اكتمل الرد", "Answer complete", "Réponse complète", "Respuesta completa"],
+        ["assistantGreeting"] = ["مرحبًا بك في بصيرة أدوات لتسهيل الويندوز.", "Welcome to Baseera, tools to make Windows easier.", "Bienvenue dans Baseera, des outils pour simplifier Windows.", "Te damos la bienvenida a Baseera, herramientas para facilitar Windows."],
         ["errorAnalysisFailed"] = ["تعذّر تحليل الخطأ:", "Could not analyze error:", "Analyse impossible :", "No se pudo analizar el error:"],
         ["errorApiFailed"] = ["تحقق من المفتاح ومعرّف النموذج والاتصال وحدود الحساب.", "Check your key, model ID, connection and account limits.", "Vérifiez la clé, le modèle, la connexion et les limites du compte.", "Comprueba la clave, el modelo, la conexión y los límites de la cuenta."],
         ["errorLikelyCause"] = ["السبب المحتمل", "Likely cause", "Cause probable", "Causa probable"],
