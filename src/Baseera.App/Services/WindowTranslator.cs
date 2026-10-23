@@ -19,18 +19,39 @@ public static class WindowTranslator
     [DllImport("user32.dll")] private static extern bool EnumWindows(EnumProc proc, IntPtr param);
     [DllImport("user32.dll")] private static extern bool IsWindowVisible(IntPtr hwnd);
     [DllImport("user32.dll")] private static extern bool IsIconic(IntPtr hwnd);
+    [DllImport("user32.dll")] private static extern bool IsWindow(IntPtr hwnd);
+    [DllImport("user32.dll")] private static extern IntPtr GetShellWindow();
+    [DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")] private static extern IntPtr GetWindow(IntPtr hwnd, uint command);
+    [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")] private static extern IntPtr GetWindowLongPtr(IntPtr hwnd, int index);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetWindowText(IntPtr hwnd, StringBuilder text, int size);
     [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr hwnd, out Rect rect);
     [DllImport("user32.dll")] private static extern bool SetForegroundWindow(IntPtr hwnd);
     [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr hwnd, out uint processId);
     [DllImport("dwmapi.dll")] private static extern int DwmGetWindowAttribute(IntPtr hwnd, int attribute, out Rect value, int size);
+    [DllImport("dwmapi.dll")] private static extern int DwmGetWindowAttribute(IntPtr hwnd, int attribute, out int value, int size);
+    internal static bool IsSelectableWindow(IntPtr hwnd, bool excludeOwnProcess = true)
+    {
+        if (!IsWindow(hwnd) || hwnd == GetShellWindow() || !IsWindowVisible(hwnd) || IsIconic(hwnd)) return false;
+        GetWindowThreadProcessId(hwnd, out uint pid);
+        if (pid == 0 || (excludeOwnProcess && pid == Environment.ProcessId)) return false;
+        long styles = GetWindowLongPtr(hwnd, -20).ToInt64();
+        const long toolWindow = 0x80, noActivate = 0x08000000, appWindow = 0x40000;
+        if ((styles & (toolWindow | noActivate)) != 0 || (GetWindow(hwnd, 4) != IntPtr.Zero && (styles & appWindow) == 0)) return false;
+        // WS_VISIBLE alone includes suspended/UWP and other-virtual-desktop windows.
+        if (DwmGetWindowAttribute(hwnd, 14, out int cloaked, sizeof(int)) != 0 || cloaked != 0) return false;
+        if (!GetWindowRect(hwnd, out var rect) || rect.Right <= rect.Left || rect.Bottom <= rect.Top) return false;
+        var bounds = System.Drawing.Rectangle.FromLTRB(rect.Left, rect.Top, rect.Right, rect.Bottom);
+        if (!System.Windows.Forms.Screen.AllScreens.Any(screen => screen.Bounds.IntersectsWith(bounds))) return false;
+        var text = new StringBuilder(512); GetWindowText(hwnd, text, text.Capacity);
+        return !string.IsNullOrWhiteSpace(text.ToString());
+    }
     public static List<WindowChoice> ListWindows()
     {
         var result = new List<WindowChoice>();
         EnumWindows((hwnd, _) =>
         {
-            GetWindowThreadProcessId(hwnd, out uint pid);
-            if (pid == Environment.ProcessId || !IsWindowVisible(hwnd) || IsIconic(hwnd)) return true;
+            if (!IsSelectableWindow(hwnd)) return true;
             var text = new StringBuilder(512); GetWindowText(hwnd, text, text.Capacity);
             if (text.Length > 0) result.Add(new(hwnd, text.ToString()));
             return true;
@@ -39,10 +60,11 @@ public static class WindowTranslator
     }
     public static async Task<Capture> CaptureWindow(IntPtr hwnd, CancellationToken ct)
     {
-        if (!IsWindowVisible(hwnd) || IsIconic(hwnd)) throw new InvalidOperationException(I18n.T("selectWindow"));
+        if (!IsSelectableWindow(hwnd)) throw new InvalidOperationException(I18n.T("selectWindow"));
         SetForegroundWindow(hwnd);
         await Task.Delay(450, ct);
-        if (DwmGetWindowAttribute(hwnd, 9, out var rect, Marshal.SizeOf<Rect>()) != 0 && !GetWindowRect(hwnd, out rect))
+        if (!IsSelectableWindow(hwnd) || GetForegroundWindow() != hwnd) throw new InvalidOperationException(I18n.T("selectWindow"));
+        if (DwmGetWindowAttribute(hwnd, 9, out Rect rect, Marshal.SizeOf<Rect>()) != 0 && !GetWindowRect(hwnd, out rect))
             throw new InvalidOperationException("Cannot read window bounds.");
         var desktop = System.Windows.Forms.SystemInformation.VirtualScreen;
         int left = Math.Max(rect.Left, desktop.Left), top = Math.Max(rect.Top, desktop.Top);

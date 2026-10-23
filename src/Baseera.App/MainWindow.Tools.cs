@@ -52,14 +52,22 @@ public sealed partial class MainWindow
         if (!Guard(body, "translate")) return;
         var capture = Stack(); capture.Children.Add(Text(I18n.T("selectedWindow"), 14));
         var windows = new ComboBox { ItemsSource = WindowTranslator.ListWindows(), DisplayMemberPath = "Title", Tag = I18n.T("selectWindow"), HorizontalAlignment = HorizontalAlignment.Stretch, Margin = new Thickness(0, 5, 8, 16) };
+        System.Windows.Automation.AutomationProperties.SetName(windows, I18n.T("selectedWindow"));
+        void RefreshWindows()
+        {
+            var previous = (windows.SelectedItem as WindowChoice)?.Handle;
+            var available = WindowTranslator.ListWindows(); windows.ItemsSource = available;
+            windows.SelectedItem = available.FirstOrDefault(item => item.Handle == previous);
+        }
+        windows.DropDownOpened += (_, _) => RefreshWindows();
         var choice = new Grid(); choice.ColumnDefinitions.Add(new ColumnDefinition()); choice.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); choice.Children.Add(windows);
-        var refresh = Action("refresh", () => windows.ItemsSource = WindowTranslator.ListWindows()); refresh.Margin = new Thickness(0, 5, 0, 16); refresh.VerticalAlignment = VerticalAlignment.Center; Grid.SetColumn(refresh, 1); choice.Children.Add(refresh); capture.Children.Add(choice);
+        var refresh = Action("refresh", RefreshWindows); refresh.Margin = new Thickness(0, 5, 0, 16); refresh.VerticalAlignment = VerticalAlignment.Center; Grid.SetColumn(refresh, 1); choice.Children.Add(refresh); capture.Children.Add(choice);
         capture.Children.Add(Text(I18n.T("target")));
         var target = new ComboBox { ItemsSource = new[] { "Arabic", "English", "French", "Spanish" }, SelectedItem = Settings.Current.TargetLanguage, Width = 220, HorizontalAlignment = HorizontalAlignment.Left };
         target.SelectionChanged += (_, _) => { Settings.Current.TargetLanguage = target.SelectedItem?.ToString() ?? "Arabic"; Settings.Save(); }; capture.Children.Add(target);
         if (!File.Exists(Path.Combine(Settings.Folder, "secrets.bin")) || string.IsNullOrWhiteSpace(Settings.Current.GeminiModel))
         {
-            capture.Children.Add(Text(I18n.T("needsKey"), 12, true)); var settings = Action("settings", () => Navigate("settings")); settings.HorizontalAlignment = HorizontalAlignment.Left; capture.Children.Add(settings);
+            capture.Children.Add(Text(I18n.T("needsKey"), 12, true)); var settings = Action("settings", OpenTranslationSettings); settings.ToolTip = I18n.T("translationProvider"); System.Windows.Automation.AutomationProperties.SetAutomationId(settings, "TranslationProviderSettings"); settings.HorizontalAlignment = HorizontalAlignment.Left; capture.Children.Add(settings);
         }
         var actions = new WrapPanel { Margin = new Thickness(0, 8, 0, 0) };
         actions.Children.Add(AsyncAction("translateNow", async ct =>

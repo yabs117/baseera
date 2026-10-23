@@ -103,10 +103,19 @@ public sealed partial class MainWindow
         control.SetValue(VerticalAlignmentProperty, VerticalAlignment.Center); Grid.SetColumn(control, 2); row.Children.Add(control); return row;
     }
     private void Divider(StackPanel body) => body.Children.Add(new Border { Height = 1, Background = Resource("Line") });
-    public void Navigate(string destination) { page = destination; Render(); }
+    public void Navigate(string destination) { page = destination; emphasizeTranslationSettings = pendingTranslationSettings = false; Render(); }
+    private bool emphasizeTranslationSettings, pendingTranslationSettings;
+    private Border? translationProviderSection;
+    private PasswordBox? translationKeyInput;
+    private TextBox? translationModelInput;
+    private void OpenTranslationSettings()
+    {
+        page = "settings"; emphasizeTranslationSettings = pendingTranslationSettings = true; Render();
+    }
 
     public void Render(bool preserveScroll = false)
     {
+        translationProviderSection = null; translationKeyInput = null; translationModelInput = null;
         double offset = preserveScroll ? scroller.VerticalOffset : 0;
         frame.Children.Clear(); frame.RowDefinitions.Clear(); frame.Children.Add(shell);
         scroller = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
@@ -162,6 +171,20 @@ public sealed partial class MainWindow
             case "settings": SettingsPage(body); break; default: Home(body); break;
         }
         if (offset > 0) _ = Dispatcher.InvokeAsync(() => scroller.ScrollToVerticalOffset(offset), System.Windows.Threading.DispatcherPriority.Loaded);
+        if (pendingTranslationSettings && translationProviderSection is { } section)
+        {
+            pendingTranslationSettings = false;
+            var scroll = scroller;
+            var input = !File.Exists(Path.Combine(Settings.Folder, "secrets.bin")) ? (System.Windows.Controls.Control?)translationKeyInput : translationModelInput;
+            _ = Dispatcher.InvokeAsync(() =>
+            {
+                if (!ReferenceEquals(translationProviderSection, section)) return;
+                UpdateLayout();
+                double top = section.TransformToAncestor(scroll).Transform(new System.Windows.Point()).Y + scroll.VerticalOffset;
+                scroll.ScrollToVerticalOffset(Math.Max(0, top - 12)); scroll.UpdateLayout();
+                input?.Focus(); if (input is not null) System.Windows.Input.Keyboard.Focus(input);
+            }, System.Windows.Threading.DispatcherPriority.Loaded);
+        }
     }
 
     private Button NavigationButton(string id)
@@ -252,18 +275,26 @@ public sealed partial class MainWindow
             Settings.Current.ExplorerMenu = explorerDraft ?? Settings.Current.ExplorerMenu;
             Settings.Save(); Settings.ApplyWindowsIntegration(); ApplyExplorerShortcut(); startupDraft = startupScanDraft = explorerDraft = null; Render(true); return Task.CompletedTask;
         }, true); apply.HorizontalAlignment = HorizontalAlignment.Left; windows.Children.Add(apply); body.Children.Add(Card(windows));
-        SectionHeading(body, "translationProvider"); var provider = Stack(); provider.Children.Add(Text(I18n.T("apiKey")));
+        var provider = Stack(); SectionHeading(provider, "translationProvider"); provider.Children.Add(Text(I18n.T("apiKey")));
         var key = new PasswordBox { FlowDirection = FlowDirection.LeftToRight, Password = providerKeyDraft }; key.PasswordChanged += (_, _) => providerKeyDraft = key.Password; provider.Children.Add(key);
+        translationKeyInput = key; System.Windows.Automation.AutomationProperties.SetName(key, I18n.T("apiKey"));
+        System.Windows.Automation.AutomationProperties.SetAutomationId(key, "GeminiApiKey");
         if (File.Exists(Path.Combine(Settings.Folder, "secrets.bin")))
         {
             provider.Children.Add(Text(I18n.T("keySaved"), 12, true)); var forget = Action("forgetKey", () => { providerKeyDraft = ""; Settings.SetKey(""); Render(true); }); forget.HorizontalAlignment = HorizontalAlignment.Left; provider.Children.Add(forget);
         }
         provider.Children.Add(Text(I18n.T("model"))); var model = new TextBox { Text = modelDraft ?? Settings.Current.GeminiModel, FlowDirection = FlowDirection.LeftToRight }; model.TextChanged += (_, _) => modelDraft = model.Text; provider.Children.Add(model);
+        translationModelInput = model; System.Windows.Automation.AutomationProperties.SetName(model, I18n.T("model"));
+        System.Windows.Automation.AutomationProperties.SetAutomationId(model, "GeminiModelId");
         var save = AsyncAction("save", _ =>
         {
             if (!string.IsNullOrWhiteSpace(key.Password)) Settings.SetKey(key.Password);
             Settings.Current.GeminiModel = model.Text.Trim(); Settings.Save(); providerKeyDraft = ""; modelDraft = null; Render(true); return Task.CompletedTask;
-        }, true); save.HorizontalAlignment = HorizontalAlignment.Left; provider.Children.Add(save); body.Children.Add(Card(provider));
+        }, true); save.HorizontalAlignment = HorizontalAlignment.Left; provider.Children.Add(save);
+        translationProviderSection = Card(provider);
+        System.Windows.Automation.AutomationProperties.SetAutomationId(translationProviderSection, "TranslationProviderSection");
+        if (emphasizeTranslationSettings) translationProviderSection.BorderBrush = Resource("Accent");
+        body.Children.Add(translationProviderSection);
     }
 
     internal async Task CheckNavigation()
