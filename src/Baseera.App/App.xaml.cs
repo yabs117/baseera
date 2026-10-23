@@ -50,10 +50,10 @@ public partial class App : Application
                     SaveView("setup-" + language);
                 }
                 Settings.Current.Onboarded = true; Settings.Current.ScanEnabled = true; Settings.Current.TranslationEnabled = true;
-                Settings.Current.UpdatesEnabled = true; Settings.Current.ConvertEnabled = true;
+                Settings.Current.UpdatesEnabled = true; Settings.Current.ConvertEnabled = true; Settings.Current.ErrorAssistantEnabled = true;
                 foreach (string language in new[] { "en", "ar" })
                 foreach (bool dark in new[] { false, true })
-                foreach (string page in new[] { "home", "scan", "translate", "updates", "convert", "settings" })
+                foreach (string page in new[] { "home", "scan", "translate", "updates", "convert", "errors", "settings" })
                 {
                     Settings.Current.Language = language; Settings.Current.Dark = dark; window.ApplyTheme();
                     window.Navigate(page); await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);

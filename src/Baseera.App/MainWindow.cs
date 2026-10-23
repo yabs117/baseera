@@ -58,7 +58,7 @@ public sealed partial class MainWindow : Window
                     catch (Exception ex) { SetOperationStatus("selfFailed", ex.Message); }
                 }
                 ShowStartupWelcome();
-                if (launchErrorAssistant) ShowErrorAssistant();
+                if (launchErrorAssistant && Settings.Current.ErrorAssistantEnabled) ShowErrorAssistant();
                 await CheckSelfUpdate();
                 if (!Settings.Current.Onboarded) return;
                 if (Settings.Current.ScanEnabled && Settings.Current.ScanAtStartup && (File.Exists(Settings.Current.ScanPath) || Directory.Exists(Settings.Current.ScanPath)))
@@ -69,6 +69,7 @@ public sealed partial class MainWindow : Window
     }
     private void ShowErrorAssistant()
     {
+        if (!Settings.Current.ErrorAssistantEnabled) return;
         if (errorAssistant?.IsVisible == true) { errorAssistant.Activate(); return; }
         errorAssistant = new ErrorAssistantWindow(this);
         try { errorAssistant.ShowDialog(); }

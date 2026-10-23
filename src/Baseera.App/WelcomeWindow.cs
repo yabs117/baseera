@@ -60,7 +60,7 @@ internal sealed class WelcomeWindow : Window
         var introduction = Text(I18n.T("welcomeIntro"), 13, true); introduction.LineHeight = 21; header.Children.Add(introduction); layout.Children.Add(header);
 
         var body = Stack(); body.Margin = new Thickness(28, 0, 28, 16);
-        var tools = Stack(); string[] keys = ["scan", "translate", "updates", "convert"];
+        var tools = Stack(); string[] keys = ["scan", "translate", "updates", "convert", "errors"];
         for (int i = 0; i < keys.Length; i++)
         {
             string key = keys[i]; var row = new Grid { Margin = new Thickness(20, 15, 20, 15) };

@@ -2,11 +2,11 @@
 
 A modular Windows companion with a compact desktop interface. Enable just the
 tools you need: local file inspection, window translation, selected app updates,
-and image conversion. A separate error assistant can explain copied Windows errors.
+image conversion, and an error assistant that explains copied Windows errors.
 
 [العربية](docs/README.ar.md) · [Français](docs/README.fr.md) · [Español](docs/README.es.md)
 
-[Download Windows app](https://github.com/yabs117/baseera/releases/download/v0.4.5-preview/Baseera-v0.4.5-Windows-x64.exe) · [Release notes](https://github.com/yabs117/baseera/releases/tag/v0.4.5-preview) · [Roadmap](docs/ROADMAP.md)
+[Download Windows app](https://github.com/yabs117/baseera/releases/download/v0.4.6-preview/Baseera-v0.4.6-Windows-x64.exe) · [Release notes](https://github.com/yabs117/baseera/releases/tag/v0.4.6-preview) · [Roadmap](docs/ROADMAP.md)
 
 ![Baseera overview — English, light appearance](docs/images/baseera-en.png)
 
@@ -18,7 +18,7 @@ and image conversion. A separate error assistant can explain copied Windows erro
 
 </details>
 
-**Early preview, version 0.4.5.** This is a new project, not a certified antivirus
+**Early preview, version 0.4.6.** This is a new project, not a certified antivirus
 or a claim of 100% malware detection. Read the [capability status](docs/ROADMAP.md)
 and [security scope](SECURITY.md) before relying on it.
 
@@ -28,7 +28,7 @@ and [security scope](SECURITY.md) before relying on it.
 | --- | --- |
 | File inspection | Files/folders, nested ZIPs, SHA-256, PE structure and script indicators. Reports skipped/encrypted/unsupported content explicitly. No execution or upload. |
 | Window translation | Select a visible window, send its screenshot to Gemini on request, and display translated text over the image. Esc closes the overlay. |
-| Windows error assistant | On a normal app launch, a separate dialog accepts pasted error text, an image, or a captured visible window. It uses your Gemini key to suggest diagnostic steps when you click Analyze. Reopen it with Ctrl+Shift+E while Baseera is active. |
+| Windows error assistant | Appears in Your tools on the Overview and sidebar. Its page opens a dialog for pasted error text, an image, or a captured visible window. It uses your Gemini key to suggest diagnostic steps when you click Analyze. Reopen it with Ctrl+Shift+E while Baseera is active. |
 | Page translation | Chrome/Edge extension replaces ordinary page text in place and restores originals. User-provided Gemini key and model. |
 | App updates | Opt-in WinGet updates per package, at launch and every six hours while running. Manual per-app GitHub release URLs override automatic installation and show releases for review. |
 | Baseera updates | Checks the official repository at launch and every two hours. In-app download, SHA-256 verification, same-path replacement and restart, with recovery backup. |
@@ -45,7 +45,8 @@ cloaked, helper and off-screen windows. Its Settings shortcut jumps directly to
 the translation service and focuses the missing key or model field.
 Settings are grouped by purpose; unsaved translation settings survive appearance changes.
 
-The error assistant opens separately before the main window on a normal launch. If
+The error assistant can be enabled or disabled with the other tools in Settings.
+When enabled, it also opens separately before the main window on a normal launch. If
 no Gemini key is saved, it offers a setup form first; closing it lets you keep using
 the app. The key is protected by the local Windows account and shared with window
 translation. Error text and the selected image are sent to Google only after you
@@ -55,6 +56,14 @@ not a guaranteed repair; Baseera does not run suggested commands or change Windo
 settings. The dialog does not open for Windows auto-start or file-conversion launches.
 
 ![Error assistant preview with sample error and simulated response](docs/images/error-assistant-en.png)
+
+<details>
+<summary>Error assistant in Your tools</summary>
+
+![Error assistant tool page — English](docs/images/errors-en.png)
+![Error assistant tool page — Arabic, dark appearance](docs/images/errors-ar-dark.png)
+
+</details>
 
 The app-update list shows locally resolved names, publishers, installed versions
 and icons from application files or Windows packaged-app resources. Matching is
@@ -84,7 +93,7 @@ review and never run an installer automatically.
 
 ## Run
 
-On first launch, a welcome dialog summarizes the four tools, explains translation
+On first launch, a welcome dialog summarizes the five tools, explains translation
 privacy and lets you choose the interface language and appearance. Continue to
 tool selection to enable what you need. The dialog appears once per Windows
 profile by default, including once for profiles upgrading from an older version.
@@ -103,16 +112,17 @@ Requires **Windows 10/11, x64**. The runtime is included; no separate .NET insta
 
 | Download | How to use |
 | --- | --- |
-| [Windows app (.exe)](https://github.com/yabs117/baseera/releases/download/v0.4.5-preview/Baseera-v0.4.5-Windows-x64.exe) | Save to a permanent folder and open it. This is the desktop application. |
-| [Windows ZIP with instructions](https://github.com/yabs117/baseera/releases/download/v0.4.5-preview/Baseera-v0.4.5-Windows-x64.zip) | Extract the whole ZIP, then open `Baseera.exe`. |
-| [Optional browser extension](https://github.com/yabs117/baseera/releases/download/v0.4.5-preview/Baseera-v0.4.5-Browser-Extension.zip) | Extract, read `START-HERE.html`, then load the inner `extension` folder in Chrome/Edge. |
+| [Windows app (.exe)](https://github.com/yabs117/baseera/releases/download/v0.4.6-preview/Baseera-v0.4.6-Windows-x64.exe) | Save to a permanent folder and open it. This is the desktop application. |
+| [Windows ZIP with instructions](https://github.com/yabs117/baseera/releases/download/v0.4.6-preview/Baseera-v0.4.6-Windows-x64.zip) | Extract the whole ZIP, then open `Baseera.exe`. |
+| [Optional browser extension](https://github.com/yabs117/baseera/releases/download/v0.4.6-preview/Baseera-v0.4.6-Browser-Extension.zip) | Extract, read `START-HERE.html`, then load the inner `extension` folder in Chrome/Edge. |
 
 Source ZIP downloads from GitHub are source code, not compiled applications.
 The browser extension is installed **inside the browser**. Do not double-click its
 module files. A Windows Script Host error means a source file was opened as a Windows script.
 
-Tool modules are off until selected. Startup registration and Explorer integration
-are optional settings, applied only when you save them.
+The four original desktop tools stay off until selected; the error assistant is
+enabled by default and can be turned off in Settings. Startup registration and
+Explorer integration are optional settings, applied only when you save them.
 
 ### Updating Baseera
 
@@ -164,7 +174,7 @@ Install the .NET 10 SDK on Windows. There are no third-party NuGet dependencies.
 node --test extension/test/protocol.test.js
 ```
 
-The self-contained executable is produced in `artifacts/Baseera-v0.4.5-Windows-x64/`.
+The self-contained executable is produced in `artifacts/Baseera-v0.4.6-Windows-x64/`.
 `-Smoke -Publish` also checks the packaged executable. `-Smoke` uses a separate local data directory and does not run updates or
 register Explorer hooks. It renders the actual WPF screens and tests conversion,
 PDF generation, translation-box validation, localization coverage and DPAPI storage.

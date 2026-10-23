@@ -5,7 +5,7 @@ fenêtres avec Gemini, mises à jour WinGet choisies et conversion d’images/PD
 L’interface est disponible en arabe (RTL), anglais, français et espagnol.
 
 Prérequis : Windows 10/11 x64. Le runtime .NET est inclus. Pour compiler avec le SDK 10 :
-`./build.ps1 -Test -Publish`. Lancez `artifacts/Baseera-v0.4.5-Windows-x64/Baseera.exe`.
+`./build.ps1 -Test -Publish`. Lancez `artifacts/Baseera-v0.4.6-Windows-x64/Baseera.exe`.
 L’extension de navigateur est un téléchargement séparé : suivez `START-HERE.html` et chargez le dossier `extension` dans Chrome/Edge. Ne lancez pas ses fichiers source par double-clic.
 
 Activez uniquement les outils voulus lors du premier lancement. La traduction
@@ -13,7 +13,7 @@ nécessite votre clé Gemini et un modèle compatible avec les images. Elle envo
 la capture de la fenêtre sélectionnée à Google sur demande. Échap ferme la couche.
 L’extension dans `extension/` traduit le texte de la page en place et restaure l’original.
 
-Une fenêtre distincte d’assistance aux erreurs s’ouvre au démarrage normal. Collez
+L’assistant d’erreurs figure dans « Vos outils », sur l’accueil et dans la barre latérale. Sa page ouvre la fenêtre d’analyse ; lorsqu’il est activé, elle s’ouvre aussi au démarrage normal. Vous pouvez désactiver cet outil dans les paramètres. Collez
 un message ou une image, choisissez un fichier image ou capturez une fenêtre visible,
 puis demandez une analyse avec votre clé Gemini. Vous pouvez fermer l’assistant sans
 configurer de clé et le rouvrir avec Ctrl+Shift+E depuis Baseera. Le texte et l’image

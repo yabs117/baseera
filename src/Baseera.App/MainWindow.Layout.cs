@@ -19,7 +19,7 @@ public sealed partial class MainWindow
     private string providerKeyDraft = "";
     private string? modelDraft;
     private bool Arabic => Settings.Current.Language == "ar";
-    private static readonly string[] Tools = ["scan", "translate", "updates", "convert"];
+    private static readonly string[] Tools = ["scan", "translate", "updates", "convert", "errors"];
     private static Brush Resource(string key) => (Brush)Application.Current.FindResource(key);
     private static StackPanel Stack() => new() { Orientation = Orientation.Vertical };
     private FontWeight HeadingWeight => Arabic ? FontWeights.Medium : FontWeights.SemiBold;
@@ -178,6 +178,7 @@ public sealed partial class MainWindow
         {
             case "scan": ScanPage(body); break; case "translate": TranslationPage(body); break;
             case "updates": UpdatesPage(body); break; case "convert": ConvertPage(body); break;
+            case "errors": ErrorAssistantPage(body); break;
             case "settings": SettingsPage(body); break; default: Home(body); break;
         }
         if (offset > 0) _ = Dispatcher.InvokeAsync(() => scroller.ScrollToVerticalOffset(offset), System.Windows.Threading.DispatcherPriority.Loaded);
@@ -214,7 +215,7 @@ public sealed partial class MainWindow
         System.Windows.Automation.AutomationProperties.SetName(combo, I18n.T("language"));
         combo.SelectionChanged += (_, _) => { if (combo.SelectedIndex < 0) return; Settings.Current.Language = new[] { "ar", "en", "fr", "es" }[combo.SelectedIndex]; Settings.Save(); ApplyTheme(); Render(); }; return combo;
     }
-    private bool IsEnabledFeature(string key) => key switch { "scan" => Settings.Current.ScanEnabled, "translate" => Settings.Current.TranslationEnabled, "updates" => Settings.Current.UpdatesEnabled, "convert" => Settings.Current.ConvertEnabled, _ => true };
+    private bool IsEnabledFeature(string key) => key switch { "scan" => Settings.Current.ScanEnabled, "translate" => Settings.Current.TranslationEnabled, "updates" => Settings.Current.UpdatesEnabled, "convert" => Settings.Current.ConvertEnabled, "errors" => Settings.Current.ErrorAssistantEnabled, _ => true };
     private void SetFeature(string key, bool value)
     {
         switch (key)
@@ -222,6 +223,7 @@ public sealed partial class MainWindow
             case "scan": Settings.Current.ScanEnabled = value; break;
             case "translate": Settings.Current.TranslationEnabled = value; if (!value) overlay?.Close(); break;
             case "updates": Settings.Current.UpdatesEnabled = value; break; case "convert": Settings.Current.ConvertEnabled = value; break;
+            case "errors": Settings.Current.ErrorAssistantEnabled = value; if (!value) errorAssistant?.Close(); break;
         }
         if (!value) { operation?.Cancel(); if (key == "updates") automaticUpdate?.Cancel(); }
         Settings.Save(); ApplyExplorerShortcut();
@@ -246,6 +248,18 @@ public sealed partial class MainWindow
     {
         Heading(body, feature, feature + "Short"); if (IsEnabledFeature(feature)) return true;
         var panel = Stack(); panel.Children.Add(Text(I18n.T("disabledDesc"))); var settings = Action("manageTools", () => Navigate("settings"), true); settings.HorizontalAlignment = HorizontalAlignment.Left; panel.Children.Add(settings); body.Children.Add(Card(panel)); return false;
+    }
+    private void ErrorAssistantPage(StackPanel body)
+    {
+        if (!Guard(body, "errors")) return;
+        var panel = Stack();
+        panel.Children.Add(Text(I18n.T("errorAssistantIntro")));
+        var open = Action("errorsOpen", ShowErrorAssistant, true);
+        open.HorizontalAlignment = HorizontalAlignment.Left;
+        open.Margin = new Thickness(0, 10, 0, 0);
+        panel.Children.Add(open);
+        body.Children.Add(Card(panel));
+        Help(body, "errorPrivacy");
     }
     private void Home(StackPanel body)
     {
@@ -325,6 +339,12 @@ public sealed partial class MainWindow
         if (languages.Template.FindName("PART_Popup", languages) is not System.Windows.Controls.Primitives.Popup { IsOpen: true }) throw new InvalidOperationException("Language menu did not open.");
         languages.IsDropDownOpen = false; languages.SelectedIndex = Arabic ? 1 : 0; UpdateLayout();
         if (shell.FlowDirection != (Arabic ? FlowDirection.RightToLeft : FlowDirection.LeftToRight)) throw new InvalidOperationException("Language direction did not update.");
+        Navigate("home"); UpdateLayout();
+        if (Descendants(frame).OfType<Button>().Count(b => System.Windows.Automation.AutomationProperties.GetName(b) == I18n.T("errors")) != 2)
+            throw new InvalidOperationException("Error assistant is missing from Overview or Your tools navigation.");
+        Navigate("errors"); UpdateLayout();
+        if (!Descendants(frame).OfType<Button>().Any(b => System.Windows.Automation.AutomationProperties.GetName(b) == I18n.T("errorsOpen")))
+            throw new InvalidOperationException("Error assistant page has no open action.");
         Navigate("convert"); UpdateLayout(); if (!Descendants(frame).OfType<ComboBox>().Any(c => c.Items.Contains("PDF"))) throw new InvalidOperationException("Conversion formats unavailable.");
         SystemCommands.MaximizeWindow(this); await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
         if (WindowState != WindowState.Maximized) throw new InvalidOperationException("Native maximize failed.");
