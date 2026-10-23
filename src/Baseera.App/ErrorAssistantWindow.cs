@@ -29,6 +29,7 @@ internal sealed class ErrorAssistantWindow : Window
     private ScrollViewer bodyScroll = null!;
     private bool closed, followResponse, scrollingResponse, scrollQueued;
     private bool showConnection;
+    private string responseAccount = "";
     private AiConnectionPanel connectionPanel = null!;
 
     internal ErrorAssistantWindow(Window owner,
@@ -50,7 +51,8 @@ internal sealed class ErrorAssistantWindow : Window
         SetResourceReference(BackgroundProperty, "Bg"); SetResourceReference(ForegroundProperty, "Ink");
         Content = frame;
         SourceInitialized += (_, _) => WindowAppearance.Apply(this, Settings.Current.Dark);
-        Closed += (_, _) => { closed = true; active?.Cancel(); presentation?.Dispose(); };
+        ChatGptAuth.SessionSignedOut += OnSessionSignedOut;
+        Closed += (_, _) => { closed = true; ChatGptAuth.SessionSignedOut -= OnSessionSignedOut; active?.Cancel(); presentation?.Dispose(); };
         Loaded += (_, _) => { if (showConnection) connectionPanel.MissingInput.Focus(); else problem.Focus(); };
         PreviewKeyDown += (_, e) =>
         {
@@ -101,24 +103,24 @@ internal sealed class ErrorAssistantWindow : Window
 
         var body = new StackPanel { Margin = new Thickness(28, 0, 28, 20) };
         connection.Children.Clear();
-        connection.Visibility = showConnection ? Visibility.Visible : Visibility.Collapsed;
         var connectTitle = Text(I18n.T("errorConnect"), 15); connectTitle.FontWeight = FontWeights.SemiBold; Add(connection, connectTitle, 6);
         Add(connection, Text(I18n.T("errorConnectHelp"), 12, true), 14);
         connectionPanel = new AiConnectionPanel(new AiConnectionDraft(), () =>
         {
             showConnection = false; connectionBorder.Visibility = Visibility.Collapsed;
             configureButton.Visibility = Visibility.Visible; analyzeButton.IsEnabled = true;
-            planNotice.Visibility = ChatGptAuth.Selected ? Visibility.Visible : Visibility.Collapsed;
+            planNotice.Visibility = ChatGptAuth.UsingPlan ? Visibility.Visible : Visibility.Collapsed;
             feedback.Text = I18n.T("errorKeySaved"); problem.Focus();
         }, dialog: true);
         Add(connection, connectionPanel, 4);
         Add(connection, Text(I18n.T("errorKeyLocal"), 12, true), 0);
         connectionBorder = new Border { Background = Brush("Surface"), BorderBrush = Brush("Line"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(5), Padding = new Thickness(18), Child = connection,
             Visibility = showConnection ? Visibility.Visible : Visibility.Collapsed };
+        System.Windows.Automation.AutomationProperties.SetAutomationId(connectionBorder, "ErrorConnectionSection");
         Add(body, connectionBorder, 14);
-        configureButton = Action("errorConfigure", () => { showConnection = true; connectionBorder.Visibility = Visibility.Visible; configureButton.Visibility = Visibility.Collapsed; connectionPanel.MissingInput.Focus(); });
+        configureButton = Action("errorConfigure", () => ShowConnectionSettings(chooseProvider: true));
         configureButton.HorizontalAlignment = HorizontalAlignment.Left; configureButton.Visibility = showConnection ? Visibility.Collapsed : Visibility.Visible; Add(body, configureButton, 14);
-        planNotice = ChatGptUi.PlanNotice(); planNotice.Visibility = ChatGptAuth.Selected ? Visibility.Visible : Visibility.Collapsed; Add(body, planNotice, 8);
+        planNotice = ChatGptUi.PlanNotice(); planNotice.Visibility = ChatGptAuth.UsingPlan ? Visibility.Visible : Visibility.Collapsed; Add(body, planNotice, 8);
 
         Add(body, Text(I18n.T("errorDescription"), 15), 5);
         problem.Height = 130; problem.Tag = I18n.T("errorDescriptionHint"); problem.FlowDirection = FlowDirection.LeftToRight;
@@ -172,6 +174,32 @@ internal sealed class ErrorAssistantWindow : Window
         feedback.Margin = new Thickness(28, 16, 0, 10); DockPanel.SetDock(feedback, Dock.Left); footer.Children.Add(feedback);
         var footerBorder = new Border { Child = footer, Background = Brush("Surface"), BorderBrush = Brush("Line"), BorderThickness = new Thickness(0, 1, 0, 0) };
         Grid.SetRow(footerBorder, 2); frame.Children.Add(footerBorder);
+    }
+
+    private void ShowConnectionSettings(bool focus = true, bool chooseProvider = false)
+    {
+        showConnection = true; connectionBorder.Visibility = Visibility.Visible; configureButton.Visibility = Visibility.Collapsed;
+        if (!focus) return;
+        followResponse = false;
+        _ = Dispatcher.InvokeAsync(() =>
+        {
+            if (closed) return;
+            bodyScroll.UpdateLayout();
+            var input = chooseProvider ? connectionPanel.Service : connectionPanel.MissingInput;
+            input.BringIntoView(); input.Focus();
+        }, System.Windows.Threading.DispatcherPriority.Loaded);
+    }
+
+    private void OnSessionSignedOut(string account)
+    {
+        if (!Dispatcher.CheckAccess()) { _ = Dispatcher.InvokeAsync(() => OnSessionSignedOut(account)); return; }
+        if (closed) return;
+        if (responseAccount == account) { active?.Cancel(); presentation?.Finish(); }
+        planNotice.Visibility = ChatGptAuth.UsingPlan ? Visibility.Visible : Visibility.Collapsed;
+        if (realAnalyzer && !Configured())
+        {
+            analyzeButton.IsEnabled = false; ShowConnectionSettings(focus: false); feedback.Text = I18n.T("chatGptSignedOut");
+        }
     }
 
     private void PasteClipboard()
@@ -273,11 +301,12 @@ internal sealed class ErrorAssistantWindow : Window
     private async Task Analyze()
     {
         if (active is not null) return;
-        if (!Configured() && realAnalyzer) { showConnection = true; connectionBorder.Visibility = Visibility.Visible; configureButton.Visibility = Visibility.Collapsed; feedback.Text = I18n.T("errorKeyMissing"); connectionPanel.MissingInput.Focus(); return; }
+        if (!Configured() && realAnalyzer) { ShowConnectionSettings(); feedback.Text = I18n.T("errorKeyMissing"); return; }
         if (string.IsNullOrWhiteSpace(problem.Text) && image is null) { feedback.Text = I18n.T("errorNeedInput"); return; }
         using var request = new CancellationTokenSource(); active = request;
         analyzeButton.IsEnabled = false; cancelButton.IsEnabled = true;
         feedback.Text = I18n.T("errorAnalyzing"); presentation?.Dispose(); result.Children.Clear();
+        responseAccount = ChatGptAuth.Selected ? Settings.Current.ChatGptAccount : "";
         var current = new AdvicePresenter(AiCatalog.Provider, AiCatalog.Model, ChatGptAuth.Selected);
         presentation = current; result.Children.Add(current); followResponse = true; FollowResponse();
         current.Changed += FollowResponse;
@@ -294,7 +323,11 @@ internal sealed class ErrorAssistantWindow : Window
         }
         catch (OperationCanceledException)
         {
-            if (!closed) { current.Dispose(); result.Children.Clear(); feedback.Text = I18n.T("cancel"); }
+            if (!closed)
+            {
+                current.Dispose(); result.Children.Clear();
+                feedback.Text = I18n.T(responseAccount.Length > 0 && !ChatGptAuth.Connected(responseAccount) ? "chatGptSignedOut" : "cancel");
+            }
         }
         catch (Exception ex)
         {
@@ -306,7 +339,7 @@ internal sealed class ErrorAssistantWindow : Window
         finally
         {
             if (ReferenceEquals(active, request)) active = null;
-            if (!closed) { analyzeButton.IsEnabled = true; cancelButton.IsEnabled = false; }
+            if (!closed) { analyzeButton.IsEnabled = !realAnalyzer || Configured(); cancelButton.IsEnabled = false; }
         }
     }
 

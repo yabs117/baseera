@@ -27,8 +27,13 @@ Stored OAuth credentials never overwrite the OpenAI API key. If a session expire
 is revoked, or reaches a usage limit, Baseera asks for reconnection or directs the
 user to usage settings. It does not silently fall back to API-key billing.
 
-Sign out cancels requests for that session, attempts remote revocation, and removes
-the local access, refresh and ID tokens. Its registration label and this installation's
+Sign out cancels requests for that session and immediately removes the local access,
+refresh and ID tokens before attempting remote revocation. From 0.4.12 it also clears
+the selected account/model, updates every open connection panel and error assistant,
+and refreshes translation. The app stays open. Saved API keys, API model choices,
+unsaved API-key drafts and other account registrations are preserved. It never
+switches to API-key billing automatically. The remote revocation attempt has a
+20-second total budget. Its registration label and this installation's
 opaque host ID remain for later sign-in. If remote revocation cannot be confirmed,
 Baseera says so and directs the user to disconnect the app in ChatGPT settings.
 

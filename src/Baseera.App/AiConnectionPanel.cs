@@ -35,15 +35,18 @@ internal sealed partial class AiConnectionPanel : StackPanel
     private readonly TextBlock keyLabel;
     private readonly AiConnectionDraft draft;
     private readonly Action saved;
+    private readonly Func<string, CancellationToken, Task<bool>> signOutProfile;
     private readonly Func<string, string, CancellationToken, Task<IReadOnlyList<AiModelOption>>> list;
     private CancellationTokenSource? loading;
     private int revision;
     private bool updating;
 
     internal AiConnectionPanel(AiConnectionDraft draft, Action saved, bool dialog = false,
-        Func<string, string, CancellationToken, Task<IReadOnlyList<AiModelOption>>>? list = null)
+        Func<string, string, CancellationToken, Task<IReadOnlyList<AiModelOption>>>? list = null,
+        Func<string, CancellationToken, Task<bool>>? signOutProfile = null)
     {
         this.draft = draft; this.saved = saved;
+        this.signOutProfile = signOutProfile ?? ((account, ct) => ChatGptAuth.SignOut(account, ct));
         this.list = list ?? ((provider, key, ct) => AiCatalog.ListVisionModels(provider, key, ct));
         if (!AiProviders.Contains(draft.Provider)) draft.Provider = "gemini";
         AddLabel("aiService"); Service.ItemsSource = AiProviders.All;
@@ -84,7 +87,8 @@ internal sealed partial class AiConnectionPanel : StackPanel
         {
             if (!updating) draft.Current.Model = (ModelInput.SelectedItem as AiModelOption)?.Id ?? "";
         };
-        Unloaded += (_, _) => { CancelLoad(); CancelSignIn(); };
+        Loaded += (_, _) => { ChatGptAuth.SessionSignedOut += OnSessionSignedOut; RefreshProvider(); };
+        Unloaded += (_, _) => { ChatGptAuth.SessionSignedOut -= OnSessionSignedOut; CancelLoad(); CancelSignIn(); };
         RefreshProvider();
     }
     private static void Id(DependencyObject element, string id) => System.Windows.Automation.AutomationProperties.SetAutomationId(element, id);
@@ -103,6 +107,8 @@ internal sealed partial class AiConnectionPanel : StackPanel
         updating = true;
         try
         {
+            // A retained draft must not restore a signed-out profile's cached models.
+            if (UsingChatGpt && !ChatGptAuth.Connected(draft.ChatGptAccount)) draft.ChatGpt = new();
             var state = draft.Current;
             KeyInput.Password = state.Key;
             var available = state.Models.ToList();
@@ -118,6 +124,19 @@ internal sealed partial class AiConnectionPanel : StackPanel
             status.Text = "";
         }
         finally { updating = false; }
+    }
+
+    private void OnSessionSignedOut(string account)
+    {
+        if (!Dispatcher.CheckAccess()) { _ = Dispatcher.InvokeAsync(() => OnSessionSignedOut(account)); return; }
+        if (!IsLoaded) return;
+        if (draft.ChatGptAccount == account)
+        {
+            if (UsingChatGpt) { CancelLoad(); CancelSignIn(); }
+            draft.ChatGpt = new();
+        }
+        RefreshProvider();
+        if (UsingChatGpt && draft.ChatGptAccount == account) status.Text = I18n.T("chatGptSignedOut");
     }
     private void CancelLoad()
     {

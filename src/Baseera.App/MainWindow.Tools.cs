@@ -50,7 +50,7 @@ public sealed partial class MainWindow
     private void TranslationPage(StackPanel body)
     {
         if (!Guard(body, "translate")) return;
-        if (ChatGptAuth.Selected) body.Children.Add(ChatGptUi.PlanNotice());
+        if (ChatGptAuth.UsingPlan) body.Children.Add(ChatGptUi.PlanNotice());
         var capture = Stack(); capture.Children.Add(Text(I18n.T("selectedWindow"), 14));
         var windows = new ComboBox { ItemsSource = WindowTranslator.ListWindows(includeOwnProcess: true, includeMinimized: true), DisplayMemberPath = "Title", Tag = I18n.T("selectWindow"), HorizontalAlignment = HorizontalAlignment.Stretch, Margin = new Thickness(0, 5, 8, 16) };
         var windowCount = Text(string.Format(I18n.T("openWindowCount"), (windows.ItemsSource as List<WindowChoice>)?.Count ?? 0), 12, true);

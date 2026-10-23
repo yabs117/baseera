@@ -60,7 +60,7 @@ internal sealed partial class AiConnectionPanel
             bool connected = accountPicker.SelectedItem is ChatGptProfile { Connected: true };
             accountPicker.Visibility = accounts.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
             accountState.Text = I18n.T(connected ? ChatGptAuth.Selected && draft.ChatGptAccount == Settings.Current.ChatGptAccount ? "chatGptUsingPlan" : "chatGptReady" : "chatGptChooseAccount");
-            signOut.IsEnabled = accountPicker.SelectedItem is not null;
+            signOut.IsEnabled = connected;
         }
         catch { accountState.Text = I18n.T("chatGptStorageError"); }
     }
@@ -116,10 +116,10 @@ internal sealed partial class AiConnectionPanel
         CancelLoad(); CancelSignIn(); signOut.IsEnabled = false;
         try
         {
-            bool revoked = await ChatGptAuth.SignOut(profile.Id, CancellationToken.None);
+            bool revoked = await signOutProfile(profile.Id, CancellationToken.None);
             draft.ChatGpt = new(); RefreshProvider(); status.Text = I18n.T(revoked ? "chatGptSignedOut" : "chatGptRevocationUnconfirmed");
         }
         catch { status.Text = I18n.T("chatGptStorageError"); }
-        finally { signOut.IsEnabled = true; }
+        finally { signOut.IsEnabled = accountPicker.SelectedItem is ChatGptProfile { Connected: true }; }
     }
 }

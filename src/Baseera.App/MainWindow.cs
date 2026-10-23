@@ -39,12 +39,13 @@ public sealed partial class MainWindow : Window
         if (conversionFile is not null && File.Exists(conversionFile)) { images.Add(conversionFile); page = "convert"; }
         Content = frame;
         ApplyTheme(); Render();
+        ChatGptAuth.SessionSignedOut += OnChatGptSignedOut;
         PreviewKeyDown += (_, e) =>
         {
             if (e.Key == System.Windows.Input.Key.E && System.Windows.Input.Keyboard.Modifiers == (System.Windows.Input.ModifierKeys.Control | System.Windows.Input.ModifierKeys.Shift))
             { e.Handled = true; ShowErrorAssistant(); }
         };
-        Closed += (_, _) => { operation?.Cancel(); lifetime.Cancel(); updateTimer.Stop(); selfUpdateTimer.Stop(); overlay?.Close(); explorerShortcut?.Dispose(); };
+        Closed += (_, _) => { ChatGptAuth.SessionSignedOut -= OnChatGptSignedOut; operation?.Cancel(); lifetime.Cancel(); updateTimer.Stop(); selfUpdateTimer.Stop(); overlay?.Close(); explorerShortcut?.Dispose(); };
         if (!smoke)
         {
             ApplyExplorerShortcut();
@@ -66,6 +67,11 @@ public sealed partial class MainWindow : Window
                 await AutomaticUpdates();
             };
         }
+    }
+    private void OnChatGptSignedOut(string account)
+    {
+        if (!Dispatcher.CheckAccess()) { _ = Dispatcher.InvokeAsync(() => OnChatGptSignedOut(account)); return; }
+        if (IsLoaded && page is "translate" or "errors") Render(preserveScroll: true);
     }
     private void ShowErrorAssistant()
     {

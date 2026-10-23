@@ -37,3 +37,5 @@ assurance, or maintainer history that has not occurred.
 - [x] Provider/model identity above error guidance; progressive, Unicode-aware answers with Show all, reduced motion and animation lifecycle checks.
 
 - [x] Shared Baseera troubleshooting instructions in provider-specific instruction channels; language-aware welcome and response headings independent of interface language.
+
+- [x] Connection panel reopen regression checks and immediate global ChatGPT session disconnection, preserving API connections and unrelated account registrations.

@@ -57,40 +57,47 @@ internal static partial class ChatGptAuth
     { account.AccessToken = account.RefreshToken = account.IdToken = ""; account.Scopes = []; account.ExpiresAt = DateTimeOffset.MinValue; }
     internal static async Task<bool> SignOut(string clientId, CancellationToken ct, HttpClient? suppliedClient = null)
     {
-        StopSession(clientId); bool revoked = false;
+        StopSession(clientId); string refreshToken = "";
         await gate.WaitAsync(ct);
         try
         {
             await using var fileLock = await LockStore(ct); var store = ReadStore();
             var account = store.Accounts.SingleOrDefault(account => account.ClientId == clientId);
-            if (account is null) return true;
-            try
+            if (account is not null)
             {
-                if (account.RefreshToken.Length == 0) revoked = true;
-                else
-                {
-                    using var owned = suppliedClient is null ? AiCatalog.Client(TimeSpan.FromSeconds(20)) : null;
-                    var http = suppliedClient ?? owned!; var endpoints = await Discover(http, ct);
-                    for (int attempt = 0; attempt < 3; attempt++)
-                    {
-                        try
-                        {
-                            using var request = new HttpRequestMessage(HttpMethod.Post, endpoints.Revoke)
-                            { Content = new FormUrlEncodedContent(new Dictionary<string, string> { ["token"] = account.RefreshToken, ["token_type_hint"] = "refresh_token", ["client_id"] = clientId }) };
-                            using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
-                            if (response.StatusCode == HttpStatusCode.OK) { revoked = true; break; }
-                            if ((int)response.StatusCode < 500) break;
-                        }
-                        catch (HttpRequestException) { }
-                        if (attempt < 2) await Task.Delay(TimeSpan.FromMilliseconds(400 * (attempt + 1)), ct);
-                    }
-                }
+                refreshToken = account.RefreshToken;
+                ClearTokens(account); WriteStore(store);
             }
-            catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException or IOException or JsonException or KeyNotFoundException or InvalidOperationException or UriFormatException) { }
-            finally { ClearTokens(account); WriteStore(store); }
         }
         finally { gate.Release(); }
-        return revoked;
+        // Disconnect every tool before contacting the server. API-mode settings and keys are independent.
+        if (Settings.Current.ChatGptAccount == clientId)
+        {
+            Settings.Current.ChatGptAccount = ""; Settings.Current.ChatGptModel = ""; Settings.Save();
+        }
+        SessionSignedOut?.Invoke(clientId);
+        if (refreshToken.Length == 0) return true;
+        using var bounded = CancellationTokenSource.CreateLinkedTokenSource(ct); bounded.CancelAfter(TimeSpan.FromSeconds(20));
+        try
+        {
+            using var owned = suppliedClient is null ? AiCatalog.Client(TimeSpan.FromSeconds(20)) : null;
+            var http = suppliedClient ?? owned!; var endpoints = await Discover(http, bounded.Token);
+            for (int attempt = 0; attempt < 3; attempt++)
+            {
+                try
+                {
+                    using var request = new HttpRequestMessage(HttpMethod.Post, endpoints.Revoke)
+                    { Content = new FormUrlEncodedContent(new Dictionary<string, string> { ["token"] = refreshToken, ["token_type_hint"] = "refresh_token", ["client_id"] = clientId }) };
+                    using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, bounded.Token);
+                    if (response.StatusCode == HttpStatusCode.OK) return true;
+                    if ((int)response.StatusCode < 500) break;
+                }
+                catch (HttpRequestException) { }
+                if (attempt < 2) await Task.Delay(TimeSpan.FromMilliseconds(400 * (attempt + 1)), bounded.Token);
+            }
+        }
+        catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException or IOException or JsonException or KeyNotFoundException or InvalidOperationException or UriFormatException) { }
+        return false;
     }
     internal static async Task<IReadOnlyList<AiModelOption>> Models(string clientId, CancellationToken ct, HttpClient? suppliedClient = null)
     {

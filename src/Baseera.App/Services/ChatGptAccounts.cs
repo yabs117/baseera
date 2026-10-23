@@ -55,6 +55,8 @@ internal static partial class ChatGptAuth
     private static readonly SemaphoreSlim gate = new(1, 1);
     private static readonly Dictionary<string, CancellationTokenSource> sessions = [];
     internal static bool Selected => AiCatalog.Provider == "openai" && Settings.Current.OpenAiAuth == "chatgpt";
+    internal static bool UsingPlan => Selected && AiCatalog.Configured();
+    internal static event Action<string>? SessionSignedOut;
     internal static IReadOnlyList<ChatGptProfile> Profiles => ReadStore().Accounts.Select(account => account.Profile).ToArray();
     internal static bool Connected(string clientId) => ReadStore().Accounts.Any(account => account.ClientId == clientId && account.CanResume);
     internal static string Fingerprint(string clientId) => "chatgpt:" + clientId;

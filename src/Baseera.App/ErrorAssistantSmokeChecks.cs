@@ -58,6 +58,7 @@ internal static class ErrorAssistantSmokeChecks
 
         await AiProviderSmokeChecks.Run(owner, output);
         await ChatGptSmokeChecks.Run(owner, output);
+        await ConnectionRegressionSmokeChecks.CheckReopen(owner, attachment, output);
         await ErrorLanguageSmokeChecks.Run(owner, output);
         await AdvicePresentationSmokeChecks.Run(owner, output);
 

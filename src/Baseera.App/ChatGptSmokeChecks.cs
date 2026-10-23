@@ -28,6 +28,7 @@ internal static class ChatGptSmokeChecks
         Dictionary<string, string> authorization = []; string nonce = ""; string clientId = "oaiapp_baseera_test_one";
         string idToken = "", previousNonce = "", hostId = ""; int exchanges = 0, refreshes = 0, inference = 0, revokes = 0, authorizations = 0;
         bool simulateInvalidGrant = true;
+        var releaseRevocation = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         Task callback = Task.CompletedTask;
         string Token(string audience, string tokenNonce, string subject = "fixture-subject", long? expires = null)
         {
@@ -49,7 +50,7 @@ internal static class ChatGptSmokeChecks
                     case "/api/accounts/oauth/revoke":
                         var revoke = ChatGptAuth.ParseQuery(await request.Content!.ReadAsStringAsync(ct));
                         Require(revoke["client_id"] == clientId && revoke["token_type_hint"] == "refresh_token", "Revocation session mapping incorrect.");
-                        revokes++; return new HttpResponseMessage(HttpStatusCode.OK);
+                        revokes++; await releaseRevocation.Task.WaitAsync(ct); return new HttpResponseMessage(HttpStatusCode.OK);
                     case "/api/accounts/oauth/token":
                         var form = ChatGptAuth.ParseQuery(await request.Content!.ReadAsStringAsync(ct));
                         Require(form["resource"] == ChatGptAuth.Resource && form["client_id"] == clientId && !form.ContainsKey("client_secret"), "OAuth resource/client/secret incorrect.");
@@ -208,7 +209,7 @@ internal static class ChatGptSmokeChecks
             }
             await owner.CheckChatGptSettings(clientId, models, output);
             await ChatGptAuth.MarkWelcomeSeen(clientId, deadline.Token); Require(!ChatGptAuth.NeedsWelcome(clientId), "Welcome confirmation did not persist.");
-            bool signedOut = await ChatGptAuth.SignOut(clientId, deadline.Token, http);
+            bool signedOut = await ConnectionRegressionSmokeChecks.CheckSignOut(owner, clientId, second.Id, http, () => releaseRevocation.TrySetResult(), output);
             Require(signedOut && revokes == 1 && !ChatGptAuth.Connected(clientId) && ChatGptAuth.Connected(second.Id) && ChatGptAuth.Profiles.Count == 2, "Sign-out affected another account or failed to retain the registration.");
             using var revocationFailure = new HttpClient(new Reply((request, _) => Task.FromResult(request.RequestUri!.AbsolutePath.Contains("openid-configuration")
                 ? Json(new { issuer = ChatGptAuth.Issuer, authorization_endpoint = ChatGptAuth.Issuer + "/api/accounts/authorize", token_endpoint = ChatGptAuth.Issuer + "/api/accounts/oauth/token", jwks_uri = ChatGptAuth.Issuer + "/.well-known/jwks.json", revocation_endpoint = ChatGptAuth.Issuer + "/api/accounts/oauth/revoke" })
