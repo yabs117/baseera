@@ -58,6 +58,7 @@ internal static class ErrorAssistantSmokeChecks
 
         await AiProviderSmokeChecks.Run(owner, output);
         await ChatGptSmokeChecks.Run(owner, output);
+        await AdvicePresentationSmokeChecks.Run(owner, output);
 
         string originalLanguage = Settings.Current.Language;
         try
@@ -107,6 +108,7 @@ internal static class ErrorAssistantSmokeChecks
                 var analyze = Descendants(dialog).OfType<Button>().Single(b => System.Windows.Automation.AutomationProperties.GetAutomationId(b) == "errorAnalyze");
                 analyze.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 await owner.Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                Descendants(dialog).OfType<AdvicePresenter>().Single().Finish();
                 if (!Descendants(dialog).OfType<TextBlock>().Any(t => t.Text == "Access denied") ||
                     !Descendants(dialog).OfType<TextBlock>().Any(t => t.Text == I18n.T("errorPrivacy")))
                     throw new Exception("Error guidance or privacy notice missing in " + language);

@@ -24,8 +24,10 @@ internal sealed class ErrorAssistantWindow : Window
     private Button analyzeButton = new(), cancelButton = new();
     private Button configureButton = new();
     private ErrorImage? image;
-    private ErrorAdvice? advice;
     private CancellationTokenSource? active;
+    private AdvicePresenter? presentation;
+    private ScrollViewer bodyScroll = null!;
+    private bool closed, followResponse, scrollingResponse, scrollQueued;
     private bool showConnection;
     private AiConnectionPanel connectionPanel = null!;
 
@@ -48,7 +50,7 @@ internal sealed class ErrorAssistantWindow : Window
         SetResourceReference(BackgroundProperty, "Bg"); SetResourceReference(ForegroundProperty, "Ink");
         Content = frame;
         SourceInitialized += (_, _) => WindowAppearance.Apply(this, Settings.Current.Dark);
-        Closed += (_, _) => { active?.Cancel(); active?.Dispose(); };
+        Closed += (_, _) => { closed = true; active?.Cancel(); presentation?.Dispose(); };
         Loaded += (_, _) => { if (showConnection) connectionPanel.MissingInput.Focus(); else problem.Focus(); };
         PreviewKeyDown += (_, e) =>
         {
@@ -145,10 +147,20 @@ internal sealed class ErrorAssistantWindow : Window
 
         result.Children.Clear();
         System.Windows.Automation.AutomationProperties.SetAutomationId(result, "ErrorAdviceResult");
-        if (advice is not null) RenderAdvice();
         Add(body, result, 0);
-        var scroll = new ScrollViewer { Content = body, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
-        Grid.SetRow(scroll, 1); frame.Children.Add(scroll);
+        bodyScroll = new ScrollViewer { Content = body, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
+        System.Windows.Automation.AutomationProperties.SetAutomationId(bodyScroll, "ErrorAssistantScroll");
+        bodyScroll.ScrollChanged += (_, e) =>
+        {
+            if (!scrollingResponse && e.ExtentHeightChange == 0 && e.VerticalChange != 0)
+                followResponse = bodyScroll.ScrollableHeight - bodyScroll.VerticalOffset < 44;
+        };
+        bodyScroll.PreviewMouseWheel += (_, e) => { if (e.Delta > 0) followResponse = false; };
+        bodyScroll.PreviewKeyDown += (_, e) =>
+        {
+            if (e.Key is System.Windows.Input.Key.PageUp or System.Windows.Input.Key.Home or System.Windows.Input.Key.Up) followResponse = false;
+        };
+        Grid.SetRow(bodyScroll, 1); frame.Children.Add(bodyScroll);
 
         var footer = new DockPanel { Background = Brush("Surface"), LastChildFill = false, Margin = new Thickness(0), HorizontalAlignment = HorizontalAlignment.Stretch };
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(28, 16, 28, 10), HorizontalAlignment = HorizontalAlignment.Right };
@@ -263,41 +275,52 @@ internal sealed class ErrorAssistantWindow : Window
         if (active is not null) return;
         if (!Configured() && realAnalyzer) { showConnection = true; connectionBorder.Visibility = Visibility.Visible; configureButton.Visibility = Visibility.Collapsed; feedback.Text = I18n.T("errorKeyMissing"); connectionPanel.MissingInput.Focus(); return; }
         if (string.IsNullOrWhiteSpace(problem.Text) && image is null) { feedback.Text = I18n.T("errorNeedInput"); return; }
-        active = new CancellationTokenSource(); analyzeButton.IsEnabled = false; cancelButton.IsEnabled = true;
-        feedback.Text = I18n.T("errorAnalyzing"); advice = null; result.Children.Clear();
+        using var request = new CancellationTokenSource(); active = request;
+        analyzeButton.IsEnabled = false; cancelButton.IsEnabled = true;
+        feedback.Text = I18n.T("errorAnalyzing"); presentation?.Dispose(); result.Children.Clear();
+        var current = new AdvicePresenter(AiCatalog.Provider, AiCatalog.Model, ChatGptAuth.Selected);
+        presentation = current; result.Children.Add(current); followResponse = true; FollowResponse();
+        current.Changed += FollowResponse;
+        current.Completed += () => { if (!closed && ReferenceEquals(presentation, current)) feedback.Text = I18n.T("errorReady"); };
+        current.Copied += () => feedback.Text = I18n.T("errorCopied");
+        current.CopyFailed += message => feedback.Text = I18n.T("errorClipboardFailed") + " " + message;
         try
         {
             string language = Settings.Current.Language switch { "ar" => "Arabic", "fr" => "French", "es" => "Spanish", _ => "English" };
-            advice = await analyze(problem.Text, image, language, active.Token);
-            RenderAdvice(); feedback.Text = I18n.T("errorReady");
+            var advice = await analyze(problem.Text, image, language, request.Token);
+            request.Token.ThrowIfCancellationRequested();
+            if (closed) return;
+            feedback.Text = I18n.T("adviceWriting"); current.Reveal(advice);
         }
-        catch (OperationCanceledException) { feedback.Text = I18n.T("cancel"); }
+        catch (OperationCanceledException)
+        {
+            if (!closed) { current.Dispose(); result.Children.Clear(); feedback.Text = I18n.T("cancel"); }
+        }
         catch (Exception ex)
         {
+            if (closed) return;
+            current.Dispose(); result.Children.Clear();
             feedback.Text = I18n.T("errorAnalysisFailed") + " " + ex.Message;
             if (ex is ChatGptException { Key: "chatGptUsageLimit" }) ChatGptUi.ShowUsageLimit(this);
         }
-        finally { active.Dispose(); active = null; analyzeButton.IsEnabled = true; cancelButton.IsEnabled = false; }
-    }
-    private void RenderAdvice()
-    {
-        if (advice is null) return;
-        result.Children.Clear();
-        var summary = Text(advice.Summary, 18); summary.FontWeight = FontWeights.SemiBold; Add(result, summary, 8);
-        Add(result, Text(I18n.T("errorLikelyCause"), 14), 4); Add(result, Text(advice.Cause), 14);
-        Add(result, Text(I18n.T("errorSuggestedSteps"), 14), 6);
-        for (int i = 0; i < advice.Steps.Count; i++) Add(result, Text($"{i + 1}. {advice.Steps[i]}"), 8);
-        if (advice.Checks.Count > 0)
+        finally
         {
-            Add(result, Text(I18n.T("errorFurtherChecks"), 14), 6);
-            foreach (string check in advice.Checks) Add(result, Text("• " + check), 6);
+            if (ReferenceEquals(active, request)) active = null;
+            if (!closed) { analyzeButton.IsEnabled = true; cancelButton.IsEnabled = false; }
         }
-        Add(result, Text(I18n.T("errorConfidence") + ": " + advice.Confidence, 12, true), 6);
-        var copy = Action("errorCopyAdvice", () =>
+    }
+
+    private void FollowResponse()
+    {
+        if (!followResponse || closed || scrollQueued) return;
+        scrollQueued = true;
+        _ = Dispatcher.InvokeAsync(() =>
         {
-            try { Clipboard.SetText(advice.Summary + "\n\n" + advice.Cause + "\n\n" + string.Join("\n", advice.Steps.Select((step, i) => $"{i + 1}. {step}"))); feedback.Text = I18n.T("errorCopied"); }
-            catch (Exception ex) { feedback.Text = I18n.T("errorClipboardFailed") + " " + ex.Message; }
-        });
-        copy.HorizontalAlignment = HorizontalAlignment.Left; Add(result, copy, 0);
+            scrollQueued = false;
+            if (closed || !followResponse) return;
+            scrollingResponse = true;
+            try { bodyScroll.UpdateLayout(); bodyScroll.ScrollToEnd(); }
+            finally { scrollingResponse = false; }
+        }, System.Windows.Threading.DispatcherPriority.Background);
     }
 }

@@ -33,3 +33,5 @@
 The initial version is a usable development baseline. An OSS support application
 must describe the project as new and must not claim adoption, stars, security
 assurance, or maintainer history that has not occurred.
+
+- [x] Provider/model identity above error guidance; progressive, Unicode-aware answers with Show all, reduced motion and animation lifecycle checks.
