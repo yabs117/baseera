@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Baseera Translate",
   "description": "Translate page text in place with your own Gemini key. Restore the original at any time.",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "permissions": ["activeTab", "scripting", "storage"],
   "host_permissions": ["https://generativelanguage.googleapis.com/*"],
   "action": { "default_popup": "popup.html" },

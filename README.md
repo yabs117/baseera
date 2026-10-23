@@ -6,7 +6,7 @@ and image conversion.
 
 [العربية](docs/README.ar.md) · [Français](docs/README.fr.md) · [Español](docs/README.es.md)
 
-[Download Windows app](https://github.com/yabs117/baseera/releases/download/v0.4.2-preview/Baseera-v0.4.2-Windows-x64.exe) · [Release notes](https://github.com/yabs117/baseera/releases/tag/v0.4.2-preview) · [Roadmap](docs/ROADMAP.md)
+[Download Windows app](https://github.com/yabs117/baseera/releases/download/v0.4.3-preview/Baseera-v0.4.3-Windows-x64.exe) · [Release notes](https://github.com/yabs117/baseera/releases/tag/v0.4.3-preview) · [Roadmap](docs/ROADMAP.md)
 
 ![Baseera overview — English, light appearance](docs/images/baseera-en.png)
 
@@ -18,7 +18,7 @@ and image conversion.
 
 </details>
 
-**Early preview, version 0.4.2.** This is a new project, not a certified antivirus
+**Early preview, version 0.4.3.** This is a new project, not a certified antivirus
 or a claim of 100% malware detection. Read the [capability status](docs/ROADMAP.md)
 and [security scope](SECURITY.md) before relying on it.
 
@@ -43,6 +43,22 @@ The translation picker refreshes when opened and excludes hidden, minimized,
 cloaked, helper and off-screen windows. Its Settings shortcut jumps directly to
 the translation service and focuses the missing key or model field.
 Settings are grouped by purpose; unsaved translation settings survive appearance changes.
+
+The app-update list shows locally resolved names, publishers, installed versions
+and icons from application files or Windows packaged-app resources. Matching is
+conservative: ambiguous/missing icons use a neutral symbol. Search by name, ID or
+publisher, filter to selected apps, and expand a row to configure its release
+source. The loaded list, choices and URL drafts survive navigation and appearance
+changes. Refresh errors retain the previous list. Manual release URLs require
+review and never run an installer automatically.
+
+<details>
+<summary>App-list preview (sample entries with actual local Windows icons)</summary>
+
+![App update list — English preview](docs/images/apps-list-en.png)
+![App update list — Arabic dark preview](docs/images/apps-list-ar-dark.png)
+
+</details>
 
 <details>
 <summary>Tool pages and native window frame</summary>
@@ -75,9 +91,9 @@ Requires **Windows 10/11, x64**. The runtime is included; no separate .NET insta
 
 | Download | How to use |
 | --- | --- |
-| [Windows app (.exe)](https://github.com/yabs117/baseera/releases/download/v0.4.2-preview/Baseera-v0.4.2-Windows-x64.exe) | Save to a permanent folder and open it. This is the desktop application. |
-| [Windows ZIP with instructions](https://github.com/yabs117/baseera/releases/download/v0.4.2-preview/Baseera-v0.4.2-Windows-x64.zip) | Extract the whole ZIP, then open `Baseera.exe`. |
-| [Optional browser extension](https://github.com/yabs117/baseera/releases/download/v0.4.2-preview/Baseera-v0.4.2-Browser-Extension.zip) | Extract, read `START-HERE.html`, then load the inner `extension` folder in Chrome/Edge. |
+| [Windows app (.exe)](https://github.com/yabs117/baseera/releases/download/v0.4.3-preview/Baseera-v0.4.3-Windows-x64.exe) | Save to a permanent folder and open it. This is the desktop application. |
+| [Windows ZIP with instructions](https://github.com/yabs117/baseera/releases/download/v0.4.3-preview/Baseera-v0.4.3-Windows-x64.zip) | Extract the whole ZIP, then open `Baseera.exe`. |
+| [Optional browser extension](https://github.com/yabs117/baseera/releases/download/v0.4.3-preview/Baseera-v0.4.3-Browser-Extension.zip) | Extract, read `START-HERE.html`, then load the inner `extension` folder in Chrome/Edge. |
 
 Source ZIP downloads from GitHub are source code, not compiled applications.
 The browser extension is installed **inside the browser**. Do not double-click its
@@ -136,7 +152,7 @@ Install the .NET 10 SDK on Windows. There are no third-party NuGet dependencies.
 node --test extension/test/protocol.test.js
 ```
 
-The self-contained executable is produced in `artifacts/Baseera-v0.4.2-Windows-x64/`.
+The self-contained executable is produced in `artifacts/Baseera-v0.4.3-Windows-x64/`.
 `-Smoke -Publish` also checks the packaged executable. `-Smoke` uses a separate local data directory and does not run updates or
 register Explorer hooks. It renders the actual WPF screens and tests conversion,
 PDF generation, translation-box validation, localization coverage and DPAPI storage.

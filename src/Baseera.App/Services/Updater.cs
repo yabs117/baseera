@@ -24,8 +24,7 @@ public static class Updater
     }
     public static async Task<List<InstalledPackage>> List(CancellationToken ct)
     {
-        Directory.CreateDirectory(Settings.Folder);
-        string export = Path.Combine(Settings.Folder, "winget-" + Guid.NewGuid().ToString("N") + ".json");
+        string export = Path.Combine(Path.GetTempPath(), "Baseera-winget-" + Guid.NewGuid().ToString("N") + ".json");
         try
         {
             var result = await Run(["export", "--source", "winget", "--output", export, "--include-versions", "--disable-interactivity"], ct);

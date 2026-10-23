@@ -9,6 +9,17 @@ public static class I18n
     }
     public static readonly Dictionary<string, string[]> Words = new()
     {
+        ["appsPreview"] = ["معاينة ببيانات نموذجية وأيقونات محلية؛ لا تُشغَّل تحديثات.", "Preview with sample entries and local icons; no updates are run.", "Aperçu avec exemples et icônes locales ; aucune mise à jour exécutée.", "Vista previa con ejemplos e iconos locales; no se ejecutan actualizaciones."],
+        ["appsLoading"] = ["جارٍ قراءة التطبيقات وأيقوناتها…", "Reading apps and their icons…", "Lecture des applications et des icônes…", "Leyendo aplicaciones e iconos…"],
+        ["appsLoadFailed"] = ["تعذّر تحميل القائمة. تأكد من توفر WinGet ثم أعد المحاولة؛ تبقى القائمة السابقة محفوظة.", "Could not refresh apps. Check that WinGet is available and try again. Your previous list is retained.", "Actualisation impossible. Vérifiez WinGet et réessayez. La liste précédente est conservée.", "No se pudo actualizar la lista. Revisa WinGet y reintenta. Se conserva la lista anterior."],
+        ["appsSearch"] = ["ابحث باسم التطبيق أو معرّفه", "Search by app name or ID", "Rechercher par nom ou identifiant", "Buscar por nombre o ID"],
+        ["appsSelectedOnly"] = ["المحدّد فقط", "Selected only", "Sélection uniquement", "Solo seleccionadas"],
+        ["appsSummary"] = ["{0} من {1} تطبيقًا · {2} محدّد للتحديث", "{0} of {1} apps · {2} selected", "{0} sur {1} applications · {2} sélectionnées", "{0} de {1} aplicaciones · {2} seleccionadas"],
+        ["appsNoResults"] = ["لا توجد تطبيقات مطابقة", "No matching apps", "Aucune application correspondante", "No hay aplicaciones coincidentes"],
+        ["appsSearchHint"] = ["غيّر البحث أو أوقف عرض المحدّد فقط.", "Try another search or turn off Selected only.", "Modifiez la recherche ou désactivez le filtre de sélection.", "Prueba otra búsqueda o desactiva Solo seleccionadas."],
+        ["appsUnknownVersion"] = ["إصدار غير معروف", "Version unknown", "Version inconnue", "Versión desconocida"],
+        ["appsSource"] = ["مصدر التحديث وخياراته", "Update source and options", "Source et options de mise à jour", "Fuente y opciones de actualización"],
+        ["appIconsNote"] = ["تُقرأ الأسماء والأيقونات من بيانات التثبيت وملفات التطبيقات محليًا. يظهر رمز افتراضي عند غياب الأيقونة أو تعذّر مطابقتها بثقة.", "Names and icons come from local installation records and app files. A default icon appears when an icon cannot be matched reliably.", "Les noms et icônes proviennent des fichiers et données d’installation locaux. Une icône par défaut remplace les correspondances incertaines.", "Los nombres e iconos proceden de archivos y registros locales. Si no hay una coincidencia fiable, aparece un icono predeterminado."],
         ["selfPreviewNotes"] = ["معاينة لنافذة التحديث.\nستظهر هنا ملاحظات الإصدار القادم عند نشره.", "Update dialog preview.\nThe next release’s notes will appear here when published.", "Aperçu de la fenêtre de mise à jour.\nLes notes de la prochaine version apparaîtront ici après publication.", "Vista previa del diálogo de actualización.\nAquí aparecerán las notas de la próxima versión cuando se publique."],
         ["selfTitle"] = ["تحديثات بصيرة", "Baseera updates", "Mises à jour de Baseera", "Actualizaciones de Baseera"],
         ["selfAvailable"] = ["إصدار جديد من بصيرة", "A new version is ready", "Une nouvelle version est prête", "Hay una nueva versión disponible"],

@@ -86,35 +86,7 @@ public sealed partial class MainWindow
     private void UpdatesPage(StackPanel body)
     {
         if (!Guard(body, "updates")) return;
-        SectionHeading(body, "installedApps"); var apps = Stack(); var packages = Stack(); packages.Children.Add(Text(I18n.T("refreshHint"), 12, true));
-        var actions = new WrapPanel(); actions.Children.Add(AsyncAction("refresh", async ct =>
-        {
-            var list = await Updater.List(ct); packages.Children.Clear();
-            for (int i = 0; i < list.Count; i++)
-            {
-                var package = list[i]; var entry = Stack(); entry.Margin = new Thickness(0, 8, 0, 8);
-                var automatic = Toggle("auto", Settings.Current.AutoUpdateIds.Contains(package.Id), value =>
-                {
-                    if (value && !Settings.Current.AutoUpdateIds.Contains(package.Id)) Settings.Current.AutoUpdateIds.Add(package.Id);
-                    else if (!value) Settings.Current.AutoUpdateIds.Remove(package.Id); Settings.Save();
-                }); automatic.Content = null;
-                var title = new Grid(); title.ColumnDefinitions.Add(new ColumnDefinition()); title.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                var name = Stack(); name.Children.Add(new TextBlock { Text = package.Id, FlowDirection = FlowDirection.LeftToRight, FontSize = 14, TextWrapping = TextWrapping.Wrap }); name.Children.Add(Text(package.Version, 12, true)); title.Children.Add(name);
-                automatic.ToolTip = I18n.T("auto"); automatic.VerticalAlignment = VerticalAlignment.Center; Grid.SetColumn(automatic, 1); title.Children.Add(automatic); entry.Children.Add(title);
-                var custom = new TextBox { Text = Settings.Current.ManualSources.GetValueOrDefault(package.Id, ""), Tag = "https://github.com/owner/project/releases", FlowDirection = FlowDirection.LeftToRight, FontSize = 12 };
-                var manual = Toggle("manualPerApp", Settings.Current.ManualSources.ContainsKey(package.Id), value =>
-                {
-                    custom.Visibility = value ? Visibility.Visible : Visibility.Collapsed;
-                    if (value) Settings.Current.ManualSources[package.Id] = custom.Text.Trim(); else Settings.Current.ManualSources.Remove(package.Id); Settings.Save();
-                });
-                custom.Visibility = manual.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
-                custom.LostFocus += (_, _) => { if (manual.IsChecked == true) { Settings.Current.ManualSources[package.Id] = custom.Text.Trim(); Settings.Save(); } };
-                entry.Children.Add(manual); entry.Children.Add(custom); packages.Children.Add(entry); if (i < list.Count - 1) Divider(packages);
-            }
-            if (list.Count == 0) packages.Children.Add(Text(I18n.T("empty"), 12, true));
-        }));
-        actions.Children.Add(AsyncAction("updateNow", async ct => { updateLog = await Updater.UpdateSelected(ct); Render(); }, true));
-        apps.Children.Add(actions); apps.Children.Add(new Border { Height = 12 }); apps.Children.Add(packages); body.Children.Add(Card(apps)); Help(body, "updateNote");
+        InstalledAppsSection(body);
         if (updateLog.Length > 0) body.Children.Add(new TextBox { Text = updateLog, Height = double.NaN, IsReadOnly = true, TextWrapping = TextWrapping.Wrap, MaxHeight = 180, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, FlowDirection = FlowDirection.LeftToRight });
         SectionHeading(body, "releasePage"); var source = Stack();
         var url = new TextBox { Text = Settings.Current.ReleasePage, Tag = "https://github.com/owner/project/releases", FlowDirection = FlowDirection.LeftToRight }; source.Children.Add(url);

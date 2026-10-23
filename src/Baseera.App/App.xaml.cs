@@ -76,6 +76,7 @@ public partial class App : Application
                 await TranslationSmokeChecks.Run();
                 window.Activate();
                 await window.CheckTranslationSettingsLink(output);
+                await window.CheckAppList(output);
                 foreach (string language in new[] { "en", "ar", "fr", "es" })
                 foreach (bool dark in new[] { false, true })
                 {
@@ -99,7 +100,7 @@ public partial class App : Application
                     await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
                     SaveView("home-" + language + "-compact");
                 }
-                File.WriteAllText(Path.Combine(output, "smoke-result.txt"), $"PASS: {renders} UI renders; real visible/hidden/minimized/cloaked/tool/owned/passive/closed/off-screen window checks; Arabic/English provider shortcut scrolling and missing-field focus; verified, corrupt, partial, canceled and unsafe-redirect self-update downloads; four-language update dialogs; first-run welcome, restart persistence, repeat preference, modal dismissal, tool choices preserved; native frame previews; native maximize/minimize/restore; settings drafts survive theme changes; bundled Arabic font; opaque screenshots; navigation collapse/expand; language dropdown and RTL switch; format selection; image conversion; PDF; translation response validation; DPAPI key storage; language coverage.");
+                File.WriteAllText(Path.Combine(output, "smoke-result.txt"), $"PASS: {renders} UI renders; actual executable and packaged-app icons, app search/filter/selection, source validation and draft persistence; real visible/hidden/minimized/cloaked/tool/owned/passive/closed/off-screen window checks; Arabic/English provider shortcut scrolling and missing-field focus; verified, corrupt, partial, canceled and unsafe-redirect self-update downloads; four-language update dialogs; first-run welcome, restart persistence, repeat preference, modal dismissal, tool choices preserved; native frame previews; native maximize/minimize/restore; settings drafts survive theme changes; bundled Arabic font; opaque screenshots; navigation collapse/expand; language dropdown and RTL switch; format selection; image conversion; PDF; translation response validation; DPAPI key storage; language coverage.");
                 Shutdown(0);
             }
             catch (Exception ex)
