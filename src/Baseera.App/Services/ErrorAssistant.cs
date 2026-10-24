@@ -4,10 +4,11 @@ using System.Drawing.Imaging;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using Baseera.Core;
 
 namespace Baseera.App.Services;
 
-internal sealed record ErrorAdvice(string Summary, string Cause, IReadOnlyList<string> Steps, IReadOnlyList<string> Checks, string Confidence, AdviceLocale? Locale = null);
+internal sealed record ErrorAdvice(string Summary, string Cause, IReadOnlyList<string> Steps, IReadOnlyList<string> Checks, string Confidence, AdviceLocale? Locale = null, IReadOnlyList<string>? RepairActions = null);
 internal sealed record ErrorImage(byte[] Bytes, string Label);
 
 internal static class ErrorAssistant
@@ -54,19 +55,20 @@ internal static class ErrorAssistant
     }
 
     internal static async Task<ErrorAdvice> Analyze(string description, ErrorImage? image, string language, CancellationToken ct,
-        HttpClient? suppliedClient = null, string? suppliedKey = null, string? suppliedModel = null, string? suppliedProvider = null)
+        HttpClient? suppliedClient = null, string? suppliedKey = null, string? suppliedModel = null, string? suppliedProvider = null, string approvedDiagnostics = "")
     {
         description = description.Trim();
         if (description.Length > 12_000) throw new InvalidDataException(I18n.T("errorTextSize"));
-        if (description.Length == 0 && image is null) throw new InvalidOperationException(I18n.T("errorNeedInput"));
+        if (description.Length == 0 && image is null && string.IsNullOrWhiteSpace(approvedDiagnostics)) throw new InvalidOperationException(I18n.T("errorNeedInput"));
         string provider = suppliedProvider ?? AiCatalog.Provider;
         bool chatGpt = suppliedProvider is null && suppliedKey is null && ChatGptAuth.Selected;
         string key = suppliedKey ?? (chatGpt ? "" : Settings.GetKey(provider));
         string model = (suppliedModel ?? (chatGpt ? AiCatalog.Model : Settings.GetModel(provider))).Trim();
         if ((!chatGpt && string.IsNullOrWhiteSpace(key)) || !AiCatalog.ValidModel(provider, model)) throw new InvalidOperationException(I18n.T("needsKey"));
         if (image is { Bytes.Length: > 8_000_000 }) throw new InvalidDataException(I18n.T("errorImageSize"));
+        if (approvedDiagnostics.Length > DiagnosticPrivacy.MaxCharacters) throw new InvalidDataException(I18n.T("errorTextSize"));
 
-        string prompt = ErrorAssistantPrompt.Input(description, image is not null, language);
+        string prompt = ErrorAssistantPrompt.Input(description, image is not null, language, approvedDiagnostics);
         if (provider != "gemini")
         {
             string answer = await AiVision.Complete(provider, prompt, image?.Bytes, "image/jpeg", key, model, ct, suppliedClient, useChatGpt: chatGpt,
@@ -130,8 +132,9 @@ internal static class ErrorAssistant
             throw new InvalidDataException("Invalid response language.");
         var localization = new AdviceLocale(tag, direction == "rtl", AdviceLocale.GreetingFor(tag, Value(locale, "greeting", 300)), Value(locale, "cause_title", 100),
             Value(locale, "steps_title", 100), Value(locale, "checks_title", 100), Value(locale, "confidence_title", 100));
+        IReadOnlyList<string> repairs = root.TryGetProperty("repair_actions", out _) ? RepairCatalog.ValidateRecommendations(Lines(root, "repair_actions", 3)) : Array.Empty<string>();
         var result = new ErrorAdvice(Value(root, "summary", 400), Value(root, "cause", 1200), Lines(root, "steps", 8),
-            Lines(root, "checks", 5), Value(root, "confidence", 150), localization);
+            Lines(root, "checks", 5), Value(root, "confidence", 150), localization, repairs);
         if (result.Steps.Count == 0) throw new InvalidDataException("No troubleshooting steps returned.");
         return result;
     }

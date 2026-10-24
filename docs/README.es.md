@@ -1,5 +1,7 @@
 # Baseera
 
+**Desarrollo 0.4.15, sin publicar:** Smart Repair amplía el asistente existente con diagnósticos locales opcionales, vista previa editable y consentimiento por análisis. Solo ejecuta tres herramientas predefinidas tras confirmación independiente y UAC si corresponde: caché DNS, SFC y DISM. Sin scripts generados ni reinicio automático. [Detalles y límites](SMART-REPAIR.md). La descarga publicada 0.4.14 aún no incluye esta mejora.
+
 Aplicación experimental para Windows: análisis local de archivos, traducción de
 ventanas con Gemini, actualizaciones WinGet elegidas y conversión de imágenes/PDF.
 Interfaz en árabe (RTL), inglés, francés y español.

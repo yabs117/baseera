@@ -6,7 +6,7 @@ using DragDropEffects = System.Windows.DragDropEffects;
 
 namespace Baseera.App;
 
-internal sealed class ErrorAssistantWindow : Window
+internal sealed partial class ErrorAssistantWindow : Window
 {
     private readonly Func<string, ErrorImage?, string, CancellationToken, Task<ErrorAdvice>> analyze;
     private readonly bool realAnalyzer;
@@ -35,13 +35,19 @@ internal sealed class ErrorAssistantWindow : Window
 
     internal ErrorAssistantWindow(Window owner,
         Func<string, ErrorImage?, string, CancellationToken, Task<ErrorAdvice>>? analyze = null,
-        Func<string, CancellationToken, Task<bool>>? signOutProfile = null)
+        Func<string, CancellationToken, Task<bool>>? signOutProfile = null,
+        Func<Baseera.Core.DiagnosticOptions, CancellationToken, Task<string>>? collectDiagnostics = null,
+        Func<string, ErrorImage?, string, string, CancellationToken, Task<ErrorAdvice>>? analyzeDiagnostics = null,
+        Func<string, Baseera.Core.RepairApproval?>? approveRepair = null,
+        RepairRunner? repairRunner = null)
     {
         Owner = owner;
         this.signOutProfile = signOutProfile;
-        realAnalyzer = analyze is null;
+        realAnalyzer = analyze is null && analyzeDiagnostics is null;
         this.analyze = analyze ?? ((description, picture, language, ct) => ErrorAssistant.Analyze(description, picture, language, ct));
-        showConnection = analyze is null && !Configured();
+        collectDiagnosticData = collectDiagnostics ?? ((options, ct) => WindowsDiagnostics.Collect(options, ct));
+        analyzeDiagnosticData = analyzeDiagnostics; this.approveRepair = approveRepair; this.repairRunner = repairRunner ?? RepairRunner.Shared;
+        showConnection = realAnalyzer && !Configured();
         WindowStyle = WindowStyle.SingleBorderWindow; ResizeMode = ResizeMode.CanResize;
         ShowInTaskbar = false; WindowStartupLocation = WindowStartupLocation.CenterOwner;
         Width = Math.Min(820, SystemParameters.WorkArea.Width - 28);
@@ -55,7 +61,11 @@ internal sealed class ErrorAssistantWindow : Window
         Content = frame;
         SourceInitialized += (_, _) => WindowAppearance.Apply(this, Settings.Current.Dark);
         ChatGptAuth.SessionSignedOut += OnSessionSignedOut;
-        Closed += (_, _) => { closed = true; ChatGptAuth.SessionSignedOut -= OnSessionSignedOut; active?.Cancel(); presentation?.Dispose(); };
+        Closing += (_, e) =>
+        {
+            if (repairRunning && MessageBox.Show(this, I18n.T("smartCloseRunning"), I18n.T("smartApproveTitle"), MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) != MessageBoxResult.Yes) e.Cancel = true;
+        };
+        Closed += (_, _) => { closed = true; ChatGptAuth.SessionSignedOut -= OnSessionSignedOut; active?.Cancel(); diagnosticRequest?.Cancel(); presentation?.Dispose(); };
         Loaded += (_, _) => { if (showConnection) connectionPanel.MissingInput.Focus(); else problem.Focus(); };
         PreviewKeyDown += (_, e) =>
         {
@@ -114,6 +124,7 @@ internal sealed class ErrorAssistantWindow : Window
             configureButton.Visibility = Visibility.Visible; analyzeButton.IsEnabled = true;
             planNotice.Visibility = ChatGptAuth.UsingPlan ? Visibility.Visible : Visibility.Collapsed;
             feedback.Text = I18n.T("errorKeySaved"); problem.Focus();
+            InvalidateDiagnosticConsent(); RefreshSmartControls();
         }, dialog: true, signOutProfile: signOutProfile);
         Add(connection, connectionPanel, 4);
         Add(connection, Text(I18n.T("errorKeyLocal"), 12, true), 0);
@@ -149,10 +160,12 @@ internal sealed class ErrorAssistantWindow : Window
         windowCount.Foreground = Brush("Muted"); Add(body, windowCount, 5);
         var refresh = Action("refresh", RefreshWindows); refresh.HorizontalAlignment = HorizontalAlignment.Left; Add(body, refresh, 12);
         Add(body, Text(I18n.T("errorPrivacy"), 12, true), 16);
+        Add(body, BuildDiagnostics(), 16);
 
         result.Children.Clear();
         System.Windows.Automation.AutomationProperties.SetAutomationId(result, "ErrorAdviceResult");
         Add(body, result, 0);
+        Add(body, repairActions, 8); Add(body, repairStatus, 0);
         bodyScroll = new ScrollViewer { Content = body, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
         System.Windows.Automation.AutomationProperties.SetAutomationId(bodyScroll, "ErrorAssistantScroll");
         bodyScroll.ScrollChanged += (_, e) =>
@@ -169,7 +182,7 @@ internal sealed class ErrorAssistantWindow : Window
 
         var footer = new DockPanel { Background = Brush("Surface"), LastChildFill = false, Margin = new Thickness(0), HorizontalAlignment = HorizontalAlignment.Stretch };
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(28, 16, 28, 10), HorizontalAlignment = HorizontalAlignment.Right };
-        cancelButton = Action("cancel", () => active?.Cancel()); cancelButton.IsEnabled = active is not null; Add(actions, cancelButton, 0);
+        cancelButton = Action("cancel", () => { active?.Cancel(); diagnosticRequest?.Cancel(); }); cancelButton.IsEnabled = active is not null; Add(actions, cancelButton, 0);
         analyzeButton = Action("errorAnalyze", async () => await Analyze(), true);
         analyzeButton.IsEnabled = active is null && (!realAnalyzer || Configured()); Add(actions, analyzeButton, 0);
         var close = Action("errorClose", Close); Add(actions, close, 0); footer.Children.Add(actions);
@@ -181,6 +194,7 @@ internal sealed class ErrorAssistantWindow : Window
 
     private void ShowConnectionSettings(bool focus = true, bool chooseProvider = false)
     {
+        InvalidateDiagnosticConsent();
         showConnection = true; connectionBorder.Visibility = Visibility.Visible; configureButton.Visibility = Visibility.Collapsed;
         if (!focus) return;
         followResponse = false;
@@ -197,6 +211,7 @@ internal sealed class ErrorAssistantWindow : Window
     {
         if (!Dispatcher.CheckAccess()) { _ = Dispatcher.InvokeAsync(() => OnSessionSignedOut(account)); return; }
         if (closed) return;
+        InvalidateDiagnosticConsent();
         if (responseAccount == account) { active?.Cancel(); presentation?.Finish(); }
         planNotice.Visibility = ChatGptAuth.UsingPlan ? Visibility.Visible : Visibility.Collapsed;
         if (realAnalyzer && !Configured())
@@ -303,26 +318,32 @@ internal sealed class ErrorAssistantWindow : Window
     }
     private async Task Analyze()
     {
-        if (active is not null) return;
+        if (active is not null || diagnosticRequest is not null || repairRunning) return;
         if (!Configured() && realAnalyzer) { ShowConnectionSettings(); feedback.Text = I18n.T("errorKeyMissing"); return; }
-        if (string.IsNullOrWhiteSpace(problem.Text) && image is null) { feedback.Text = I18n.T("errorNeedInput"); return; }
+        if (string.IsNullOrWhiteSpace(problem.Text) && image is null && (diagnosticShare.IsChecked != true || string.IsNullOrWhiteSpace(diagnosticPreview.Text))) { feedback.Text = I18n.T("errorNeedInput"); return; }
+        string diagnostics;
+        try { diagnostics = ApprovedDiagnostics(); }
+        catch (InvalidOperationException ex) { feedback.Text = ex.Message; return; }
         using var request = new CancellationTokenSource(); active = request;
         analyzeButton.IsEnabled = false; cancelButton.IsEnabled = true;
         feedback.Text = I18n.T("errorAnalyzing"); presentation?.Dispose(); result.Children.Clear();
+        repairActions.Children.Clear(); repairStatus.Text = ""; RefreshSmartControls();
         responseAccount = ChatGptAuth.Selected ? Settings.Current.ChatGptAccount : "";
         var current = new AdvicePresenter(AiCatalog.Provider, AiCatalog.Model, ChatGptAuth.Selected);
         presentation = current; result.Children.Add(current); followResponse = true; FollowResponse();
         current.Changed += FollowResponse;
-        current.Completed += () => { if (!closed && ReferenceEquals(presentation, current)) feedback.Text = I18n.T("errorReady"); };
+        current.Completed += () => { if (!closed && ReferenceEquals(presentation, current)) { feedback.Text = I18n.T("errorReady"); RefreshSmartControls(); } };
         current.Copied += () => feedback.Text = I18n.T("errorCopied");
         current.CopyFailed += message => feedback.Text = I18n.T("errorClipboardFailed") + " " + message;
         try
         {
             string language = Settings.Current.Language switch { "ar" => "Arabic", "fr" => "French", "es" => "Spanish", _ => "English" };
-            var advice = await analyze(problem.Text, image, language, request.Token);
+            var advice = analyzeDiagnosticData is not null ? await analyzeDiagnosticData(problem.Text, image, language, diagnostics, request.Token) :
+                realAnalyzer ? await ErrorAssistant.Analyze(problem.Text, image, language, request.Token, approvedDiagnostics: diagnostics) :
+                await analyze(problem.Text, image, language, request.Token);
             request.Token.ThrowIfCancellationRequested();
             if (closed) return;
-            feedback.Text = I18n.T("adviceWriting"); current.Reveal(advice);
+            feedback.Text = I18n.T("adviceWriting"); current.Reveal(advice); ShowRepairActions(advice);
         }
         catch (OperationCanceledException)
         {
@@ -342,7 +363,7 @@ internal sealed class ErrorAssistantWindow : Window
         finally
         {
             if (ReferenceEquals(active, request)) active = null;
-            if (!closed) { analyzeButton.IsEnabled = !realAnalyzer || Configured(); cancelButton.IsEnabled = false; }
+            if (!closed) RefreshSmartControls();
         }
     }
 

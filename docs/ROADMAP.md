@@ -2,6 +2,11 @@
 
 ## Implemented preview
 
+- Development 0.4.15: existing error assistant expanded into Smart Repair with
+  selected read-only diagnostics, preview/redaction, single-analysis sharing consent,
+  qualified evidence-aware guidance and explicitly approved fixed native repairs.
+  See [scope and limits](SMART-REPAIR.md). Not yet in the published 0.4.14 package.
+
 - WPF desktop shell, collapsible vector-icon navigation, light/dark appearance.
 - First-run opt-in features, Arabic RTL, English, French, Spanish.
 - Bounded recursive ZIP inspection and folder scanning without extraction.

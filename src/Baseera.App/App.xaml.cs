@@ -30,6 +30,11 @@ public partial class App : Application
             {
                 string output = e.Args.SkipWhile(x => x != "--smoke").Skip(1).FirstOrDefault() ?? "artifacts";
                 Directory.CreateDirectory(output);
+                if (e.Args.Contains("--smart-repair-only"))
+                {
+                    Settings.Current.Onboarded = true; window.ApplyTheme(); window.Render();
+                    await SmartRepairSmokeChecks.Run(window, output); Shutdown(0); return;
+                }
                 int renders = 0;
                 void SaveView(string name) { Snapshot(window, Path.Combine(output, name + ".png")); renders++; }
                 Settings.Current.Onboarded = false; Settings.Current.ShowWelcomeOnStartup = false;
@@ -88,6 +93,7 @@ public partial class App : Application
                 await window.CheckTranslationSettingsLink(output);
                 await window.CheckAppList(output);
                 await window.CheckInteractionsAndInspection(output);
+                await SmartRepairSmokeChecks.Run(window, output);
                 foreach (string language in new[] { "en", "ar", "fr", "es" })
                 foreach (bool dark in new[] { false, true })
                 {

@@ -9,13 +9,33 @@ benign. Encrypted/unsupported archives and exhausted limits are reported as
 incomplete. Native parsers and image decoders remain an attack surface; do not
 treat this preview as a hardened sandbox for hostile samples.
 
-Window translation and error analysis send only user-selected text or screenshots
+Window translation and error analysis send user-selected text or screenshots
 directly to the configured AI service when requested. Each service has a separate
 key and official endpoint. Credentials are never reused across services, and
 authenticated requests do not follow redirects. See [AI services](docs/AI-SERVICES.md).
 Each desktop key uses Windows DPAPI for the current user. A screenshot is kept
 in memory for the request, not written to the app's data directory. Other software
 running as the same user is outside this storage protection boundary.
+
+The 0.4.15 development preview adds [Smart Repair](docs/SMART-REPAIR.md). Optional
+diagnostics are local, bounded reads of selected Application/System error logs and
+a minimal system summary. They require an editable preview and a separate one-request
+sharing approval before being included in an AI request. Redaction is best effort;
+logs may still contain sensitive data and must be reviewed. No Security channel,
+credential store, personal files or raw event XML is requested. Diagnostics remain
+in memory and are not attached to feedback or persisted in preferences.
+
+AI recommendations cannot become arbitrary commands. Only three immutable catalog
+actions are executable: DNS cache clearing, SFC repair and DISM component-store
+repair with restart suppressed. Each needs an unchecked-by-default acknowledgement
+in a separate exact-command/effects dialog. A single-use, expiring approval is bound
+to the canonical action. Executables resolve from the OS system directory, with
+fixed arguments and no shell wrapper or PATH lookup. Native administrator actions
+also require Windows UAC; the main app is not elevated by the feature. Repairs are
+serialized, exit codes do not guarantee a fix, and Baseera does not kill servicing
+on window close. System servicing changes are not automatically reversible.
+The OS/user account and native executables are trusted; this is not a sandbox for
+arbitrary instructions. Automated tests use fake processes and do not repair the host.
 
 The feedback form opens a prefilled GitHub issue in the browser; the user reviews
 and submits it there. No API key, screenshot or diagnostic file is attached

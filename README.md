@@ -4,6 +4,12 @@ A modular Windows companion with a compact desktop interface. Enable just the
 tools you need: local file inspection, window translation, selected app updates,
 image conversion, and an error assistant that explains copied Windows errors.
 
+**Development preview 0.4.15:** [Baseera Smart Repair](docs/SMART-REPAIR.md)
+extends the existing error assistant with optional read-only diagnostics, a reviewed
+one-request sharing step, and three fixed native repair actions requiring explicit
+per-command approval. This development change is not yet in the published 0.4.14
+download linked below. Build the current source to try it.
+
 [العربية](docs/README.ar.md) · [Français](docs/README.fr.md) · [Español](docs/README.es.md)
 
 [Download Windows app](https://github.com/yabs117/baseera/releases/download/v0.4.14-preview/Baseera.exe) · [Release notes](https://github.com/yabs117/baseera/releases/tag/v0.4.14-preview) · [Roadmap](docs/ROADMAP.md)
@@ -75,8 +81,9 @@ the app. Keys are protected by the local Windows account and shared with window
 translation. Error text and the selected image are sent to the selected service only after you
 press **Analyze error**. Review a full-window screenshot before sending: it may
 contain private information. The response gives possible causes, checks and steps,
-not a guaranteed repair; Baseera does not run suggested commands or change Windows
-settings. The dialog does not open for Windows auto-start or file-conversion launches.
+not a guaranteed repair. In the 0.4.15 development preview, only reviewed catalog
+commands can run after separate explicit approval; generated free-form commands
+are never executed. The dialog does not open for Windows auto-start or file-conversion launches.
 
 ![Error assistant with provider identity and structured guidance](docs/images/advice-complete-en.png)
 
