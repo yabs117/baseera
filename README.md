@@ -34,6 +34,10 @@ The download is now **Baseera.exe**. The release retains a versioned compatibili
 asset so older installed versions can still update in place. New versions prefer
 the clean filename.
 
+Update cleanup handles read-only temporary directories under OneDrive. A failed
+upgrade that restores a pre-0.4.14 app can still leave an empty read-only directory;
+this does not affect the recovered executable or saved settings.
+
 Buttons, navigation, switches, flyouts and scrollbars now respond with consistent
 hover, press and transition states, respecting Windows’ animation preference.
 The layout and supplied fonts are preserved. [Interaction evidence](docs/WINDOWS-INTERACTIONS.md).

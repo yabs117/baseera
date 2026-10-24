@@ -14,6 +14,14 @@ internal static class SelfUpdateSmokeChecks
 
     internal static async Task Run(string output)
     {
+        string cleanup = Path.Combine(Path.GetDirectoryName(Environment.ProcessPath!)!, ".baseera-update-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(cleanup); File.WriteAllText(Path.Combine(cleanup, "fixture.txt"), "temporary fixture");
+        File.SetAttributes(cleanup, File.GetAttributes(cleanup) | FileAttributes.ReadOnly);
+        SelfUpdater.DeleteStaging(cleanup);
+        if (Directory.Exists(cleanup)) throw new Exception("Read-only update staging directory was retained.");
+        bool invalidCleanup = false;
+        try { SelfUpdater.DeleteStaging(Path.GetDirectoryName(Environment.ProcessPath!)!); } catch (IOException) { invalidCleanup = true; }
+        if (!invalidCleanup) throw new Exception("Unsafe staging cleanup target was accepted.");
         string folder = Path.Combine(output, "update-checks-" + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(folder);
         byte[] image = File.ReadAllBytes(Environment.ProcessPath!);
         string hash = UpdateTransaction.Hash(Environment.ProcessPath!);

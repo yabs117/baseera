@@ -7,6 +7,8 @@ $channel = [string]$project.Project.PropertyGroup.InformationalVersion
 if ([string]::IsNullOrWhiteSpace($channel)) { $channel = $version }
 $newSource = (Resolve-Path ('artifacts/Baseera-v' + $version + '-Windows-x64/Baseera.exe')).Path
 $source = if ($PreviousExecutable) { (Resolve-Path -LiteralPath $PreviousExecutable).Path } else { $newSource }
+$previousVersion = [Diagnostics.FileVersionInfo]::GetVersionInfo($source)
+$legacyCleanup = [Version]::new($previousVersion.FileMajorPart, $previousVersion.FileMinorPart, $previousVersion.FileBuildPart) -lt [Version]'0.4.14'
 $env:DOTNET_CLI_HOME = Join-Path (Get-Location) '.local/dotnet'
 $env:DOTNET_CLI_TELEMETRY_OPTOUT = '1'
 & dotnet publish tests/Fixtures/EarlyExit/EarlyExit.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:NuGetAudit=false "-p:Version=$version" "-p:InformationalVersion=$channel" -o .local/e2e-fixture --nologo
@@ -32,7 +34,7 @@ foreach ($scenario in @('replace', 'rollback')) {
     $env:BASEERA_DATA_DIR = Join-Path $caseRoot 'data'
     New-Item -ItemType Directory -Path $env:BASEERA_DATA_DIR | Out-Null
     $settingsFile = Join-Path $env:BASEERA_DATA_DIR 'settings.json'
-    [IO.File]::WriteAllText($settingsFile, '{"Language":"en","Onboarded":true,"WelcomeSeen":true,"CheckBaseeraUpdates":false,"GeminiModel":"e2e-retain-settings"}')
+    [IO.File]::WriteAllText($settingsFile, '{"Language":"en","Onboarded":true,"WelcomeSeen":true,"CheckBaseeraUpdates":false,"ErrorAssistantEnabled":false,"GeminiModel":"e2e-retain-settings"}')
     $secretFile = Join-Path $env:BASEERA_DATA_DIR 'secrets.bin'
     [IO.File]::WriteAllBytes($secretFile, [byte[]](19, 88, 34, 201))
     $settingsHash = Hash $settingsFile; $secretHash = Hash $secretFile; $oldHash = Hash $target
@@ -72,9 +74,17 @@ foreach ($scenario in @('replace', 'rollback')) {
         if ($helper.ExitCode -ne $expectedExit) { throw ('Unexpected helper exit: ' + $helper.ExitCode) }
         Wait-Until { @(Get-Process -Name 'My Baseera' -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $target }).Count -eq 1 }
         Write-Output ('PASS: actual standalone ' + $scenario + ', same custom filename, restart, settings and secret bytes retained')
-        # Acknowledge retries locked-file cleanup for up to 150 seconds.
-        Wait-Until { -not (Test-Path -LiteralPath $folder) } -seconds 160
-        Write-Output ('PASS: ' + $scenario + ' transaction cleaned after restart acknowledgement')
+        # Old versions cannot retroactively use the read-only directory fix after
+        # rollback. Require that all recovery files are gone; record the empty
+        # read-only directory separately rather than calling it full cleanup.
+        Wait-Until {
+            if (-not (Test-Path -LiteralPath $folder)) { return $true }
+            return $legacyCleanup -and $scenario -eq 'rollback' -and
+                ((Get-Item -LiteralPath $folder -Force).Attributes -band [IO.FileAttributes]::ReadOnly) -ne 0 -and
+                @(Get-ChildItem -LiteralPath $folder -Force).Count -eq 0
+        } -seconds 160
+        if (Test-Path -LiteralPath $folder) { Write-Output 'LEGACY LIMITATION: the restored pre-0.4.14 version left only an empty read-only staging directory; all recovery files were removed.' }
+        else { Write-Output ('PASS: ' + $scenario + ' transaction cleaned after restart acknowledgement') }
     } finally {
         # Stop only processes whose verified executable paths are inside this test case.
         foreach ($process in @(Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $target -or $_.Path -eq (Join-Path $folder 'helper.exe') })) { Stop-Process -Id $process.Id -Force; $process.WaitForExit() }
@@ -86,5 +96,5 @@ foreach ($scenario in @('replace', 'rollback')) {
         catch { if ($attempt -ge 20) { throw }; Start-Sleep -Milliseconds 250 }
     }
 }
-[IO.File]::WriteAllText((Join-Path $testRoot 'result.txt'), 'PASS: real same-path replacement, restart handshake, rollback after early startup failure, settings retained, staging cleanup')
+[IO.File]::WriteAllText((Join-Path $testRoot 'result.txt'), 'PASS: real same-path replacement, restart handshake, rollback after early startup failure, settings retained, recovery files removed; any legacy empty-directory limitation is reported in the test output')
 Write-Output ('Evidence: ' + (Join-Path $testRoot 'result.txt'))

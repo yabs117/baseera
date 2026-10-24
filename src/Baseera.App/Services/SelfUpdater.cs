@@ -105,7 +105,7 @@ internal static class SelfUpdater
             File.WriteAllText(Path.Combine(folder, "plan.json"), JsonSerializer.Serialize(plan));
             return folder;
         }
-        catch { Directory.Delete(folder, true); throw; }
+        catch { DeleteStaging(folder); throw; }
     }
 
     internal static async Task StartHelper(string folder)
@@ -215,9 +215,23 @@ internal static class SelfUpdater
                 if (!finished) continue;
                 // Preserve backup/error evidence when recovery failed.
                 if (File.Exists(Path.Combine(folder, "previous.exe"))) return;
-                try { Directory.Delete(folder, true); return; } catch (DirectoryNotFoundException) { return; } catch (IOException) { } catch (UnauthorizedAccessException) { }
+                try { DeleteStaging(folder); return; } catch (DirectoryNotFoundException) { return; } catch (IOException) { } catch (UnauthorizedAccessException) { }
             }
         });
         return error;
+    }
+
+    internal static void DeleteStaging(string folder)
+    {
+        string full = Path.GetFullPath(folder);
+        string parent = Path.GetDirectoryName(Path.GetFullPath(Environment.ProcessPath!))!;
+        if (!string.Equals(Path.GetDirectoryName(full), parent, StringComparison.OrdinalIgnoreCase) ||
+            !System.Text.RegularExpressions.Regex.IsMatch(Path.GetFileName(full), @"^\.baseera-update-[a-f0-9]{32}$"))
+            throw new IOException("Invalid update cleanup target.");
+        // OneDrive can mark the transaction directory read-only even after all
+        // files are removed. Clear only this validated temporary directory flag.
+        var attributes = File.GetAttributes(full);
+        if ((attributes & FileAttributes.ReadOnly) != 0) File.SetAttributes(full, attributes & ~FileAttributes.ReadOnly);
+        Directory.Delete(full, true);
     }
 }
