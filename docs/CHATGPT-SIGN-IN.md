@@ -27,15 +27,25 @@ Stored OAuth credentials never overwrite the OpenAI API key. If a session expire
 is revoked, or reaches a usage limit, Baseera asks for reconnection or directs the
 user to usage settings. It does not silently fall back to API-key billing.
 
-Sign out cancels requests for that session and immediately removes the local access,
-refresh and ID tokens before attempting remote revocation. From 0.4.12 it also clears
-the selected account/model, updates every open connection panel and error assistant,
-and refreshes translation. The app stays open. Saved API keys, API model choices,
-unsaved API-key drafts and other account registrations are preserved. It never
-switches to API-key billing automatically. The remote revocation attempt has a
-20-second total budget. Its registration label and this installation's
-opaque host ID remain for later sign-in. If remote revocation cannot be confirmed,
-Baseera says so and directs the user to disconnect the app in ChatGPT settings.
+From 0.4.13, Sign out cancels requests and removes the selected registration from
+Baseera’s local account store, including its saved name, email, subject, client ID
+and credentials. Every open picker and connection draft removes that profile, and
+the selected account/model are cleared before remote revocation is attempted.
+A notice in the error assistant offers to close that assistant window. Baseera
+stays open; reopening the assistant cannot restore the removed account.
+
+Saved API keys, API model choices, other open API drafts and unrelated registrations
+are preserved. There is no automatic API-key billing fallback. The remote revocation
+attempt is bounded to twenty seconds. If it cannot be confirmed, the profile is
+still removed locally and the notice explains how to disconnect Baseera in ChatGPT
+settings. This does not delete the user’s OpenAI account or sign their browser out.
+
+At startup, legacy profiles left by older sign-outs are pruned only when all access,
+refresh and ID tokens are empty. Identity-only sign-ins still holding credentials
+are not treated as signed out. The opaque installation host ID is preserved; it
+does not display an account name or email. Signing in again after removal starts
+a new registration through the official flow.
+
 
 This release offers consumer-account sign-in for **OpenAI/ChatGPT**. The other
 19 direct-service adapters continue to use their own API keys. In particular, the

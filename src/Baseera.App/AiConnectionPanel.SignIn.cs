@@ -58,9 +58,10 @@ internal sealed partial class AiConnectionPanel
             accountPicker.ItemsSource = accounts;
             accountPicker.SelectedItem = accounts.FirstOrDefault(profile => profile.Id == draft.ChatGptAccount);
             bool connected = accountPicker.SelectedItem is ChatGptProfile { Connected: true };
+            accountArea.Visibility = UsingChatGpt && accounts.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
             accountPicker.Visibility = accounts.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
             accountState.Text = I18n.T(connected ? ChatGptAuth.Selected && draft.ChatGptAccount == Settings.Current.ChatGptAccount ? "chatGptUsingPlan" : "chatGptReady" : "chatGptChooseAccount");
-            signOut.IsEnabled = connected;
+            signOut.IsEnabled = accountPicker.SelectedItem is not null;
         }
         catch { accountState.Text = I18n.T("chatGptStorageError"); }
     }
@@ -117,9 +118,12 @@ internal sealed partial class AiConnectionPanel
         try
         {
             bool revoked = await signOutProfile(profile.Id, CancellationToken.None);
+            if (draft.ChatGptAccount == profile.Id) draft.ChatGptAccount = "";
             draft.ChatGpt = new(); RefreshProvider(); status.Text = I18n.T(revoked ? "chatGptSignedOut" : "chatGptRevocationUnconfirmed");
+            if (Window.GetWindow(this) is ErrorAssistantWindow assistant && assistant.IsVisible)
+                ChatGptUi.CreateSignOutDialog(assistant, revoked, assistant.Close).ShowDialog();
         }
         catch { status.Text = I18n.T("chatGptStorageError"); }
-        finally { signOut.IsEnabled = accountPicker.SelectedItem is ChatGptProfile { Connected: true }; }
+        finally { signOut.IsEnabled = accountPicker.SelectedItem is not null; }
     }
 }

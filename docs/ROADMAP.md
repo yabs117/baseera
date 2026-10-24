@@ -39,3 +39,5 @@ assurance, or maintainer history that has not occurred.
 - [x] Shared Baseera troubleshooting instructions in provider-specific instruction channels; language-aware welcome and response headings independent of interface language.
 
 - [x] Connection panel reopen regression checks and immediate global ChatGPT session disconnection, preserving API connections and unrelated account registrations.
+
+- [x] Remove signed-out account identity and profile from storage/pickers/drafts, clean legacy tokenless entries, and offer to close/reopen the assistant without that account.

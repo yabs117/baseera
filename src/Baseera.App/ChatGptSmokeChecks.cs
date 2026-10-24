@@ -210,11 +210,13 @@ internal static class ChatGptSmokeChecks
             await owner.CheckChatGptSettings(clientId, models, output);
             await ChatGptAuth.MarkWelcomeSeen(clientId, deadline.Token); Require(!ChatGptAuth.NeedsWelcome(clientId), "Welcome confirmation did not persist.");
             bool signedOut = await ConnectionRegressionSmokeChecks.CheckSignOut(owner, clientId, second.Id, http, () => releaseRevocation.TrySetResult(), output);
-            Require(signedOut && revokes == 1 && !ChatGptAuth.Connected(clientId) && ChatGptAuth.Connected(second.Id) && ChatGptAuth.Profiles.Count == 2, "Sign-out affected another account or failed to retain the registration.");
+            Require(signedOut && revokes == 1 && !ChatGptAuth.Connected(clientId) && ChatGptAuth.Connected(second.Id) && ChatGptAuth.Profiles.Count == 1 && !ChatGptAuth.Profiles.Any(profile => profile.Id == clientId), "Sign-out retained the removed profile or affected another account.");
             using var revocationFailure = new HttpClient(new Reply((request, _) => Task.FromResult(request.RequestUri!.AbsolutePath.Contains("openid-configuration")
                 ? Json(new { issuer = ChatGptAuth.Issuer, authorization_endpoint = ChatGptAuth.Issuer + "/api/accounts/authorize", token_endpoint = ChatGptAuth.Issuer + "/api/accounts/oauth/token", jwks_uri = ChatGptAuth.Issuer + "/.well-known/jwks.json", revocation_endpoint = ChatGptAuth.Issuer + "/api/accounts/oauth/revoke" })
                 : new HttpResponseMessage(HttpStatusCode.ServiceUnavailable))));
             Require(!await ChatGptAuth.SignOut(second.Id, deadline.Token, revocationFailure) && !ChatGptAuth.Connected(second.Id), "Unconfirmed remote revocation did not clear local credentials.");
+            Require(ChatGptAuth.Profiles.Count == 0, "Unconfirmed revocation retained the local account identity.");
+            await ConnectionRegressionSmokeChecks.CheckRemovedProfileCleanup(owner, output);
             File.WriteAllText(Path.Combine(output, "chatgpt-auth-result.txt"), "PASS: real loopback callback with fake OpenAI HTTP; PKCE/state; signed JWT, audience, nonce and expiry checks; protected identity/token storage; account-scoped model filtering; serialized rotating refresh; image analysis over public Responses/SSE; partial/error streams rejected; separate API key; four-language account UI; unsupported providers keep API mode; welcome persistence; revocation. No browser login, real token or paid inference.");
         }
         finally

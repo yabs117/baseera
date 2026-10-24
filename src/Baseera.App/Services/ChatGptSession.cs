@@ -66,7 +66,7 @@ internal static partial class ChatGptAuth
             if (account is not null)
             {
                 refreshToken = account.RefreshToken;
-                ClearTokens(account); WriteStore(store);
+                ClearTokens(account); store.Accounts.Remove(account); WriteStore(store);
             }
         }
         finally { gate.Release(); }

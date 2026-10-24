@@ -10,6 +10,7 @@ internal sealed class ErrorAssistantWindow : Window
 {
     private readonly Func<string, ErrorImage?, string, CancellationToken, Task<ErrorAdvice>> analyze;
     private readonly bool realAnalyzer;
+    private readonly Func<string, CancellationToken, Task<bool>>? signOutProfile;
     private readonly Grid frame = new();
     private readonly TextBox problem = new() { AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
     private readonly ComboBox windows = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
@@ -33,9 +34,11 @@ internal sealed class ErrorAssistantWindow : Window
     private AiConnectionPanel connectionPanel = null!;
 
     internal ErrorAssistantWindow(Window owner,
-        Func<string, ErrorImage?, string, CancellationToken, Task<ErrorAdvice>>? analyze = null)
+        Func<string, ErrorImage?, string, CancellationToken, Task<ErrorAdvice>>? analyze = null,
+        Func<string, CancellationToken, Task<bool>>? signOutProfile = null)
     {
         Owner = owner;
+        this.signOutProfile = signOutProfile;
         realAnalyzer = analyze is null;
         this.analyze = analyze ?? ((description, picture, language, ct) => ErrorAssistant.Analyze(description, picture, language, ct));
         showConnection = analyze is null && !Configured();
@@ -111,7 +114,7 @@ internal sealed class ErrorAssistantWindow : Window
             configureButton.Visibility = Visibility.Visible; analyzeButton.IsEnabled = true;
             planNotice.Visibility = ChatGptAuth.UsingPlan ? Visibility.Visible : Visibility.Collapsed;
             feedback.Text = I18n.T("errorKeySaved"); problem.Focus();
-        }, dialog: true);
+        }, dialog: true, signOutProfile: signOutProfile);
         Add(connection, connectionPanel, 4);
         Add(connection, Text(I18n.T("errorKeyLocal"), 12, true), 0);
         connectionBorder = new Border { Background = Brush("Surface"), BorderBrush = Brush("Line"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(5), Padding = new Thickness(18), Child = connection,

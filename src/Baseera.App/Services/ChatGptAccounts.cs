@@ -106,6 +106,23 @@ internal static partial class ChatGptAuth
         finally { gate.Release(); }
     }
     internal static bool NeedsWelcome(string clientId) => ReadStore().Accounts.Any(account => account.ClientId == clientId && account.HasPermission && !account.WelcomeSeen);
+    internal static async Task PruneSignedOutProfiles(CancellationToken ct)
+    {
+        if (!File.Exists(Path.Combine(Settings.Folder, StoreFile))) return;
+        var removed = new List<string>();
+        await gate.WaitAsync(ct);
+        try
+        {
+            await using var fileLock = await LockStore(ct); var store = ReadStore();
+            removed.AddRange(store.Accounts.Where(account => account.AccessToken.Length == 0 && account.RefreshToken.Length == 0 && account.IdToken.Length == 0).Select(account => account.ClientId));
+            if (removed.Count == 0) return;
+            store.Accounts.RemoveAll(account => removed.Contains(account.ClientId)); WriteStore(store);
+        }
+        finally { gate.Release(); }
+        if (removed.Contains(Settings.Current.ChatGptAccount))
+        { Settings.Current.ChatGptAccount = ""; Settings.Current.ChatGptModel = ""; Settings.Save(); }
+        foreach (string clientId in removed) { StopSession(clientId); SessionSignedOut?.Invoke(clientId); }
+    }
     private static string Required(JsonElement root, string name) => root.GetProperty(name).GetString() is { Length: > 0 } value ? value : throw new InvalidDataException(I18n.T("chatGptInvalidResponse"));
     private static string Optional(JsonElement root, string name) => root.ValueKind == JsonValueKind.Object && root.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() ?? "" : "";
     internal static string Base64Url(byte[] bytes) => Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');

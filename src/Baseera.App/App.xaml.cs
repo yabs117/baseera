@@ -17,6 +17,9 @@ public partial class App : Application
             Shutdown(result); return;
         }
         Settings.Load();
+        try { await ChatGptAuth.PruneSignedOutProfiles(CancellationToken.None); }
+        catch (Exception ex) when (ex is IOException or System.Security.Cryptography.CryptographicException or System.Text.Json.JsonException or System.ComponentModel.Win32Exception)
+        { /* Connection settings report an unreadable credential store; startup remains available. */ }
         bool smoke = e.Args.Contains("--smoke");
         string? input = e.Args.Length > 1 && e.Args[0] == "--convert" ? e.Args[1] : null;
         var window = new MainWindow(input, smoke, e.Args.Length == 0); MainWindow = window;

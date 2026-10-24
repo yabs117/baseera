@@ -57,4 +57,36 @@ internal static class ChatGptUi
         var usage = new Button { Content = I18n.T("chatGptManageUsage"), HorizontalAlignment = HorizontalAlignment.Left };
         usage.Click += (_, _) => OpenUsage(); panel.Children.Add(usage); return panel;
     }
+    internal static Window CreateSignOutDialog(Window owner, bool revoked, Action closeAssistant)
+    {
+        var dialog = new Window
+        {
+            Owner = owner, Title = I18n.T("chatGptRemovedTitle"), Width = 520, SizeToContent = SizeToContent.Height,
+            ResizeMode = ResizeMode.NoResize, WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            ShowInTaskbar = false, FontFamily = Brand.InterfaceFont, Icon = Brand.WindowIcon, FlowDirection = FlowDirection.LeftToRight
+        };
+        System.Windows.Automation.AutomationProperties.SetAutomationId(dialog, "ChatGptSignOutNotice");
+        dialog.SetResourceReference(Window.BackgroundProperty, "Bg"); dialog.SetResourceReference(Window.ForegroundProperty, "Ink");
+        var panel = new StackPanel { Margin = new Thickness(26), FlowDirection = Settings.Current.Language == "ar" ? FlowDirection.RightToLeft : FlowDirection.LeftToRight };
+        panel.Children.Add(new TextBlock { Text = I18n.T("chatGptRemovedTitle"), FontSize = 22, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 12) });
+        panel.Children.Add(new TextBlock { Text = I18n.T("chatGptCloseAssistantHelp"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 18) });
+        if (!revoked)
+            panel.Children.Add(new TextBlock { Text = I18n.T("chatGptRevocationUnconfirmed"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 18) });
+        var actions = new WrapPanel();
+        var close = new Button { Content = I18n.T("chatGptCloseAssistant"), MinWidth = 140, IsDefault = true };
+        close.SetResourceReference(System.Windows.Controls.Control.BackgroundProperty, "Accent");
+        close.SetResourceReference(System.Windows.Controls.Control.BorderBrushProperty, "Accent");
+        close.SetResourceReference(System.Windows.Controls.Control.ForegroundProperty, "OnAccent");
+        System.Windows.Automation.AutomationProperties.SetAutomationId(close, "CloseAssistantAfterSignOut");
+        close.Click += (_, _) => { dialog.Close(); closeAssistant(); }; actions.Children.Add(close);
+        var later = new Button { Content = I18n.T("chatGptCloseLater"), IsCancel = true };
+        later.Click += (_, _) => dialog.Close(); actions.Children.Add(later);
+        if (!revoked)
+        {
+            var manage = new Button { Content = I18n.T("chatGptManageUsage") }; manage.Click += (_, _) => OpenUsage(); actions.Children.Add(manage);
+        }
+        panel.Children.Add(actions); dialog.Content = panel;
+        dialog.SourceInitialized += (_, _) => WindowAppearance.Apply(dialog, Settings.Current.Dark);
+        return dialog;
+    }
 }

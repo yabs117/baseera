@@ -1,4 +1,6 @@
 using System.Net;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Windows.Automation;
 using Baseera.App.Services;
 
@@ -70,15 +72,18 @@ internal static class ConnectionRegressionSmokeChecks
     {
         var keys = AiProviders.All.ToDictionary(p => p.Id, p => Settings.GetKey(p.Id));
         var models = AiProviders.All.ToDictionary(p => p.Id, p => Settings.GetModel(p.Id));
-        var assistant = new ErrorAssistantWindow(owner); var another = new ErrorAssistantWindow(owner);
+        Settings.Current.Language = "ar"; Settings.Current.Dark = true; owner.ApplyTheme(); owner.Render();
+        Task<bool>? logout = null;
+        var assistant = new ErrorAssistantWindow(owner, signOutProfile: (id, ct) => logout = ChatGptAuth.SignOut(id, ct, authHttp));
+        var another = new ErrorAssistantWindow(owner);
         var oauthDraft = new AiConnectionDraft { Provider = "openai", OpenAiMode = "chatgpt", ChatGptAccount = account,
             ChatGpt = new() { Model = Settings.Current.ChatGptModel, Models = [new(Settings.Current.ChatGptModel, "Fixture vision", "OpenAI", "chatGptPlan")] } };
         var apiDraft = new AiConnectionDraft { Provider = "anthropic", OpenAiMode = "api", ChatGptAccount = account };
         apiDraft.For("anthropic").Key = "unsaved-api-draft";
-        Task<bool>? logout = null;
-        var oauth = new AiConnectionPanel(oauthDraft, () => { }, signOutProfile: (id, ct) => logout = ChatGptAuth.SignOut(id, ct, authHttp));
+        var observer = new AiConnectionPanel(oauthDraft, () => { });
+        AiConnectionPanel oauth = null!;
         var api = new AiConnectionPanel(apiDraft, () => { });
-        var contents = new StackPanel(); contents.Children.Add(oauth); contents.Children.Add(api);
+        var contents = new StackPanel(); contents.Children.Add(observer); contents.Children.Add(api);
         var host = new Window { Owner = owner, Width = 680, Height = 720, ShowInTaskbar = false, Content = new ScrollViewer { Content = contents } };
         var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         using var pendingHttp = new HttpClient(new Waiting(started));
@@ -87,6 +92,8 @@ internal static class ConnectionRegressionSmokeChecks
         try
         {
             owner.Navigate("translate"); assistant.Show(); another.Show(); host.Show(); await Settle(owner);
+            oauth = Nodes(assistant).OfType<AiConnectionPanel>().Single();
+            Click(assistant, "errorConfigure"); await Settle(owner);
             Require(ChatGptAuth.UsingPlan && Find<Button>(oauth, "chatGptSignOut").IsEnabled, "Fixture is not connected before sign-out.");
             Find<TextBox>(assistant, "ErrorDescription").Text = "Preserve this text after sign-out";
             inference = ChatGptAuth.Complete(account, Settings.Current.ChatGptModel, "Fixture", null, "image/jpeg", deadline.Token, pendingHttp);
@@ -96,6 +103,10 @@ internal static class ConnectionRegressionSmokeChecks
             Require(!ChatGptAuth.Connected(account) && ChatGptAuth.Connected(otherAccount) && Settings.Current.ChatGptAccount.Length == 0 &&
                 Settings.Current.ChatGptModel.Length == 0 && Settings.Current.OpenAiAuth == "chatgpt" && !AiCatalog.Configured(),
                 "Sign-out was not global/immediate or silently selected an API-key connection.");
+            Require(!ChatGptAuth.Profiles.Any(p => p.Id == account) && !Find<ComboBox>(oauth, "ChatGptAccountPicker").Items.OfType<ChatGptProfile>().Any(p => p.Id == account) &&
+                !Find<ComboBox>(observer, "ChatGptAccountPicker").Items.OfType<ChatGptProfile>().Any(p => p.Id == account) &&
+                oauthDraft.ChatGptAccount.Length == 0 && oauthDraft.ChatGpt.Model.Length == 0,
+                "A removed account remained in storage, a picker or a draft.");
             Require(owner.IsVisible && assistant.IsVisible && another.IsVisible && host.IsVisible, "Signing out closed an application window.");
             Require(Nodes(owner).OfType<Button>().Any(b => AutomationProperties.GetAutomationId(b) == "TranslationProviderSettings"), "Translation retained its connected state.");
             Require(oauth.ModelInput.Items.Count == 0 && !Find<Button>(oauth, "chatGptSignOut").IsEnabled &&
@@ -107,11 +118,18 @@ internal static class ConnectionRegressionSmokeChecks
             Require(AiProviders.All.All(p => Settings.GetKey(p.Id) == keys[p.Id] && Settings.GetModel(p.Id) == models[p.Id]), "API credentials or model choices changed.");
             bool canceled = false; try { await inference; } catch (OperationCanceledException) { canceled = true; }
             Require(canceled, "In-flight account inference survived sign-out.");
-            Click(oauth, "save"); Require(Settings.Current.ChatGptAccount.Length == 0 && !AiCatalog.Configured(), "A stale model was saved after sign-out.");
+            Click(oauth, "errorSaveKey"); Require(Settings.Current.ChatGptAccount.Length == 0 && !AiCatalog.Configured(), "A stale model was saved after sign-out.");
             releaseRemote(); bool revoked = await logout!; await Settle(owner);
             Require(revoked && api.KeyInput.Password == "unsaved-api-draft", "Remote revocation failed or touched the independent API draft.");
-            WindowAppearance.SavePreview(assistant, Path.Combine(output, "chatgpt-global-signout.png"));
-            File.WriteAllText(Path.Combine(output, "chatgpt-signout-result.txt"), "PASS: actual Sign out button disconnects before delayed remote revocation; two open assistants, translation and connection panels update globally; running inference canceled; application stays open; all API keys/models and unsaved API draft preserved; another registration remains connected; stale account model cannot be saved. Fake OAuth only.");
+            var notice = Application.Current.Windows.OfType<Window>().Single(w => w.IsVisible && AutomationProperties.GetAutomationId(w) == "ChatGptSignOutNotice");
+            Require(WindowAppearance.HasNativeCaption(notice, requireMinMax: false), "Sign-out notice lost the native caption.");
+            await notice.Dispatcher.InvokeAsync(() => notice.UpdateLayout(), System.Windows.Threading.DispatcherPriority.Render);
+            await Task.Delay(200);
+            WindowAppearance.SavePreview(notice, Path.Combine(output, "chatgpt-signout-close-ar.png"));
+            Click(notice, "CloseAssistantAfterSignOut"); await Settle(owner);
+            Require(!assistant.IsVisible && owner.IsVisible && another.IsVisible && host.IsVisible, "Close confirmation did not close only the error assistant.");
+            WindowAppearance.SavePreview(another, Path.Combine(output, "chatgpt-global-signout.png"));
+            File.WriteAllText(Path.Combine(output, "chatgpt-signout-result.txt"), "PASS: actual assistant Sign out button removes account identity before delayed remote revocation; all pickers and drafts clear the profile; two assistants and translation update; inference canceled; close notice closes only the assistant; main app stays open; API keys/models and unsaved API draft preserved; unrelated registration stays connected. Fake OAuth only.");
             return revoked;
         }
         finally
@@ -120,5 +138,51 @@ internal static class ConnectionRegressionSmokeChecks
             if (logout is not null) await logout;
             host.Close(); assistant.Close(); another.Close(); owner.Activate();
         }
+    }
+
+    internal static async Task CheckRemovedProfileCleanup(MainWindow owner, string output)
+    {
+        string language = Settings.Current.Language; bool dark = Settings.Current.Dark;
+        var keys = AiProviders.All.ToDictionary(p => p.Id, p => Settings.GetKey(p.Id));
+        byte[] bytes = Settings.ReadProtected("chatgpt-accounts.bin");
+        var store = JsonNode.Parse(bytes)!.AsObject(); Array.Clear(bytes);
+        string hostId = store["HostId"]!.GetValue<string>();
+        store["Accounts"]!.AsArray().Add(JsonSerializer.SerializeToNode(new { ClientId = "legacy-signed-out", Email = "legacy@example.invalid", Name = "Legacy label", AccessToken = "", RefreshToken = "", IdToken = "" }));
+        store["Accounts"]!.AsArray().Add(JsonSerializer.SerializeToNode(new { ClientId = "identity-only-fixture", Email = "identity@example.invalid", Name = "Identity permission", AccessToken = "identity-token-not-live", RefreshToken = "", IdToken = "identity-id-not-live", Scopes = new[] { "openid" } }));
+        Settings.WriteProtected("chatgpt-accounts.bin", JsonSerializer.SerializeToUtf8Bytes(store));
+        Settings.Current.ChatGptAccount = "legacy-signed-out"; Settings.Current.ChatGptModel = "stale-model"; Settings.Save();
+        await ChatGptAuth.PruneSignedOutProfiles(CancellationToken.None);
+        Require(ChatGptAuth.Profiles.Count == 1 && ChatGptAuth.Profiles.Single().Id == "identity-only-fixture" && Settings.Current.ChatGptAccount.Length == 0,
+            "Legacy signed-out cleanup missed an old profile or removed a still-signed-in identity.");
+        await ChatGptAuth.SignOut("identity-only-fixture", CancellationToken.None);
+        Settings.Load(); await ChatGptAuth.PruneSignedOutProfiles(CancellationToken.None);
+        bytes = Settings.ReadProtected("chatgpt-accounts.bin");
+        using (var document = JsonDocument.Parse(bytes))
+        {
+            Require(document.RootElement.GetProperty("Accounts").GetArrayLength() == 0 && document.RootElement.GetProperty("HostId").GetString() == hostId,
+                "Removed profile returned after storage reload or installation host changed.");
+        }
+        Array.Clear(bytes);
+        try
+        {
+            foreach (string locale in new[] { "ar", "en", "fr", "es" })
+            {
+                Settings.Current.Language = locale; Settings.Current.Dark = locale == "ar"; owner.ApplyTheme(); owner.Render();
+                var reopened = new ErrorAssistantWindow(owner); reopened.Show(); await Settle(owner);
+                var picker = Find<ComboBox>(reopened, "ChatGptAccountPicker");
+                Require(picker.Items.Count == 0 && !picker.IsVisible && !Find<Button>(reopened, "chatGptSignOut").IsVisible &&
+                    Find<Button>(reopened, "chatGptContinue").IsVisible, "Reopening the assistant displayed the removed account.");
+                var notice = ChatGptUi.CreateSignOutDialog(reopened, revoked: false, reopened.Close); notice.Show(); await Settle(owner);
+                Require(Nodes(notice).OfType<TextBlock>().Any(t => t.Text == I18n.T("chatGptCloseAssistantHelp")) &&
+                    Nodes(notice).OfType<TextBlock>().Any(t => t.Text == I18n.T("chatGptRevocationUnconfirmed")), "Localized close notice or unconfirmed-revocation explanation missing.");
+                if (locale == "en") WindowAppearance.SavePreview(notice, Path.Combine(output, "chatgpt-signout-close-en.png"));
+                notice.Close();
+                if (locale is "ar" or "en") WindowAppearance.SavePreview(reopened, Path.Combine(output, "chatgpt-removed-" + locale + ".png"));
+                reopened.Close();
+            }
+            Require(AiProviders.All.All(p => Settings.GetKey(p.Id) == keys[p.Id]), "Profile removal touched API credentials.");
+        }
+        finally { Settings.Current.Language = language; Settings.Current.Dark = dark; owner.ApplyTheme(); owner.Render(); owner.Activate(); }
+        File.WriteAllText(Path.Combine(output, "chatgpt-profile-removal-result.txt"), "PASS: legacy signed-out identities pruned; active identity-only consent profile preserved until explicit logout; final profile removed; no account/email/picker/logout button after reload and reopening in four languages; native close notices and revocation-failure explanation; API keys and opaque installation host preserved. No live account.");
     }
 }

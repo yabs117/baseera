@@ -6,7 +6,7 @@ image conversion, and an error assistant that explains copied Windows errors.
 
 [العربية](docs/README.ar.md) · [Français](docs/README.fr.md) · [Español](docs/README.es.md)
 
-[Download Windows app](https://github.com/yabs117/baseera/releases/download/v0.4.12-preview/Baseera-v0.4.12-Windows-x64.exe) · [Release notes](https://github.com/yabs117/baseera/releases/tag/v0.4.12-preview) · [Roadmap](docs/ROADMAP.md)
+[Download Windows app](https://github.com/yabs117/baseera/releases/download/v0.4.13-preview/Baseera-v0.4.13-Windows-x64.exe) · [Release notes](https://github.com/yabs117/baseera/releases/tag/v0.4.13-preview) · [Roadmap](docs/ROADMAP.md)
 
 ![Baseera overview — English, light appearance](docs/images/baseera-en.png)
 
@@ -18,7 +18,7 @@ image conversion, and an error assistant that explains copied Windows errors.
 
 </details>
 
-**Early preview, version 0.4.12.** This is a new project, not a certified antivirus
+**Early preview, version 0.4.13.** This is a new project, not a certified antivirus
 or a claim of 100% malware detection. Read the [capability status](docs/ROADMAP.md)
 and [security scope](SECURITY.md) before relying on it.
 
@@ -93,10 +93,12 @@ ChatGPT account method uses the eligible plan or credits with consent and accoun
 limits. Account choice, automatic session renewal, sign-out, a first-sign-in
 confirmation and a Manage usage link are included. See [ChatGPT sign-in](docs/CHATGPT-SIGN-IN.md).
 
-Version 0.4.12 fixes the empty connection panel when reopening **Change AI service**.
-ChatGPT sign-out now disconnects the selected registration across open tools before
-remote revocation, while keeping Baseera open and preserving API keys, model choices
-and unsaved API-key drafts. It does not switch to API-key billing automatically.
+The connection editor reopens without an empty form. From 0.4.13, ChatGPT sign-out
+removes the selected account’s saved profile (including its name/email and local
+credentials) from Baseera, then offers to close only the error assistant. Reopening
+it shows no signed-out account. Old tokenless signed-out profiles are cleaned up at
+startup. API keys, their model choices and unrelated account registrations remain
+independent; the app does not silently switch to API-key billing.
 
 ![Direct AI service setup](docs/images/ai-services-dialog-en.png)
 
@@ -161,9 +163,9 @@ Requires **Windows 10/11, x64**. The runtime is included; no separate .NET insta
 
 | Download | How to use |
 | --- | --- |
-| [Windows app (.exe)](https://github.com/yabs117/baseera/releases/download/v0.4.12-preview/Baseera-v0.4.12-Windows-x64.exe) | Save to a permanent folder and open it. This is the desktop application. |
-| [Windows ZIP with instructions](https://github.com/yabs117/baseera/releases/download/v0.4.12-preview/Baseera-v0.4.12-Windows-x64.zip) | Extract the whole ZIP, then open `Baseera.exe`. |
-| [Optional browser extension](https://github.com/yabs117/baseera/releases/download/v0.4.12-preview/Baseera-v0.4.12-Browser-Extension.zip) | Extract, read `START-HERE.html`, then load the inner `extension` folder in Chrome/Edge. |
+| [Windows app (.exe)](https://github.com/yabs117/baseera/releases/download/v0.4.13-preview/Baseera-v0.4.13-Windows-x64.exe) | Save to a permanent folder and open it. This is the desktop application. |
+| [Windows ZIP with instructions](https://github.com/yabs117/baseera/releases/download/v0.4.13-preview/Baseera-v0.4.13-Windows-x64.zip) | Extract the whole ZIP, then open `Baseera.exe`. |
+| [Optional browser extension](https://github.com/yabs117/baseera/releases/download/v0.4.13-preview/Baseera-v0.4.13-Browser-Extension.zip) | Extract, read `START-HERE.html`, then load the inner `extension` folder in Chrome/Edge. |
 
 Source ZIP downloads from GitHub are source code, not compiled applications.
 The browser extension is installed **inside the browser**. Do not double-click its
@@ -226,7 +228,7 @@ Install the .NET 10 SDK on Windows. There are no third-party NuGet dependencies.
 node --test extension/test/protocol.test.js
 ```
 
-The self-contained executable is produced in `artifacts/Baseera-v0.4.12-Windows-x64/`.
+The self-contained executable is produced in `artifacts/Baseera-v0.4.13-Windows-x64/`.
 `-Smoke -Publish` also checks the packaged executable. `-Smoke` uses a separate local data directory and does not run updates or
 register Explorer hooks. It renders the actual WPF screens and tests conversion,
 PDF generation, translation-box validation, localization coverage and DPAPI storage.

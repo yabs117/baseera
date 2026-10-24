@@ -108,6 +108,8 @@ internal sealed partial class AiConnectionPanel : StackPanel
         try
         {
             // A retained draft must not restore a signed-out profile's cached models.
+            if (draft.ChatGptAccount.Length > 0 && !ChatGptAuth.Profiles.Any(profile => profile.Id == draft.ChatGptAccount))
+            { draft.ChatGptAccount = ""; draft.ChatGpt = new(); }
             if (UsingChatGpt && !ChatGptAuth.Connected(draft.ChatGptAccount)) draft.ChatGpt = new();
             var state = draft.Current;
             KeyInput.Password = state.Key;
@@ -133,10 +135,10 @@ internal sealed partial class AiConnectionPanel : StackPanel
         if (draft.ChatGptAccount == account)
         {
             if (UsingChatGpt) { CancelLoad(); CancelSignIn(); }
-            draft.ChatGpt = new();
+            draft.ChatGptAccount = ""; draft.ChatGpt = new();
         }
         RefreshProvider();
-        if (UsingChatGpt && draft.ChatGptAccount == account) status.Text = I18n.T("chatGptSignedOut");
+        if (UsingChatGpt && draft.ChatGptAccount.Length == 0) status.Text = I18n.T("chatGptSignedOut");
     }
     private void CancelLoad()
     {
