@@ -29,10 +29,18 @@ public sealed partial class MainWindow
         var inspect = AsyncAction("inspect", async ct =>
         {
             if (!Settings.Current.ScanEnabled) return;
-            report = await Task.Run(() => new ModScanner().Scan(Settings.Current.ScanPath, ct), ct); Render();
+            string path = Settings.Current.ScanPath;
+            var progress = new Progress<ScanProgress>(value =>
+            {
+                if (ct.IsCancellationRequested || operation is null) return;
+                int percent = value.FileBytes == 0 ? 100 : (int)Math.Min(100, value.ReadBytes * 100 / value.FileBytes);
+                SetOperationStatus("scanProgress", $"{percent}% · {FormatScanBytes(value.ReadBytes)} / {FormatScanBytes(value.FileBytes)} · {value.Path}");
+            });
+            report = await Task.Run(() => new ModScanner().Scan(path, ct, progress), ct); Render();
         }, true);
         inspect.IsEnabled = File.Exists(Settings.Current.ScanPath) || Directory.Exists(Settings.Current.ScanPath); actions.Children.Add(inspect); source.Children.Add(actions); body.Children.Add(Card(source));
         Help(body, "scanNote");
+        Help(body, "scanLimits");
         if (report is null) { var empty = Stack(); EmptyState(empty, "scan", "inspectionReady", "inspectionHint"); body.Children.Add(Card(empty, 0)); return; }
         var result = Stack(); var title = Text(I18n.T(report.Verdict), 17); title.FontWeight = HeadingWeight; result.Children.Add(title);
         result.Children.Add(Text($"{I18n.T("files")}: {report.Files.Count}   ·   {I18n.T("findings")}: {report.Findings.Count}", 12, true));
@@ -41,11 +49,31 @@ public sealed partial class MainWindow
             var save = new SaveFileDialog { Filter = "JSON|*.json", FileName = "baseera-report.json" };
             if (save.ShowDialog(this) == true) await File.WriteAllTextAsync(save.FileName, JsonSerializer.Serialize(report, new JsonSerializerOptions { WriteIndented = true }), ct);
         }); export.HorizontalAlignment = HorizontalAlignment.Left; result.Children.Add(export); body.Children.Add(Card(result));
+        if (report.Files.Count > 0)
+        {
+            var inspected = Stack(); var heading = Text(I18n.T("inspectedFiles"), 15); heading.FontWeight = HeadingWeight; inspected.Children.Add(heading);
+            foreach (var file in report.Files.Take(100))
+            {
+                var name = Text(file.Path, 13); name.FlowDirection = FlowDirection.LeftToRight; inspected.Children.Add(name);
+                inspected.Children.Add(Text(file.Kind + " · " + FormatScanBytes(file.Size), 12, true));
+                var digest = new TextBox { Text = "SHA-256  " + file.Sha256, IsReadOnly = true, FlowDirection = FlowDirection.LeftToRight, Height = double.NaN, TextWrapping = TextWrapping.Wrap, FontSize = 11, Margin = new Thickness(0, 2, 0, 12) }; inspected.Children.Add(digest);
+            }
+            body.Children.Add(Card(inspected));
+        }
         foreach (var finding in report.Findings.Take(100))
         {
-            var evidence = Stack(); evidence.FlowDirection = FlowDirection.LeftToRight; evidence.Children.Add(Text(finding.Code, 14)); evidence.Children.Add(Text(finding.Path, 12, true)); evidence.Children.Add(Text(finding.Evidence)); body.Children.Add(Card(evidence));
+            var evidence = Stack(); evidence.FlowDirection = FlowDirection.LeftToRight; evidence.Children.Add(Text(I18n.T("scan-" + finding.Code), 14)); evidence.Children.Add(Text(finding.Path, 12, true)); evidence.Children.Add(Text(ScanEvidence(finding.Evidence))); body.Children.Add(Card(evidence));
         }
     }
+
+    private static string FormatScanBytes(long bytes) => bytes >= 1024L * 1024 * 1024 ? $"{bytes / (1024d * 1024 * 1024):0.##} GiB" : bytes >= 1024 * 1024 ? $"{bytes / (1024d * 1024):0.##} MiB" : bytes >= 1024 ? $"{bytes / 1024d:0.##} KiB" : $"{bytes} B";
+    private static string ScanEvidence(string evidence) => evidence switch
+    {
+        "Total decompressed byte limit reached." or "Actual decompressed data exceeds limit." => I18n.T("scanTotalLimit"),
+        "No embedded certificate table. This alone is not evidence of malware." => I18n.T("scanUnsigned"),
+        _ when evidence.StartsWith("File size ") => I18n.T("scanFileLimit"),
+        _ => evidence
+    };
 
     private void TranslationPage(StackPanel body)
     {

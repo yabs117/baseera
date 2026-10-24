@@ -25,5 +25,6 @@ jobs:
         with:
           name: Baseera-windows-preview
           path: |
+            artifacts/Baseera.exe
             artifacts/*.zip
             artifacts/SHA256SUMS.txt

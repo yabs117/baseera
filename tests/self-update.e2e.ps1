@@ -72,7 +72,8 @@ foreach ($scenario in @('replace', 'rollback')) {
         if ($helper.ExitCode -ne $expectedExit) { throw ('Unexpected helper exit: ' + $helper.ExitCode) }
         Wait-Until { @(Get-Process -Name 'My Baseera' -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $target }).Count -eq 1 }
         Write-Output ('PASS: actual standalone ' + $scenario + ', same custom filename, restart, settings and secret bytes retained')
-        Wait-Until { -not (Test-Path -LiteralPath $folder) }
+        # Acknowledge retries locked-file cleanup for up to 150 seconds.
+        Wait-Until { -not (Test-Path -LiteralPath $folder) } -seconds 160
         Write-Output ('PASS: ' + $scenario + ' transaction cleaned after restart acknowledgement')
     } finally {
         # Stop only processes whose verified executable paths are inside this test case.

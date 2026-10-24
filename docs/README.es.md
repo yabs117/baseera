@@ -5,7 +5,7 @@ ventanas con Gemini, actualizaciones WinGet elegidas y conversión de imágenes/
 Interfaz en árabe (RTL), inglés, francés y español.
 
 Requisitos: Windows 10/11 x64. El runtime .NET está incluido. Para compilar con SDK 10:
-`./build.ps1 -Test -Publish`. Abre `artifacts/Baseera-v0.4.13-Windows-x64/Baseera.exe`.
+`./build.ps1 -Test -Publish`. Abre `artifacts/Baseera-v0.4.14-Windows-x64/Baseera.exe`.
 La extensión del navegador se descarga por separado: sigue `START-HERE.html` y carga la carpeta `extension` en Chrome/Edge. No abras sus archivos fuente con doble clic.
 
 Activa solo las herramientas que necesitas. Elige entre 20 servicios directos, como Gemini, OpenAI (modelos ChatGPT), Claude y Grok. Introduce la clave del servicio y carga sus modelos con visión. Se eliminó OpenRouter y se corrigió el cierre al cambiar de servicio. El acceso y los precios dependen de la cuenta. [Servicios y pruebas](AI-SERVICES.md). Envía la captura al servicio seleccionado
@@ -32,3 +32,5 @@ Desde 0.4.0, Baseera consulta su repositorio oficial al iniciar y cada dos horas
 **Presentación de respuestas:** logotipo del servicio y modelo utilizado sobre la respuesta, texto progresivo y botón « Mostrar todo ». Se respeta la reducción de movimiento de Windows. [Detalles](ANSWER-PRESENTATION.md).
 
 **Instrucciones integradas:** cada análisis incluye el contexto de asistencia Baseera y admite solo texto o una captura. El saludo, los títulos y la dirección siguen el idioma del usuario, independientemente de la interfaz. Otros idiomas dependen de las capacidades del modelo. [Detalles](ERROR-ASSISTANT-PROMPT.md).
+
+**0.4.14:** descarga **Baseera.exe**, análisis por bloques de hasta 1 GiB por archivo y 4 GiB en total, progreso y SHA-256 visibles. Interacciones mejoradas conservando la distribución. Un archivo compatible mantiene las actualizaciones de versiones anteriores.

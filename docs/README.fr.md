@@ -5,7 +5,7 @@ fenêtres avec Gemini, mises à jour WinGet choisies et conversion d’images/PD
 L’interface est disponible en arabe (RTL), anglais, français et espagnol.
 
 Prérequis : Windows 10/11 x64. Le runtime .NET est inclus. Pour compiler avec le SDK 10 :
-`./build.ps1 -Test -Publish`. Lancez `artifacts/Baseera-v0.4.13-Windows-x64/Baseera.exe`.
+`./build.ps1 -Test -Publish`. Lancez `artifacts/Baseera-v0.4.14-Windows-x64/Baseera.exe`.
 L’extension de navigateur est un téléchargement séparé : suivez `START-HERE.html` et chargez le dossier `extension` dans Chrome/Edge. Ne lancez pas ses fichiers source par double-clic.
 
 Activez uniquement les outils voulus lors du premier lancement. Pour la traduction,
@@ -33,3 +33,5 @@ Depuis 0.4.0, Baseera vérifie son dépôt officiel au lancement puis toutes les
 **Présentation des réponses :** logo du service et modèle utilisé au-dessus de la réponse, affichage progressif et bouton « Tout afficher ». Les préférences de réduction des animations Windows sont respectées. [Détails](ANSWER-PRESENTATION.md).
 
 **Instructions intégrées :** chaque analyse reçoit le rôle de dépannage Baseera et accepte du texte seul ou une capture. L’accueil, les titres et le sens du texte suivent la langue de l’utilisateur, indépendamment de l’interface. Les autres langues dépendent des capacités du modèle. [Détails](ERROR-ASSISTANT-PROMPT.md).
+
+**0.4.14 :** téléchargement **Baseera.exe**, analyse en flux jusqu’à 1 GiB par fichier et 4 GiB au total, progression et SHA-256 visibles. Interactions affinées sans changer la disposition. Un fichier de compatibilité maintient les mises à jour des anciennes versions.

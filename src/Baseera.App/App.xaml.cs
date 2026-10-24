@@ -39,6 +39,7 @@ public partial class App : Application
                     Settings.Current.Language = language; Settings.Current.Dark = dark; window.ApplyTheme(); window.Navigate("home");
                     var welcome = new WelcomeWindow(window); welcome.Show();
                     await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                    await Task.Delay(220);
                     Snapshot(welcome, Path.Combine(output, "welcome-" + language + (dark ? "-dark" : "") + ".png")); renders++;
                     if ((language == "en" && !dark) || (language == "ar" && dark))
                         WindowAppearance.SavePreview(welcome, Path.Combine(output, "welcome-window-" + language + (dark ? "-dark" : "") + ".png"));
@@ -50,6 +51,7 @@ public partial class App : Application
                     Settings.Current.Language = language; window.ApplyTheme();
                     Settings.Current.Onboarded = false; window.Navigate("home");
                     await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                    await Task.Delay(220);
                     SaveView("setup-" + language);
                 }
                 Settings.Current.Onboarded = true; Settings.Current.ScanEnabled = true; Settings.Current.TranslationEnabled = true;
@@ -60,6 +62,7 @@ public partial class App : Application
                 {
                     Settings.Current.Language = language; Settings.Current.Dark = dark; window.ApplyTheme();
                     window.Navigate(page); await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                    await Task.Delay(220);
                     SaveView(page + "-" + language + (dark ? "-dark" : ""));
                     if (page == "home" && ((language == "en" && !dark) || (language == "ar" && dark)))
                         WindowAppearance.SavePreview(window, Path.Combine(output, "window-" + language + (dark ? "-dark" : "") + ".png"));
@@ -69,6 +72,7 @@ public partial class App : Application
                 {
                     Settings.Current.Language = language; Settings.Current.Dark = dark; window.ApplyTheme(); window.Navigate("home");
                     await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                    await Task.Delay(220);
                     SaveView("home-" + language + (dark ? "-dark" : ""));
                 }
                 SmokeChecks.Run(output);
@@ -83,6 +87,7 @@ public partial class App : Application
                 window.Activate();
                 await window.CheckTranslationSettingsLink(output);
                 await window.CheckAppList(output);
+                await window.CheckInteractionsAndInspection(output);
                 foreach (string language in new[] { "en", "ar", "fr", "es" })
                 foreach (bool dark in new[] { false, true })
                 {
@@ -94,6 +99,7 @@ public partial class App : Application
                         new Uri($"https://github.com/yabs117/baseera/releases/download/{tag}/Baseera-v{next}-Windows-x64.exe"), 173318766, new string('0', 64));
                     var dialog = new UpdateWindow(window, example); dialog.Show();
                     await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                    await Task.Delay(220);
                     Snapshot(dialog, Path.Combine(output, "update-" + language + (dark ? "-dark" : "") + ".png")); renders++;
                     if (language == "en" && !dark || language == "ar" && dark)
                         WindowAppearance.SavePreview(dialog, Path.Combine(output, "update-window-" + language + (dark ? "-dark" : "") + ".png"));
@@ -104,6 +110,7 @@ public partial class App : Application
                 {
                     Settings.Current.Language = language; window.ApplyTheme(); window.Navigate("home");
                     await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                    await Task.Delay(220);
                     SaveView("home-" + language + "-compact");
                 }
                 File.WriteAllText(Path.Combine(output, "smoke-result.txt"), $"PASS: {renders} UI renders; actual executable and packaged-app icons, app search/filter/selection, source validation and draft persistence; real visible/hidden/minimized/cloaked/tool/owned/passive/closed/off-screen window checks; Arabic/English provider shortcut scrolling and missing-field focus; verified, corrupt, partial, canceled and unsafe-redirect self-update downloads; four-language update dialogs; first-run welcome, restart persistence, repeat preference, modal dismissal, tool choices preserved; native frame previews; native maximize/minimize/restore; settings drafts survive theme changes; bundled Arabic font; opaque screenshots; navigation collapse/expand; language dropdown and RTL switch; format selection; image conversion; PDF; translation response validation; DPAPI key storage; language coverage.");

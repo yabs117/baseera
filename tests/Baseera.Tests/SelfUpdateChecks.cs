@@ -25,6 +25,16 @@ internal static class SelfUpdateChecks
         check(Select(Release("v0.5.0-preview", size: SelfRelease.MaxBytes + 1)) is null, "Update size is bounded before download");
         check(!SelfRelease.AllowedDownload(new Uri("https://github.com.evil.invalid/payload")) && !SelfRelease.AllowedDownload(new Uri("http://github.com/payload")) && !SelfRelease.AllowedDownload(new Uri("https://user@github.com/payload")) &&
             SelfRelease.AllowedDownload(new Uri("https://release-assets.githubusercontent.com/asset?token=example")), "Redirect policy rejects lookalikes, HTTP and credentials");
+        object CleanRelease(string name = "Baseera.exe") => new { tag_name = "v0.6.0-preview", draft = false, body = "Notes", assets = new[] { new { name, state = "uploaded", size = 123, digest = "sha256:" + hash, browser_download_url = $"https://github.com/yabs117/baseera/releases/download/v0.6.0-preview/{name}" } } };
+        check(Select(CleanRelease())?.Download.AbsolutePath.EndsWith("/Baseera.exe") == true, "Clean executable filename is supported");
+        check(Select(CleanRelease("Baseera.exe.evil")) is null && Select(CleanRelease("baseera.exe")) is null, "Clean filename matching is exact");
+        using (var legacy = JsonDocument.Parse(JsonSerializer.Serialize(Release("v0.6.0-preview"))))
+        using (var clean = JsonDocument.Parse(JsonSerializer.Serialize(CleanRelease())))
+        {
+            string a = legacy.RootElement.GetProperty("assets")[0].GetRawText(), b = clean.RootElement.GetProperty("assets")[0].GetRawText();
+            string Feed(string assets) => "[{\"tag_name\":\"v0.6.0-preview\",\"draft\":false,\"assets\":[" + assets + "]}]";
+            check(SelfRelease.Select(Feed(a + "," + b), "0.4.1-preview")?.Download.AbsolutePath.EndsWith("/Baseera.exe") == true && SelfRelease.Select(Feed(b + "," + a), "0.4.1-preview")?.Download.AbsolutePath.EndsWith("/Baseera.exe") == true, "Clean filename is preferred regardless of compatibility asset ordering");
+        }
         string target = Path.Combine(root, "current.exe"), payload = Path.Combine(root, "payload.exe"), backup = Path.Combine(root, "previous.exe");
         byte[] oldBytes = [1, 2, 3], newBytes = [4, 5, 6, 7]; File.WriteAllBytes(target, oldBytes); File.WriteAllBytes(payload, newBytes);
         bool rejected = false;

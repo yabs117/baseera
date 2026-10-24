@@ -118,7 +118,27 @@ public sealed partial class MainWindow
         control.SetValue(VerticalAlignmentProperty, VerticalAlignment.Center); Grid.SetColumn(control, 2); row.Children.Add(control); return row;
     }
     private void Divider(StackPanel body) => body.Children.Add(new Border { Height = 1, Background = Resource("Line") });
-    public void Navigate(string destination) { page = destination; emphasizeTranslationSettings = pendingTranslationSettings = false; Render(); }
+    private Border? selectedNavigationIndicator;
+    private StackPanel? pageBody;
+    public void Navigate(string destination)
+    {
+        bool changed = page != destination;
+        double? previous = selectedNavigationIndicator?.IsLoaded == true ? selectedNavigationIndicator.TranslatePoint(new System.Windows.Point(), sidebar).Y : null;
+        page = destination; emphasizeTranslationSettings = pendingTranslationSettings = false; Render();
+        if (!changed || !FluentMotion.Allowed) return;
+        UpdateLayout();
+        if (previous is { } y && selectedNavigationIndicator is { } indicator)
+        {
+            var move = new TranslateTransform(0, y - indicator.TranslatePoint(new System.Windows.Point(), sidebar).Y);
+            indicator.RenderTransform = move; FluentMotion.To(move, TranslateTransform.YProperty, 0, 180);
+        }
+        if (pageBody is { } body)
+        {
+            body.Opacity = 0; FluentMotion.Opacity(body, 1, 160);
+            var move = new TranslateTransform(0, 6); body.RenderTransform = move;
+            FluentMotion.To(move, TranslateTransform.YProperty, 0, 180);
+        }
+    }
     private bool emphasizeTranslationSettings, pendingTranslationSettings;
     private Border? translationProviderSection;
     private System.Windows.Controls.Control? translationKeyInput;
@@ -130,6 +150,7 @@ public sealed partial class MainWindow
 
     public void Render(bool preserveScroll = false)
     {
+        selectedNavigationIndicator = null;
         translationProviderSection = null; translationKeyInput = null; translationModelInput = null;
         double offset = preserveScroll ? scroller.VerticalOffset : 0;
         frame.Children.Clear(); frame.RowDefinitions.Clear(); frame.Children.Add(shell);
@@ -145,8 +166,8 @@ public sealed partial class MainWindow
         System.Windows.Automation.AutomationProperties.SetName(menu, I18n.T("menu"));
         menu.Click += (_, _) =>
         {
-            double from = expanded ? 224 : 68; expanded = !expanded; Render();
-            sidebar.BeginAnimation(WidthProperty, new DoubleAnimation(from, expanded ? 224 : 68, TimeSpan.FromMilliseconds(130)) { EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut } });
+            double from = sidebar.ActualWidth; expanded = !expanded; Render(true);
+            if (FluentMotion.Allowed) sidebar.BeginAnimation(WidthProperty, new DoubleAnimation(from, expanded ? 224 : 68, TimeSpan.FromMilliseconds(180)) { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } });
         };
         header.Children.Add(menu);
         if (expanded)
@@ -166,7 +187,7 @@ public sealed partial class MainWindow
         else links.Children.Add(new Border { Height = 18 });
         foreach (string tool in Tools) links.Children.Add(NavigationButton(tool));
         navigation.Children.Add(links);
-        sidebar.BeginAnimation(WidthProperty, null); sidebar.Width = expanded ? 224 : 68; sidebar.Background = Resource("Sidebar"); sidebar.Child = navigation;
+        sidebar.BeginAnimation(WidthProperty, null); sidebar.Width = expanded ? 224 : 68; sidebar.Background = Resource("Sidebar"); sidebar.ClipToBounds = true; sidebar.Child = navigation;
         sidebar.BorderBrush = Resource("Line"); sidebar.BorderThickness = Arabic ? new Thickness(1, 0, 0, 0) : new Thickness(0, 0, 1, 0); shell.Children.Add(sidebar);
 
         var main = new Grid(); Grid.SetColumn(main, 1); shell.Children.Add(main);
@@ -176,7 +197,7 @@ public sealed partial class MainWindow
         var theme = new Button { Style = (Style)FindResource("IconButton"), Content = Icons.Create(Settings.Current.Dark ? "sun" : "moon", 18), ToolTip = I18n.T("dark") };
         System.Windows.Automation.AutomationProperties.SetName(theme, I18n.T("dark"));
         theme.Click += (_, _) => { Settings.Current.Dark = !Settings.Current.Dark; Settings.Save(); ApplyTheme(); Render(true); }; toolbar.Children.Add(theme); main.Children.Add(toolbar);
-        var body = Stack(); body.Margin = new Thickness(36, 4, 36, 28); scroller.Content = body; Grid.SetRow(scroller, 1); main.Children.Add(scroller);
+        var body = Stack(); pageBody = body; body.Margin = new Thickness(36, 4, 36, 28); scroller.Content = body; Grid.SetRow(scroller, 1); main.Children.Add(scroller);
         var progress = new DockPanel(); cancelOperation = Action("cancel", () => operation?.Cancel()); cancelOperation.Margin = new Thickness(12, 0, 0, 0); cancelOperation.Padding = new Thickness(12, 5, 12, 5);
         cancelOperation.Visibility = operation is null ? Visibility.Collapsed : Visibility.Visible; DockPanel.SetDock(cancelOperation, Dock.Right); progress.Children.Add(cancelOperation); progress.Children.Add(status);
         operationBar = new Border { Child = progress, Background = Resource("Surface"), BorderBrush = Resource("Line"), BorderThickness = new Thickness(0, 1, 0, 0), Padding = new Thickness(36, 10, 36, 10), Visibility = status.Text.Length == 0 && operation is null ? Visibility.Collapsed : Visibility.Visible };
@@ -211,10 +232,15 @@ public sealed partial class MainWindow
     {
         bool selected = Settings.Current.Onboarded && page == id;
         var row = new Grid(); row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(4) }); row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) }); row.ColumnDefinitions.Add(new ColumnDefinition());
-        if (selected) row.Children.Add(new Border { Background = Resource("Accent"), Width = 3, Height = 18, CornerRadius = new CornerRadius(2), VerticalAlignment = VerticalAlignment.Center });
+        if (selected)
+        {
+            selectedNavigationIndicator = new Border { Background = Resource("Accent"), Width = 3, Height = 18, CornerRadius = new CornerRadius(2), VerticalAlignment = VerticalAlignment.Center };
+            row.Children.Add(selectedNavigationIndicator);
+        }
         var icon = Icons.Create(id, 18); icon.HorizontalAlignment = HorizontalAlignment.Center; Grid.SetColumn(icon, 1); row.Children.Add(icon);
         if (expanded) { var name = new TextBlock { Text = I18n.T(id), FontSize = 13, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 6, 0), FontWeight = selected ? HeadingWeight : FontWeights.Normal, TextWrapping = TextWrapping.NoWrap }; Grid.SetColumn(name, 2); row.Children.Add(name); }
         var button = new Button { Style = (Style)FindResource("NavigationButton"), Content = row, Background = selected ? Resource("Selected") : Brushes.Transparent, ToolTip = I18n.T(id) };
+        System.Windows.Automation.AutomationProperties.SetAutomationId(button, "Navigate-" + id);
         System.Windows.Automation.AutomationProperties.SetName(button, I18n.T(id)); button.Click += (_, _) => Navigate(id); return button;
     }
     private ComboBox LanguageCombo()

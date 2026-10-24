@@ -33,18 +33,21 @@ public sealed record SelfRelease(string Tag, Version Version, string Notes, Uri 
             string tag = release.GetProperty("tag_name").GetString() ?? "";
             var version = ParseVersion(tag);
             if (version is null || !IsNewer(current, tag) || (best is not null && !IsNewer(best.Tag, tag))) continue;
-            string name = $"Baseera-v{version}-Windows-x64.exe";
+            SelfRelease? selected = null;
             foreach (var asset in release.GetProperty("assets").EnumerateArray())
             {
-                if (asset.GetProperty("name").GetString() != name || asset.GetProperty("state").GetString() != "uploaded") continue;
+                string name = asset.GetProperty("name").GetString() ?? "";
+                if ((name != "Baseera.exe" && name != $"Baseera-v{version}-Windows-x64.exe") || asset.GetProperty("state").GetString() != "uploaded") continue;
                 long size = asset.GetProperty("size").GetInt64();
                 string digest = asset.TryGetProperty("digest", out var hash) ? hash.GetString() ?? "" : "";
                 string expected = $"https://github.com/{Repository}/releases/download/{tag}/{name}";
                 if (size <= 0 || size > MaxBytes || !Regex.IsMatch(digest, "^sha256:[a-fA-F0-9]{64}$") ||
                     asset.GetProperty("browser_download_url").GetString() != expected) continue;
                 string notes = release.TryGetProperty("body", out var body) ? body.GetString() ?? "" : "";
-                best = new(tag, version, notes[..Math.Min(notes.Length, 20000)], new Uri(expected), size, digest[7..].ToLowerInvariant());
+                if (selected is null || name == "Baseera.exe")
+                    selected = new(tag, version, notes[..Math.Min(notes.Length, 20000)], new Uri(expected), size, digest[7..].ToLowerInvariant());
             }
+            if (selected is not null) best = selected;
         }
         return best;
     }

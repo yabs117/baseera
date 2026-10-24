@@ -18,11 +18,13 @@ internal static class SelfUpdateSmokeChecks
         byte[] image = File.ReadAllBytes(Environment.ProcessPath!);
         string hash = UpdateTransaction.Hash(Environment.ProcessPath!);
         string tag = "v" + SelfUpdater.CurrentVersion; var version = SelfRelease.ParseVersion(tag)!;
-        var release = new SelfRelease(tag, version, "", new Uri($"https://github.com/yabs117/baseera/releases/download/{tag}/Baseera-v{version}-Windows-x64.exe"), image.Length, hash);
+        var release = new SelfRelease(tag, version, "", new Uri($"https://github.com/yabs117/baseera/releases/download/{tag}/Baseera.exe"), image.Length, hash);
         string file = Path.Combine(folder, "download.exe"); long reported = 0;
         HttpClient Response(byte[] bytes) => new(new Reply((_, _) => new(HttpStatusCode.OK) { Content = new ByteArrayContent(bytes) }));
         await SelfUpdater.Download(release, file, new Progress(x => reported = x), CancellationToken.None, Response(image));
         if (reported != image.Length || UpdateTransaction.Hash(file) != hash) throw new Exception("Verified update download failed."); await SelfUpdater.DeleteDownload(file);
+        await SelfUpdater.Download(release with { Download = new Uri($"https://github.com/yabs117/baseera/releases/download/{tag}/Baseera-v{version}-Windows-x64.exe") }, file, new Progress(_ => { }), CancellationToken.None, Response(image));
+        if (UpdateTransaction.Hash(file) != hash) throw new Exception("Legacy filename download compatibility failed."); await SelfUpdater.DeleteDownload(file);
         bool failed = false;
         try { await SelfUpdater.Download(release with { Sha256 = new string('0', 64) }, file, new Progress(_ => { }), CancellationToken.None, Response(image)); }
         catch (InvalidDataException) { failed = true; }

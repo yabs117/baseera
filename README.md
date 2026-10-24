@@ -6,7 +6,7 @@ image conversion, and an error assistant that explains copied Windows errors.
 
 [العربية](docs/README.ar.md) · [Français](docs/README.fr.md) · [Español](docs/README.es.md)
 
-[Download Windows app](https://github.com/yabs117/baseera/releases/download/v0.4.13-preview/Baseera-v0.4.13-Windows-x64.exe) · [Release notes](https://github.com/yabs117/baseera/releases/tag/v0.4.13-preview) · [Roadmap](docs/ROADMAP.md)
+[Download Windows app](https://github.com/yabs117/baseera/releases/download/v0.4.14-preview/Baseera.exe) · [Release notes](https://github.com/yabs117/baseera/releases/tag/v0.4.14-preview) · [Roadmap](docs/ROADMAP.md)
 
 ![Baseera overview — English, light appearance](docs/images/baseera-en.png)
 
@@ -18,9 +18,25 @@ image conversion, and an error assistant that explains copied Windows errors.
 
 </details>
 
-**Early preview, version 0.4.13.** This is a new project, not a certified antivirus
+**Early preview, version 0.4.14.** This is a new project, not a certified antivirus
 or a claim of 100% malware detection. Read the [capability status](docs/ROADMAP.md)
 and [security scope](SECURITY.md) before relying on it.
+
+## File inspection and interaction update
+
+Version 0.4.14 streams file contents instead of buffering whole files. The old
+64 MiB limit no longer prevents inspecting Baseera’s own executable. Progress
+shows bytes and percentage; completed files show size, type and a copyable SHA-256.
+Limits remain explicit: 1 GiB per file, 4 GiB total and bounded archive indexing.
+[Inspection scope](docs/FILE-INSPECTION.md).
+
+The download is now **Baseera.exe**. The release retains a versioned compatibility
+asset so older installed versions can still update in place. New versions prefer
+the clean filename.
+
+Buttons, navigation, switches, flyouts and scrollbars now respond with consistent
+hover, press and transition states, respecting Windows’ animation preference.
+The layout and supplied fonts are preserved. [Interaction evidence](docs/WINDOWS-INTERACTIONS.md).
 
 ## What works
 
@@ -163,9 +179,9 @@ Requires **Windows 10/11, x64**. The runtime is included; no separate .NET insta
 
 | Download | How to use |
 | --- | --- |
-| [Windows app (.exe)](https://github.com/yabs117/baseera/releases/download/v0.4.13-preview/Baseera-v0.4.13-Windows-x64.exe) | Save to a permanent folder and open it. This is the desktop application. |
-| [Windows ZIP with instructions](https://github.com/yabs117/baseera/releases/download/v0.4.13-preview/Baseera-v0.4.13-Windows-x64.zip) | Extract the whole ZIP, then open `Baseera.exe`. |
-| [Optional browser extension](https://github.com/yabs117/baseera/releases/download/v0.4.13-preview/Baseera-v0.4.13-Browser-Extension.zip) | Extract, read `START-HERE.html`, then load the inner `extension` folder in Chrome/Edge. |
+| [Windows app (.exe)](https://github.com/yabs117/baseera/releases/download/v0.4.14-preview/Baseera.exe) | Save to a permanent folder and open it. This is the desktop application. |
+| [Windows ZIP with instructions](https://github.com/yabs117/baseera/releases/download/v0.4.14-preview/Baseera.zip) | Extract the whole ZIP, then open `Baseera.exe`. |
+| [Optional browser extension](https://github.com/yabs117/baseera/releases/download/v0.4.14-preview/Baseera-Browser-Extension.zip) | Extract, read `START-HERE.html`, then load the inner `extension` folder in Chrome/Edge. |
 
 Source ZIP downloads from GitHub are source code, not compiled applications.
 The browser extension is installed **inside the browser**. Do not double-click its
@@ -228,7 +244,7 @@ Install the .NET 10 SDK on Windows. There are no third-party NuGet dependencies.
 node --test extension/test/protocol.test.js
 ```
 
-The self-contained executable is produced in `artifacts/Baseera-v0.4.13-Windows-x64/`.
+The self-contained executable is produced in `artifacts/Baseera-v0.4.14-Windows-x64/`.
 `-Smoke -Publish` also checks the packaged executable. `-Smoke` uses a separate local data directory and does not run updates or
 register Explorer hooks. It renders the actual WPF screens and tests conversion,
 PDF generation, translation-box validation, localization coverage and DPAPI storage.

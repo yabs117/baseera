@@ -37,7 +37,7 @@ internal static class SelfUpdater
     {
         // Reconstruct the expected official URL instead of accepting arbitrary download sources.
         string expected = $"https://github.com/{SelfRelease.Repository}/releases/download/{release.Tag}/Baseera-v{release.Version}-Windows-x64.exe";
-        if (release.Download.AbsoluteUri != expected || release.Size <= 0 || release.Size > SelfRelease.MaxBytes) throw new InvalidDataException("Invalid release.");
+        if ((release.Download.AbsoluteUri != expected && release.Download.AbsoluteUri != $"https://github.com/{SelfRelease.Repository}/releases/download/{release.Tag}/Baseera.exe") || release.Size <= 0 || release.Size > SelfRelease.MaxBytes) throw new InvalidDataException("Invalid release.");
         using var client = transport ?? Client(); Uri url = release.Download;
         try
         {

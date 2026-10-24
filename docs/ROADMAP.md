@@ -41,3 +41,5 @@ assurance, or maintainer history that has not occurred.
 - [x] Connection panel reopen regression checks and immediate global ChatGPT session disconnection, preserving API connections and unrelated account registrations.
 
 - [x] Remove signed-out account identity and profile from storage/pickers/drafts, clean legacy tokenless entries, and offer to close/reopen the assistant without that account.
+
+- [x] Streaming large-file inspection, bounded archive indexing, visible progress and file hashes; clean executable download with legacy updater compatibility; Windows Settings-inspired interaction states and motion preference support.
