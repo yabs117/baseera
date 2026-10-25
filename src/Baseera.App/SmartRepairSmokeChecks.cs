@@ -102,6 +102,7 @@ internal static class SmartRepairSmokeChecks
                 try
                 {
                     dialog.Show(); await Settle(owner);
+                    Click(dialog, "chatTools"); await Settle(owner);
                     var expander = Find<Expander>(dialog, "SmartDiagnostics"); expander.IsExpanded = true; await Settle(dialog);
                     var preview = Find<TextBox>(dialog, "SmartDiagnosticPreview"); var share = Find<CheckBox>(dialog, "SmartDiagnosticConsent");
                     Require(collections == 0 && string.IsNullOrEmpty(preview.Text) && share.IsChecked != true, "Diagnostics were collected/shared at startup.");
@@ -121,11 +122,12 @@ internal static class SmartRepairSmokeChecks
                         Click(dialog, "errorAnalyze"); Require(inputs.Count == 1 && share.IsChecked != true, "Sharing approval survived a provider change.");
                     }
                     finally { Settings.Current.AiProvider = provider; }
+                    Click(dialog, "errorAnalyze"); // Review the externally restored connection without transmitting a draft.
                     share.IsChecked = true; preview.Text += "\nEdited preview"; Require(share.IsChecked != true, "Editing did not invalidate sharing approval.");
                     share.IsChecked = true; string reviewed = preview.Text;
                     Click(dialog, "errorAnalyze"); await Until(() => inputs.Count == 2);
                     Require(inputs[1] == reviewed && share.IsChecked != true, "Reviewed diagnostics were changed or approval was reused.");
-                    presentation = Nodes(dialog).OfType<AdvicePresenter>().Single(); presentation.Finish(); await Settle(owner);
+                    presentation = Nodes(dialog).OfType<AdvicePresenter>().Last(); presentation.Finish(); await Settle(owner);
                     Find<Expander>(dialog, "SmartSessionDetails").IsExpanded = true; await Settle(owner);
                     Require(Find<Button>(dialog, "smartSaveReport").IsEnabled && Find<CheckBox>(dialog, "SmartReportDiagnostics").IsChecked != true,
                         "Report was unavailable after analysis or diagnostics were included by default.");
@@ -178,6 +180,7 @@ internal static class SmartRepairSmokeChecks
             var canceledDialog = new ErrorAssistantWindow(owner, analyzeDiagnostics: (_, _, _, _, _) => throw new Exception("Unexpected AI request"),
                 collectDiagnostics: async (_, ct) => { waitingForCancel.TrySetResult(); await Task.Delay(Timeout.Infinite, ct); return "Never shared"; });
             canceledDialog.Show(); await Settle(canceledDialog);
+            Click(canceledDialog, "chatTools"); await Settle(canceledDialog);
             Find<Expander>(canceledDialog, "SmartDiagnostics").IsExpanded = true; await Settle(canceledDialog);
             Find<CheckBox>(canceledDialog, "smartApplicationEvents").IsChecked = true;
             Click(canceledDialog, "smartCollect"); await waitingForCancel.Task;

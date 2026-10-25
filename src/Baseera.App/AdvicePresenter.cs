@@ -20,6 +20,7 @@ internal sealed class AdvicePresenter : Border, IDisposable
     private readonly DispatcherTimer timer;
     private readonly Stopwatch elapsed = new(), requestClock = Stopwatch.StartNew();
     private readonly Action<string> writeClipboard;
+    private readonly bool showGreeting;
     private int current, revealed, total;
     private double rate;
     private bool disposed, waiting = true, readerPaused;
@@ -30,9 +31,10 @@ internal sealed class AdvicePresenter : Border, IDisposable
     internal event Action? Copied;
     internal event Action<string>? CopyFailed;
 
-    internal AdvicePresenter(string provider, string model, bool chatGpt, string description = "", ErrorImage? image = null, bool sharedDiagnostics = false, Action<string>? clipboardWriter = null)
+    internal AdvicePresenter(string provider, string model, bool chatGpt, string description = "", ErrorImage? image = null, bool sharedDiagnostics = false, Action<string>? clipboardWriter = null, bool showGreeting = true)
     {
         writeClipboard = clipboardWriter ?? System.Windows.Clipboard.SetText;
+        this.showGreeting = showGreeting;
         Padding = new Thickness(0); Background = Brushes.Transparent; BorderThickness = new Thickness(0);
         AutomationProperties.SetAutomationId(this, "AdvicePresentation");
         var layout = new StackPanel(); Child = layout;
@@ -132,8 +134,14 @@ internal sealed class AdvicePresenter : Border, IDisposable
         var locale = advice.Locale ?? AdviceLocale.Interface;
         content.FlowDirection = locale.RightToLeft ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
         content.Language = System.Windows.Markup.XmlLanguage.GetLanguage(locale.Language);
-        var greeting = Add(locale.Greeting, 14, muted: true, bottom: 14);
-        AutomationProperties.SetAutomationId(greeting, "AdviceGreeting");
+        if (showGreeting)
+        {
+            var greeting = Add(locale.Greeting, 14, muted: true, bottom: 14);
+            AutomationProperties.SetAutomationId(greeting, "AdviceGreeting");
+        }
+        if (advice.Message is not null) Add(advice.Message, bottom: 0);
+        else
+        {
         var summary = Add(advice.Summary, 19, bold: true, bottom: 20); AutomationProperties.SetAutomationId(summary, "AdviceSummary");
         Add(locale.CauseTitle, 13, bold: true, bottom: 5); Add(advice.Cause, bottom: 20);
         Add(locale.StepsTitle, 13, bold: true, bottom: 10);
@@ -144,10 +152,11 @@ internal sealed class AdvicePresenter : Border, IDisposable
             foreach (string check in advice.Checks) Add(check, number: "·", bottom: 8);
         }
         Add(locale.ConfidenceTitle + ": " + advice.Confidence, 12, muted: true, bottom: 0);
-        completeText = locale.Greeting + "\n\n" + advice.Summary + "\n\n" + locale.CauseTitle + "\n" + advice.Cause + "\n\n" +
+        }
+        completeText = (showGreeting ? locale.Greeting + "\n\n" : "") + (advice.Message ?? (advice.Summary + "\n\n" + locale.CauseTitle + "\n" + advice.Cause + "\n\n" +
             locale.StepsTitle + "\n" + string.Join("\n", advice.Steps.Select((step, i) => $"{i + 1}. {step}")) +
             (advice.Checks.Count == 0 ? "" : "\n\n" + locale.ChecksTitle + "\n" + string.Join("\n", advice.Checks.Select(check => "• " + check))) +
-            "\n\n" + locale.ConfidenceTitle + ": " + advice.Confidence;
+            "\n\n" + locale.ConfidenceTitle + ": " + advice.Confidence));
         IsTyping = true; state.Text = I18n.T("adviceWriting"); revealAll.Visibility = Visibility.Visible;
         foreach (var dot in dots) dot.Visibility = Visibility.Visible;
         rate = Math.Max(52, total / 32d);

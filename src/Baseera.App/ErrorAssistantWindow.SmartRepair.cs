@@ -20,7 +20,7 @@ internal sealed partial class ErrorAssistantWindow
     private readonly SmartRepairSession repairSession = new();
     private string analyzedDescription = "";
     private ErrorImage? analyzedImage;
-    private bool CurrentCase => repairSession.Advice is not null && problem.Text == analyzedDescription && ReferenceEquals(image, analyzedImage);
+    private bool CurrentCase => repairSession.Advice is not null && problem.Text.Length == 0 && image is null && video is null;
     private Button reportButton = new(), resolvedButton = new(), unresolvedButton = new();
     private Button collectDiagnostics = new();
     private CancellationTokenSource? diagnosticRequest;
@@ -31,7 +31,15 @@ internal sealed partial class ErrorAssistantWindow
     private readonly Func<string, RepairApproval?>? approveRepair;
     private readonly RepairRunner repairRunner;
 
-    private static string DiagnosticRecipient => AiCatalog.Provider + "|" + (ChatGptAuth.Selected ? "chatgpt|" + Settings.Current.ChatGptAccount : "api");
+    private static string DiagnosticRecipient
+    {
+        get
+        {
+            if (ChatGptAuth.Selected) return AiCatalog.Provider + "|chatgpt|" + Settings.Current.ChatGptAccount;
+            try { return AiCatalog.Provider + "|api|" + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(Settings.GetKey(AiCatalog.Provider)))); }
+            catch { return AiCatalog.Provider + "|api|unavailable"; }
+        }
+    }
     private Expander BuildDiagnostics()
     {
         var body = new StackPanel();
@@ -71,8 +79,8 @@ internal sealed partial class ErrorAssistantWindow
     private void RefreshSmartControls()
     {
         diagnosticShare.Content = Text(I18n.T("smartShareConsent") + "\n" + AiProviderBadge.Name(AiCatalog.Provider, ChatGptAuth.Selected));
-        bool idle = active is null && diagnosticRequest is null && !repairRunning;
-        analyzeButton.IsEnabled = idle && (!realAnalyzer || Configured());
+        bool idle = !NetworkBusy && recorder?.Recording != true;
+        analyzeButton.IsEnabled = idle && !modelChoiceRequired && (!realAnalyzer || Configured());
         collectDiagnostics.IsEnabled = idle;
         foreach (var check in new[] { diagnosticSystem, diagnosticApplication, diagnosticEvents }) check.IsEnabled = idle;
         diagnosticRange.IsEnabled = idle;
@@ -82,8 +90,9 @@ internal sealed partial class ErrorAssistantWindow
         caseNotice.Visibility = repairSession.Advice is not null && !CurrentCase ? Visibility.Visible : Visibility.Collapsed;
         repairActions.IsEnabled = idle && presentation?.IsTyping != true && CurrentCase;
         repairActions.Visibility = presentation?.IsTyping == true ? Visibility.Collapsed : Visibility.Visible;
-        sessionPanel.Visibility = repairSession.Advice is null || presentation?.IsTyping == true ? Visibility.Collapsed : Visibility.Visible;
-        cancelButton.IsEnabled = active is not null || diagnosticRequest is not null;
+        sessionPanel.Visibility = repairSession.Advice is null || repairSession.Advice.Message is not null || presentation?.IsTyping == true ? Visibility.Collapsed : Visibility.Visible;
+        cancelButton.IsEnabled = active is not null || diagnosticRequest is not null || mediaRequest is not null || voiceRequest is not null;
+        RefreshConversationControls(idle);
     }
     private async Task CollectDiagnostics()
     {
@@ -210,7 +219,7 @@ internal sealed partial class ErrorAssistantWindow
     }
     private void RenderSession()
     {
-        sessionPanel.Visibility = repairSession.Advice is null || presentation?.IsTyping == true ? Visibility.Collapsed : Visibility.Visible;
+        sessionPanel.Visibility = repairSession.Advice is null || repairSession.Advice.Message is not null || presentation?.IsTyping == true ? Visibility.Collapsed : Visibility.Visible;
         if (repairSession.Activity.Count > 0) sessionDetails.IsExpanded = true;
         sessionActivity.Children.Clear();
         foreach (var entry in repairSession.Activity.TakeLast(5))

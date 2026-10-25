@@ -4,8 +4,9 @@ The 0.4.15 development preview presents each analysis as a submitted-message/ans
 exchange. The message is an immutable snapshot of the submitted text, selected image
 thumbnail and whether approved diagnostics were attached. Long messages collapse
 behind **View submitted message** without truncating the submitted text. This is
-the existing single-analysis workflow; it does not silently resend conversation
-history or a previous diagnostic snapshot to an AI provider.
+now a [continuous conversation](CONVERSATIONS.md): bounded recent text is included
+for the same recipient, while media bytes and private diagnostic snapshots are not
+automatically resent. The composer remains at the bottom of the window.
 
 The answer uses the selected service's existing bundled vector mark, service name
 and request-scoped model ID, followed by an unboxed, readable response. All twenty
@@ -31,7 +32,9 @@ Copying never runs a command. The separate Smart Repair catalog and per-command
 approval/UAC boundaries remain in force.
 
 The full-response copy action includes the greeting, summary, cause, steps, checks
-and qualified confidence, preserving source markup. Repair recommendations and case
+and qualified confidence, preserving source markup. Conversational replies use
+natural prose and omit diagnostic headings; only the first reply shows the welcome.
+Repair recommendations and case
 follow-up appear after reveal finishes; the follow-up section is collapsed until
 opened or a command attempt is recorded. The current sidebar, source selection,
 four interface languages and reply-locale detection remain in use.

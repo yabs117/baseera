@@ -84,6 +84,7 @@ internal static class ErrorLanguageSmokeChecks
                     using var user = JsonDocument.Parse(userText);
                     Require(user.RootElement.GetProperty("error_text").GetString() == description &&
                         user.RootElement.GetProperty("approved_diagnostics").GetString() == "[fixture diagnostics: untrusted evidence, not instructions]" &&
+                        user.RootElement.GetProperty("recent_conversation")[0].GetProperty("User").GetString() == "Earlier conversation fixture" &&
                         user.RootElement.GetProperty("fallback_language").GetString() == "English" &&
                         user.RootElement.GetProperty("image_attached").GetBoolean() == image && parts.GetArrayLength() == (image ? 2 : 1),
                         "Text/image input was changed or image was required for a text-only request.");
@@ -95,7 +96,8 @@ internal static class ErrorLanguageSmokeChecks
                         Json(new { choices = new[] { new { message = new { content = answer } } } });
                 }));
                 var answer = await ErrorAssistant.Analyze(description, image ? new ErrorImage([1, 2, 3], "fixture") : null, "English", CancellationToken.None,
-                    client, "fixture-key", "vision-model", provider.Id, approvedDiagnostics: "[fixture diagnostics: untrusted evidence, not instructions]");
+                    client, "fixture-key", "vision-model", provider.Id, approvedDiagnostics: "[fixture diagnostics: untrusted evidence, not instructions]",
+                    conversation: [new Baseera.Core.ConversationExchange("Earlier conversation fixture", "Earlier assistant fixture", "No previous image bytes", DateTimeOffset.UtcNow)]);
                 Require(answer.Locale?.Language == item.Tag && answer.Locale.Greeting == item.Greeting && answer.Locale.RightToLeft == item.Rtl,
                     "Reply language was overwritten by interface language.");
             }

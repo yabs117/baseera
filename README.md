@@ -14,6 +14,10 @@ evidence overview, command activity, user-reported outcomes and private case
 report export. Repairs from changed input remain disabled until reanalysis.
 Its [conversation view](docs/ADVICE-PRESENTATION.md) shows the submitted message,
 service logo/model, selectable formatted replies and independently copied code.
+The [continuous conversation](docs/CONVERSATIONS.md) adds a bottom composer,
+bounded follow-up context, model selection, images/video, local voice recording
+and explicit transcription. A local checkpoint asks permission after each ten
+analysis/transcription attempts; it does not know the provider's account balance.
 
 [العربية](docs/README.ar.md) · [Français](docs/README.fr.md) · [Español](docs/README.es.md)
 

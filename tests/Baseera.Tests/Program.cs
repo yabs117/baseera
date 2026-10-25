@@ -64,6 +64,7 @@ try
     StreamingScanChecks.Run(Check, root);
     SmartRepairChecks.Run(Check);
     AdviceMarkupChecks.Run(Check);
+    ConversationChecks.Run(Check);
     SelfUpdateChecks.Run(Check, root);
     AppIdentityChecks.Run(Check);
     Console.WriteLine($"{passed} tests passed.");

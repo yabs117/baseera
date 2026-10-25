@@ -41,6 +41,25 @@ into read-only WPF Runs, not HTML/XAML. It creates no navigable links or remote
 images from model output. Code blocks are selectable/copyable text only; their
 copy buttons do not enter the repair runner or bypass command approval.
 
+Continuous chats include at most eight recent text exchanges / 24,000 characters
+for the same service/account/API-key fingerprint. Exchanges using private log
+snapshots are excluded from subsequent context. No previous media bytes or raw
+diagnostic previews are silently reuploaded. Only the latest twenty completed
+exchanges remain in the window; export is an explicit local file action.
+
+Voice capture starts only on the user's recording action, stays in bounded memory
+and stops on close. Transcription needs separate confirmation and the selected
+recipient's own API key; it does not auto-send the resulting text. ChatGPT OAuth
+credentials are never used at API-key transcription endpoints. Windows dictation
+is an explicit OS feature with Microsoft's own speech/privacy behavior. No real
+microphone capture or OS dictation is used in automated checks.
+
+Video selection uses the installed Windows decoder locally, with size/duration,
+dimension and time limits. Gemini receives the original clip/audio/metadata only
+on Send; other providers receive six normalized sampled images and no raw clip or
+audio. Media decoders remain outside a hardened sandbox. The ten-request checkpoint
+is a local usage reminder, not a verified financial limit or account balance.
+
 AI recommendations cannot become arbitrary commands. Only three immutable catalog
 actions are executable: DNS cache clearing, SFC repair and DISM component-store
 repair with restart suppressed. Each needs an unchecked-by-default acknowledgement

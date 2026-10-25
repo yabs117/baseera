@@ -126,7 +126,7 @@ write their own standard servicing logs. Output is not silently uploaded to AI.
 ## Verification
 
 Local verification on 2026-10-25: build and self-contained Windows x64 publish
-completed with zero warnings/errors; **78 core checks**, **5 extension protocol
+completed with zero warnings/errors; **85 core checks**, **5 extension protocol
 tests**, the existing **58 UI renders** and regression suites, and the additional
 Smart Repair consent/source-selection/fake-execution/four-language checks passed
 on the final packaged executable. This does not constitute live repair validation.

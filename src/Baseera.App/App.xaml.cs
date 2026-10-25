@@ -30,6 +30,11 @@ public partial class App : Application
             {
                 string output = e.Args.SkipWhile(x => x != "--smoke").Skip(1).FirstOrDefault() ?? "artifacts";
                 Directory.CreateDirectory(output);
+                if (e.Args.Contains("--conversation-only"))
+                {
+                    Settings.Current.Onboarded = true; window.ApplyTheme(); window.Render();
+                    await ConversationSmokeChecks.Run(window, output); Shutdown(0); return;
+                }
                 if (e.Args.Contains("--advice-only"))
                 {
                     Settings.Current.Onboarded = true; window.ApplyTheme(); window.Render();
@@ -99,6 +104,7 @@ public partial class App : Application
                 await window.CheckAppList(output);
                 await window.CheckInteractionsAndInspection(output);
                 await SmartRepairSmokeChecks.Run(window, output);
+                await ConversationSmokeChecks.Run(window, output);
                 foreach (string language in new[] { "en", "ar", "fr", "es" })
                 foreach (bool dark in new[] { false, true })
                 {
@@ -134,7 +140,7 @@ public partial class App : Application
         };
         window.Show();
     }
-    private static void Snapshot(Window window, string path)
+    internal static void Snapshot(Window window, string path)
     {
         window.UpdateLayout();
         // Render the opaque LTR frame, including its RTL descendants.

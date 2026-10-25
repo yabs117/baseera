@@ -35,6 +35,7 @@ internal static class ConnectionRegressionSmokeChecks
             {
                 Settings.Current.Language = locale; Settings.Current.Dark = locale == "ar"; owner.ApplyTheme(); owner.Render();
                 var dialog = new ErrorAssistantWindow(owner); dialog.Show(); await Settle(owner);
+                Click(dialog, "chatTools"); await Settle(owner);
                 var description = Find<TextBox>(dialog, "ErrorDescription"); description.Text = "Keep this error description";
                 typeof(ErrorAssistantWindow).GetMethod("SetImage", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.Invoke(dialog, [image]);
                 var panel = Nodes(dialog).OfType<AiConnectionPanel>().Single();
@@ -92,6 +93,7 @@ internal static class ConnectionRegressionSmokeChecks
         try
         {
             owner.Navigate("translate"); assistant.Show(); another.Show(); host.Show(); await Settle(owner);
+            Click(assistant, "chatTools"); await Settle(owner);
             oauth = Nodes(assistant).OfType<AiConnectionPanel>().Single();
             Click(assistant, "errorConfigure"); await Settle(owner);
             Require(ChatGptAuth.UsingPlan && Find<Button>(oauth, "chatGptSignOut").IsEnabled, "Fixture is not connected before sign-out.");

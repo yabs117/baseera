@@ -53,7 +53,7 @@ internal sealed class SmartRepairSession
             approved_diagnostics_included = includeDiagnostics && diagnostics.Length > 0,
             approved_diagnostics = includeDiagnostics ? Clean(diagnostics) : "",
             advice = new { summary = Clean(Advice.Summary), cause = Clean(Advice.Cause),
-                steps = Advice.Steps.Select(Clean), checks = Advice.Checks.Select(Clean), confidence = Clean(Advice.Confidence) },
+                steps = Advice.Steps.Select(Clean), checks = Advice.Checks.Select(Clean), confidence = Clean(Advice.Confidence), message = Advice.Message is null ? "" : Clean(Advice.Message) },
             repairs = activity, user_reported_outcomes = observations
         }, new JsonSerializerOptions { WriteIndented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
     }

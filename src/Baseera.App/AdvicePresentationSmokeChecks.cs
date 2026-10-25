@@ -113,9 +113,9 @@ internal static class AdvicePresentationSmokeChecks
 
                 // A new request replaces the old timer, then closing detaches the active timer.
                 presentation.Reveal(sample, animate: true); Click(dialog, "errorAnalyze"); await Settle(owner);
-                if (presentation.IsTyping || ReferenceEquals(presentation, Children(dialog).OfType<AdvicePresenter>().Single()))
+                if (presentation.IsTyping || ReferenceEquals(presentation, Children(dialog).OfType<AdvicePresenter>().Last()))
                     throw new Exception("Reanalysis retained the previous animation.");
-                var replacement = Children(dialog).OfType<AdvicePresenter>().Single(); replacement.Reveal(sample, animate: true);
+                var replacement = Children(dialog).OfType<AdvicePresenter>().Last(); replacement.Reveal(sample, animate: true);
                 await Task.Delay(100); dialog.Close();
                 string stopped = string.Join("|", Children(replacement).OfType<AdviceTextView>().Select(t => t.VisibleText));
                 await Task.Delay(120);
