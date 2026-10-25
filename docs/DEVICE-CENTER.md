@@ -57,6 +57,9 @@ flow. If setup is missing, main Settings opens and the pending review survives
 until the assistant is opened. The action inserts the snapshot into the editable
 diagnostic preview; it never sends it automatically. Existing composer text is
 preserved; an empty composer gets a review question which the user can edit.
+The composer now shows [whether diagnostics are actually attached](DIAGNOSTIC-ATTACHMENTS.md).
+Selecting a source alone is not collection or sharing. Send pauses when selected
+diagnostics are missing/unapproved, with a review action or an explicit text-only choice.
 
 The assistant adds an optional **Current device health and performance** source.
 Users may select that source plus Application/System event channels and collect

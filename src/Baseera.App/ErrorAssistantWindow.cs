@@ -283,7 +283,7 @@ internal sealed partial class ErrorAssistantWindow : Window
         using var output = new MemoryStream(); encoder.Save(output);
         return ErrorAssistant.Prepare(output.ToArray(), title);
     }
-    private async Task Analyze()
+    private async Task Analyze(bool withoutDiagnostics = false)
     {
         if (NetworkBusy || recorder?.Recording == true) return;
         if (composerRecipient != DiagnosticRecipient)
@@ -291,11 +291,13 @@ internal sealed partial class ErrorAssistantWindow : Window
         if (!Configured() && realAnalyzer) { ShowConnectionSettings(); feedback.Text = I18n.T("errorKeyMissing"); return; }
         if (problem.Text.Length > 12000) { feedback.Text = I18n.T("errorTextSize"); return; }
         if (recording is not null && !recordingTranscribed) { feedback.Text = I18n.T("chatReviewAudio"); return; }
+        if (withoutDiagnostics) { diagnosticGateActive = false; InvalidateDiagnosticConsent(); }
+        else if (PauseForDiagnosticReview()) return;
         if (string.IsNullOrWhiteSpace(problem.Text) && image is null && video is null && (diagnosticShare.IsChecked != true || string.IsNullOrWhiteSpace(diagnosticPreview.Text))) { feedback.Text = I18n.T("errorNeedInput"); return; }
         if (diagnosticShare.IsChecked == true && diagnosticRecipient != DiagnosticRecipient) { InvalidateDiagnosticConsent(); feedback.Text = I18n.T("smartReviewRecipient"); return; }
         if (!AllowRequest()) return;
         string diagnostics;
-        try { diagnostics = ApprovedDiagnostics(); }
+        try { diagnostics = withoutDiagnostics ? "" : ApprovedDiagnostics(); }
         catch (InvalidOperationException ex) { feedback.Text = ex.Message; return; }
         string submittedDescription = problem.Text, submittedProvider = AiCatalog.Provider, submittedModel = AiCatalog.Model;
         ErrorVideo? submittedVideo = video;
@@ -307,6 +309,7 @@ internal sealed partial class ErrorAssistantWindow : Window
         string localRepairs = string.Join("\n", repairSession.Activity.TakeLast(5).Select(x => $"{x.ActionId}: {x.Status}; exit={x.ExitCode}; UTC {x.Time:O}")
             .Concat(repairSession.Observations.TakeLast(2).Select(x => $"User-reported outcome, not independently verified: {x.Outcome}; UTC {x.Time:O}")));
         using var request = new CancellationTokenSource(); active = request;
+        diagnosticGateActive = false; diagnosticRequestHasData = previousRequestHadDiagnostics = diagnostics.Length > 0;
         analyzeButton.IsEnabled = false; cancelButton.IsEnabled = true;
         presentation?.Finish(); feedback.Text = I18n.T("errorAnalyzing");
         repairActions.Children.Clear(); repairStatus.Text = ""; repairSession.Clear(); sessionDetails.IsExpanded = false; reportDiagnostics.IsChecked = false; RenderSession(); RefreshSmartControls();
@@ -356,7 +359,7 @@ internal sealed partial class ErrorAssistantWindow : Window
         }
         finally
         {
-            if (ReferenceEquals(active, request)) active = null;
+            if (ReferenceEquals(active, request)) { active = null; diagnosticRequestHasData = false; }
             if (!closed) RefreshSmartControls();
         }
     }

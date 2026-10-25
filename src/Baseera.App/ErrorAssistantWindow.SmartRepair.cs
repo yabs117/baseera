@@ -67,16 +67,16 @@ internal sealed partial class ErrorAssistantWindow
         diagnosticPreview.TextChanged += (_, _) => { InvalidateDiagnosticConsent(); RenderEvidence(); }; Add(body, diagnosticPreview, 8);
         diagnosticShare.Content = Text(I18n.T("smartShareConsent") + "\n" + AiProviderBadge.Name(AiCatalog.Provider, ChatGptAuth.Selected));
         System.Windows.Automation.AutomationProperties.SetAutomationId(diagnosticShare, "SmartDiagnosticConsent");
-        diagnosticShare.Checked += (_, _) => diagnosticRecipient = DiagnosticRecipient;
-        diagnosticShare.Unchecked += (_, _) => diagnosticRecipient = "";
+        diagnosticShare.Checked += (_, _) => { diagnosticRecipient = DiagnosticRecipient; RefreshDiagnosticDelivery(); };
+        diagnosticShare.Unchecked += (_, _) => { diagnosticRecipient = ""; RefreshDiagnosticDelivery(); };
         Add(body, diagnosticShare, 8);
         var clear = Action("smartClear", ClearDiagnostics); Add(body, clear, 0);
         var expander = new Expander { Header = I18n.T("smartDiagnostics"), Content = body, IsExpanded = false,
             Padding = new Thickness(12), Background = Brush("Surface"), BorderBrush = Brush("Line"), BorderThickness = new Thickness(1) };
         System.Windows.Automation.AutomationProperties.SetAutomationId(expander, "SmartDiagnostics"); return expander;
     }
-    private void InvalidateDiagnosticConsent() { diagnosticShare.IsChecked = false; diagnosticRecipient = ""; }
-    private void ClearDiagnostics() { diagnosticRequest?.Cancel(); diagnosticPreview.Clear(); InvalidateDiagnosticConsent(); }
+    private void InvalidateDiagnosticConsent() { diagnosticShare.IsChecked = false; diagnosticRecipient = ""; RefreshDiagnosticDelivery(); }
+    private void ClearDiagnostics() { diagnosticRequest?.Cancel(); diagnosticGateActive = false; diagnosticPreview.Clear(); InvalidateDiagnosticConsent(); }
     private void RefreshSmartControls()
     {
         diagnosticShare.Content = Text(I18n.T("smartShareConsent") + "\n" + AiProviderBadge.Name(AiCatalog.Provider, ChatGptAuth.Selected));
@@ -94,6 +94,7 @@ internal sealed partial class ErrorAssistantWindow
         sessionPanel.Visibility = repairSession.Advice is null || repairSession.Advice.Message is not null || presentation?.IsTyping == true ? Visibility.Collapsed : Visibility.Visible;
         cancelButton.IsEnabled = active is not null || diagnosticRequest is not null || mediaRequest is not null || voiceRequest is not null;
         RefreshConversationControls(idle);
+        RefreshDiagnosticDelivery();
     }
     private async Task CollectDiagnostics()
     {

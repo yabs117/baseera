@@ -73,6 +73,7 @@ internal sealed partial class ErrorAssistantWindow
         More("chatDictation", StartDictation); More("chatExport", ExportConversation); More("settings", () => ShowConnectionSettings()); More("errorClose", Close);
         more.ContextMenu = moreMenu; more.Click += (_, _) => { moreMenu.PlacementTarget = more; moreMenu.IsOpen = true; };
         Add(panel, top, 4);
+        Add(panel, BuildDiagnosticDelivery(), 6);
 
         imageLabel.Foreground = Brush("Muted"); imageLabel.FontSize = 11; imageLabel.Text = I18n.T("errorNoImage");
         Add(panel, imageLabel, 2); preview.MaxHeight = 80; preview.MaxWidth = 240; preview.Visibility = Visibility.Collapsed; Add(panel, preview, 3);
@@ -142,6 +143,7 @@ internal sealed partial class ErrorAssistantWindow
     {
         if (NetworkBusy || recorder?.Recording == true) return;
         if (confirm && turns.Count > 0 && MessageBox.Show(this, I18n.T("chatClearConfirm"), I18n.T("chatNew"), MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) != MessageBoxResult.Yes) return;
+        previousRequestHadDiagnostics = diagnosticRequestHasData = diagnosticGateActive = false;
         foreach (var turn in turns) turn.Dispose(); turns.Clear(); result.Children.Clear(); presentation = null; conversation.Clear();
         repairActions.Children.Clear(); repairSession.Clear(); repairStatus.Text = ""; RenderSession(); ClearDiagnostics();
         if (!preserveDraft) { problem.Clear(); SetImage(null); video = null; DiscardRecording(); }

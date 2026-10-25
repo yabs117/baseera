@@ -121,6 +121,8 @@ internal static class DeviceCenterSmokeChecks
                 Find<CheckBox>(assistant, "SmartDiagnosticConsent").IsChecked = true; Click(assistant, "errorAnalyze"); await Settle(owner); Nodes(assistant).OfType<AdvicePresenter>().Last().Finish();
                 Require(requests.Count == 1 && requests[0].Diagnostics.Contains("CPU sampled utilization") && requests[0].Diagnostics.Contains("Fixture application") && Find<CheckBox>(assistant, "SmartDiagnosticConsent").IsChecked == false, "Combined evidence bypassed explicit one-request sharing.");
                 Find<TextBox>(assistant, "ErrorDescription").Text = "Follow-up without diagnostic sharing"; Click(assistant, "errorAnalyze"); await Settle(owner);
+                Require(requests.Count == 1, "A follow-up silently omitted diagnostics after one-request consent was consumed.");
+                Click(assistant, "DiagnosticSendWithout"); await Settle(owner);
                 Require(requests.Count == 2 && requests[1].Diagnostics.Length == 0 && requests[1].History.Count == 0, "Private device/log context escaped through follow-up history.");
             }
             finally { assistant.Close(); }
