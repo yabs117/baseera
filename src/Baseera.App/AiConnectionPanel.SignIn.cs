@@ -71,6 +71,7 @@ internal sealed partial class AiConnectionPanel
         if (signIn is not null) signIn.IsEnabled = true;
         if (addAccount is not null) addAccount.IsEnabled = true;
         if (cancelSignIn is not null) cancelSignIn.Visibility = Visibility.Collapsed;
+        RefreshTestControls();
     }
     private async Task SignIn(bool newAccount)
     {
@@ -78,6 +79,7 @@ internal sealed partial class AiConnectionPanel
         draft.OpenAiMode = "chatgpt"; RefreshProvider();
         using var cancellation = new CancellationTokenSource(TimeSpan.FromMinutes(5)); signInOperation = cancellation;
         signIn.IsEnabled = addAccount.IsEnabled = false; cancelSignIn.Visibility = Visibility.Visible;
+        RefreshTestControls();
         status.Text = I18n.T("chatGptWaiting");
         try
         {
@@ -98,7 +100,7 @@ internal sealed partial class AiConnectionPanel
         {
             if (ReferenceEquals(signInOperation, cancellation)) status.Text = ex is ChatGptException ? ex.Message : I18n.T("chatGptSignInFailed");
         }
-        finally { if (ReferenceEquals(signInOperation, cancellation)) { signInOperation = null; signIn.IsEnabled = addAccount.IsEnabled = true; cancelSignIn.Visibility = Visibility.Collapsed; } }
+        finally { if (ReferenceEquals(signInOperation, cancellation)) { signInOperation = null; signIn.IsEnabled = addAccount.IsEnabled = true; cancelSignIn.Visibility = Visibility.Collapsed; RefreshTestControls(); } }
     }
     private void SaveChatGpt()
     {
@@ -109,7 +111,7 @@ internal sealed partial class AiConnectionPanel
             throw new InvalidOperationException(I18n.T("aiChooseModel"));
         Settings.Current.OpenAiAuth = "chatgpt"; Settings.Current.AiProvider = "openai";
         Settings.Current.ChatGptAccount = draft.ChatGptAccount; Settings.Current.ChatGptModel = chosen.Id; Settings.Save();
-        status.Text = I18n.T("chatGptUsingPlan"); saved();
+        status.Text = I18n.T("aiSettingsSaved"); ConnectionSaved(); saved();
     }
     private async Task SignOut()
     {
@@ -120,8 +122,6 @@ internal sealed partial class AiConnectionPanel
             bool revoked = await signOutProfile(profile.Id, CancellationToken.None);
             if (draft.ChatGptAccount == profile.Id) draft.ChatGptAccount = "";
             draft.ChatGpt = new(); RefreshProvider(); status.Text = I18n.T(revoked ? "chatGptSignedOut" : "chatGptRevocationUnconfirmed");
-            if (Window.GetWindow(this) is ErrorAssistantWindow assistant && assistant.IsVisible)
-                ChatGptUi.CreateSignOutDialog(assistant, revoked, assistant.Close).ShowDialog();
         }
         catch { status.Text = I18n.T("chatGptStorageError"); }
         finally { signOut.IsEnabled = accountPicker.SelectedItem is not null; }

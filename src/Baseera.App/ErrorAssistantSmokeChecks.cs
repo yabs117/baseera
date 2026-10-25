@@ -70,27 +70,25 @@ internal static class ErrorAssistantSmokeChecks
             try { hasKey = !string.IsNullOrWhiteSpace(Settings.GetKey()); } catch { hasKey = false; }
             if (!hasKey)
             {
-                var setup = new ErrorAssistantWindow(owner);
-                setup.Show(); setup.UpdateLayout();
-                if (!Descendants(setup).OfType<PasswordBox>().Any(box => box.IsVisible &&
-                    System.Windows.Automation.AutomationProperties.GetAutomationId(box) == "ErrorAssistantApiKey") ||
-                    !Descendants(setup).OfType<ComboBox>().Any(box => box.IsVisible &&
-                    System.Windows.Automation.AutomationProperties.GetAutomationId(box) == "ErrorAssistantModel"))
-                    throw new Exception("First-run Gemini setup is unavailable.");
-                WindowAppearance.SavePreview(setup, Path.Combine(output, "error-assistant-setup.png"));
-                var connection = Descendants(setup).OfType<AiConnectionPanel>().Single();
+                owner.ResetConnectionDraftForSmoke(); owner.ShowErrorAssistant(); await owner.Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle); owner.UpdateLayout();
+                if (!Descendants(owner).OfType<PasswordBox>().Any(box => box.IsVisible &&
+                    System.Windows.Automation.AutomationProperties.GetAutomationId(box) == "AiApiKey") ||
+                    !Descendants(owner).OfType<ComboBox>().Any(box => box.IsVisible &&
+                    System.Windows.Automation.AutomationProperties.GetAutomationId(box) == "AiModelPicker") || owner.CurrentErrorAssistant is not null)
+                    throw new Exception("First-run assistant did not route to main Settings.");
+                App.Snapshot(owner, Path.Combine(output, "error-assistant-setup.png"));
+                var connection = Descendants(owner).OfType<AiConnectionPanel>().Single();
                 foreach (var provider in AiProviders.All.Concat(AiProviders.All.Reverse()))
                 {
-                    connection.Service.SelectedItem = provider; setup.UpdateLayout();
-                    if (!connection.IsVisible || !ReferenceEquals(connection, Descendants(setup).OfType<AiConnectionPanel>().Single()))
+                    connection.Service.SelectedItem = provider; owner.UpdateLayout();
+                    if (!connection.IsVisible || !ReferenceEquals(connection, Descendants(owner).OfType<AiConnectionPanel>().Single()))
                         throw new Exception("Service switch replaced or detached the connection panel.");
                 }
                 connection.Service.SelectedItem = AiProviders.Get("openai");
-                setup.UpdateLayout();
+                owner.UpdateLayout();
                 await owner.Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
                 await Task.Delay(150);
-                WindowAppearance.SavePreview(setup, Path.Combine(output, "ai-services-dialog-en.png"));
-                setup.Close();
+                App.Snapshot(owner, Path.Combine(output, "ai-services-dialog-en.png"));
             }
             foreach (string language in new[] { "ar", "en", "fr", "es" })
             {

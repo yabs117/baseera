@@ -10,32 +10,24 @@ internal sealed partial class ErrorAssistantWindow : Window
 {
     private readonly Func<string, ErrorImage?, string, CancellationToken, Task<ErrorAdvice>> analyze;
     private readonly bool realAnalyzer;
-    private readonly Func<string, CancellationToken, Task<bool>>? signOutProfile;
     private readonly Grid frame = new();
     private readonly TextBox problem = new() { AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
     private readonly ComboBox windows = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
     private readonly StackPanel result = new();
-    private readonly StackPanel connection = new();
-    private StackPanel planNotice = new();
-    private Border connectionBorder = new();
     private readonly TextBlock feedback = new() { TextWrapping = TextWrapping.Wrap };
     private readonly TextBlock imageLabel = new() { TextWrapping = TextWrapping.Wrap };
     private readonly System.Windows.Controls.Image preview = new() { MaxHeight = 260, MaxWidth = 690, Stretch = Stretch.Uniform, HorizontalAlignment = HorizontalAlignment.Left };
     private readonly TextBlock windowCount = new() { TextWrapping = TextWrapping.Wrap };
     private Button analyzeButton = new(), cancelButton = new();
-    private Button configureButton = new();
     private ErrorImage? image;
     private CancellationTokenSource? active;
     private AdvicePresenter? presentation;
     private ScrollViewer bodyScroll = null!;
     private bool closed, followResponse, scrollingResponse, scrollQueued;
-    private bool showConnection;
     private string responseAccount = "";
-    private AiConnectionPanel connectionPanel = null!;
 
     internal ErrorAssistantWindow(Window owner,
         Func<string, ErrorImage?, string, CancellationToken, Task<ErrorAdvice>>? analyze = null,
-        Func<string, CancellationToken, Task<bool>>? signOutProfile = null,
         Func<Baseera.Core.DiagnosticOptions, CancellationToken, Task<string>>? collectDiagnostics = null,
         Func<string, ErrorImage?, string, string, CancellationToken, Task<ErrorAdvice>>? analyzeDiagnostics = null,
         Func<string, Baseera.Core.RepairApproval?>? approveRepair = null,
@@ -45,7 +37,6 @@ internal sealed partial class ErrorAssistantWindow : Window
         Func<byte[], string, string, string, CancellationToken, Task<string>>? transcribeAudio = null, Func<bool>? approveAudioUpload = null)
     {
         Owner = owner;
-        this.signOutProfile = signOutProfile;
         realAnalyzer = analyze is null && analyzeDiagnostics is null && analyzeConversation is null;
         this.analyzeConversation = analyzeConversation; this.confirmRequests = confirmRequests;
         this.approveAudioUpload = approveAudioUpload;
@@ -55,7 +46,6 @@ internal sealed partial class ErrorAssistantWindow : Window
         problem.TextChanged += (_, _) => RefreshSmartControls();
         collectDiagnosticData = collectDiagnostics ?? ((options, ct) => WindowsDiagnostics.Collect(options, ct));
         analyzeDiagnosticData = analyzeDiagnostics; this.approveRepair = approveRepair; this.repairRunner = repairRunner ?? RepairRunner.Shared;
-        showConnection = realAnalyzer && !Configured();
         WindowStyle = WindowStyle.SingleBorderWindow; ResizeMode = ResizeMode.CanResize;
         ShowInTaskbar = false; WindowStartupLocation = WindowStartupLocation.CenterOwner;
         Width = Math.Min(960, SystemParameters.WorkArea.Width - 28);
@@ -74,7 +64,8 @@ internal sealed partial class ErrorAssistantWindow : Window
             if (repairRunning && MessageBox.Show(this, I18n.T("smartCloseRunning"), I18n.T("smartApproveTitle"), MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) != MessageBoxResult.Yes) e.Cancel = true;
         };
         Closed += (_, _) => { closed = true; ChatGptAuth.SessionSignedOut -= OnSessionSignedOut; active?.Cancel(); diagnosticRequest?.Cancel(); CloseConversation(); };
-        Loaded += (_, _) => { if (showConnection) connectionPanel.MissingInput.Focus(); else problem.Focus(); };
+        Loaded += (_, _) => problem.Focus();
+        Activated += (_, _) => { if (!NetworkBusy) RefreshSavedConnection(); };
         PreviewKeyDown += (_, e) =>
         {
             if (e.Key == System.Windows.Input.Key.V && System.Windows.Input.Keyboard.Modifiers == System.Windows.Input.ModifierKeys.Control && HasClipboardImage())
@@ -122,32 +113,11 @@ internal sealed partial class ErrorAssistantWindow : Window
 
         var header = new StackPanel { Margin = new Thickness(22, 16, 22, 12) };
         var title = Text(I18n.T("errorAssistantTitle"), 22); title.FontWeight = arabic ? FontWeights.Medium : FontWeights.SemiBold; Add(header, title, 4);
-        Add(header, Text(I18n.T("errorAssistantIntro"), 13, true), 0);
+        Add(header, Text(I18n.T("assistantConversationIntro"), 13, true), 0);
         var shortcut = Text(I18n.T("errorShortcut"), 12, true); shortcut.Margin = new Thickness(0, 8, 0, 0); header.Children.Add(shortcut);
         frame.Children.Add(header);
 
         var body = new StackPanel { Margin = new Thickness(0, 8, 0, 12) };
-        connection.Children.Clear();
-        var connectTitle = Text(I18n.T("errorConnect"), 15); connectTitle.FontWeight = FontWeights.SemiBold; Add(connection, connectTitle, 6);
-        Add(connection, Text(I18n.T("errorConnectHelp"), 12, true), 14);
-        connectionPanel = new AiConnectionPanel(new AiConnectionDraft(), () =>
-        {
-            showConnection = false; connectionBorder.Visibility = Visibility.Collapsed;
-            configureButton.Visibility = Visibility.Visible; analyzeButton.IsEnabled = true;
-            planNotice.Visibility = ChatGptAuth.UsingPlan ? Visibility.Visible : Visibility.Collapsed;
-            feedback.Text = I18n.T("errorKeySaved"); problem.Focus();
-            InvalidateDiagnosticConsent(); modelRequest?.Cancel(); SeedModel(); UpdateMediaStatus(); RefreshSmartControls();
-        }, dialog: true, signOutProfile: signOutProfile);
-        Add(connection, connectionPanel, 4);
-        Add(connection, Text(I18n.T("errorKeyLocal"), 12, true), 0);
-        connectionBorder = new Border { Background = Brush("Surface"), BorderBrush = Brush("Line"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(5), Padding = new Thickness(18), Child = connection,
-            Visibility = showConnection ? Visibility.Visible : Visibility.Collapsed };
-        System.Windows.Automation.AutomationProperties.SetAutomationId(connectionBorder, "ErrorConnectionSection");
-        Add(body, connectionBorder, 14);
-        configureButton = Action("errorConfigure", () => ShowConnectionSettings(chooseProvider: true));
-        configureButton.HorizontalAlignment = HorizontalAlignment.Left; configureButton.MinWidth = 0; configureButton.Visibility = showConnection ? Visibility.Collapsed : Visibility.Visible;
-        planNotice = ChatGptUi.PlanNotice(); planNotice.Visibility = ChatGptAuth.UsingPlan ? Visibility.Visible : Visibility.Collapsed; Add(body, planNotice, 8);
-
         Add(body, Text(I18n.T("errorCaptureWindow"), 13), 5);
         var captureRow = new Grid(); captureRow.ColumnDefinitions.Add(new ColumnDefinition()); captureRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         RefreshWindows(); windows.DisplayMemberPath = "Title"; windows.Tag = I18n.T("errorChooseWindow"); windows.Margin = new Thickness(0, 0, 10, 0);
@@ -162,7 +132,7 @@ internal sealed partial class ErrorAssistantWindow : Window
         result.Children.Clear();
         System.Windows.Automation.AutomationProperties.SetAutomationId(result, "ErrorAdviceResult");
         var thread = new StackPanel { Margin = new Thickness(22, 0, 22, 12) };
-        assistantTools.Header = I18n.T("chatTools"); assistantTools.Content = body; assistantTools.IsExpanded = showConnection;
+        assistantTools.Header = I18n.T("chatTools"); assistantTools.Content = body; assistantTools.IsExpanded = false;
         System.Windows.Automation.AutomationProperties.SetAutomationId(assistantTools, "ConversationTools"); Add(thread, assistantTools, 10);
         emptyChat.Children.Add(new System.Windows.Controls.Image { Source = Brand.WindowIcon, Width = 36, Height = 36, Margin = new Thickness(0, 0, 0, 14) });
         emptyChat.Children.Add(Text(I18n.T("chatEmptyTitle"), 20));
@@ -188,20 +158,12 @@ internal sealed partial class ErrorAssistantWindow : Window
         RefreshSmartControls();
     }
 
-    private void ShowConnectionSettings(bool focus = true, bool chooseProvider = false)
+    private void ShowConnectionSettings()
     {
+        if (NetworkBusy || recorder?.Recording == true) { feedback.Text = I18n.T("aiFinishBeforeSettings"); return; }
         InvalidateDiagnosticConsent();
-        assistantTools.IsExpanded = true;
-        showConnection = true; connectionBorder.Visibility = Visibility.Visible; configureButton.Visibility = Visibility.Collapsed;
-        if (!focus) return;
-        followResponse = false;
-        _ = Dispatcher.InvokeAsync(() =>
-        {
-            if (closed) return;
-            bodyScroll.UpdateLayout();
-            var input = chooseProvider ? connectionPanel.Service : connectionPanel.MissingInput;
-            input.BringIntoView(); input.Focus();
-        }, System.Windows.Threading.DispatcherPriority.Loaded);
+        presentation?.Finish();
+        if (Owner is MainWindow main) { Hide(); main.OpenAiSettings(this); }
     }
 
     private void OnSessionSignedOut(string account)
@@ -209,18 +171,17 @@ internal sealed partial class ErrorAssistantWindow : Window
         if (!Dispatcher.CheckAccess()) { _ = Dispatcher.InvokeAsync(() => OnSessionSignedOut(account)); return; }
         if (closed) return;
         InvalidateDiagnosticConsent();
-        modelRequest?.Cancel(); SeedModel();
+        RefreshSavedConnection();
         if (responseAccount == account) { active?.Cancel(); presentation?.Finish(); }
         if (conversation.Recipient == "openai|chatgpt|" + account)
         {
-            voiceRequest?.Cancel(); modelRequest?.Cancel();
+            voiceRequest?.Cancel();
             foreach (var turn in turns) turn.Dispose(); turns.Clear(); result.Children.Clear(); presentation = null;
             conversation.Clear(); repairActions.Children.Clear(); repairSession.Clear(); ClearDiagnostics(); RenderSession();
         }
-        planNotice.Visibility = ChatGptAuth.UsingPlan ? Visibility.Visible : Visibility.Collapsed;
         if (realAnalyzer && !Configured())
         {
-            analyzeButton.IsEnabled = false; ShowConnectionSettings(focus: false); feedback.Text = I18n.T("chatGptSignedOut");
+            analyzeButton.IsEnabled = false; feedback.Text = I18n.T("chatGptSignedOut"); RefreshSmartControls();
         }
     }
 
@@ -326,8 +287,7 @@ internal sealed partial class ErrorAssistantWindow : Window
     {
         if (NetworkBusy || recorder?.Recording == true) return;
         if (composerRecipient != DiagnosticRecipient)
-        { SeedModel(); UpdateMediaStatus(); InvalidateDiagnosticConsent(); feedback.Text = I18n.T("chatConnectionChanged"); RefreshSmartControls(); return; }
-        if (modelChoiceRequired) { feedback.Text = I18n.T("chatSelectModel"); return; }
+        { RefreshSavedConnection(true); InvalidateDiagnosticConsent(); feedback.Text = I18n.T("chatConnectionChanged"); return; }
         if (!Configured() && realAnalyzer) { ShowConnectionSettings(); feedback.Text = I18n.T("errorKeyMissing"); return; }
         if (problem.Text.Length > 12000) { feedback.Text = I18n.T("errorTextSize"); return; }
         if (recording is not null && !recordingTranscribed) { feedback.Text = I18n.T("chatReviewAudio"); return; }

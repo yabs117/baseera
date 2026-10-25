@@ -7,6 +7,8 @@ behind **View submitted message** without truncating the submitted text. This is
 now a [continuous conversation](CONVERSATIONS.md): bounded recent text is included
 for the same recipient, while media bytes and private diagnostic snapshots are not
 automatically resent. The composer remains at the bottom of the window.
+Connection setup now lives in [main Settings](AI-SETTINGS.md); the conversation
+shows the saved service/model without duplicating the setup form.
 
 The answer uses the selected service's existing bundled vector mark, service name
 and request-scoped model ID, followed by an unboxed, readable response. All twenty

@@ -80,7 +80,7 @@ internal sealed partial class ErrorAssistantWindow
     {
         diagnosticShare.Content = Text(I18n.T("smartShareConsent") + "\n" + AiProviderBadge.Name(AiCatalog.Provider, ChatGptAuth.Selected));
         bool idle = !NetworkBusy && recorder?.Recording != true;
-        analyzeButton.IsEnabled = idle && !modelChoiceRequired && (!realAnalyzer || Configured());
+        analyzeButton.IsEnabled = idle && (!realAnalyzer || Configured());
         collectDiagnostics.IsEnabled = idle;
         foreach (var check in new[] { diagnosticSystem, diagnosticApplication, diagnosticEvents }) check.IsEnabled = idle;
         diagnosticRange.IsEnabled = idle;

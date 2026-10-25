@@ -30,6 +30,11 @@ public partial class App : Application
             {
                 string output = e.Args.SkipWhile(x => x != "--smoke").Skip(1).FirstOrDefault() ?? "artifacts";
                 Directory.CreateDirectory(output);
+                if (e.Args.Contains("--ai-settings-only"))
+                {
+                    Settings.Current.Onboarded = true; window.ApplyTheme(); window.Render();
+                    await AiSettingsSmokeChecks.Run(window, output); Shutdown(0); return;
+                }
                 if (e.Args.Contains("--conversation-only"))
                 {
                     Settings.Current.Onboarded = true; window.ApplyTheme(); window.Render();
@@ -99,6 +104,7 @@ public partial class App : Application
                 await window.CheckStatusLocalization(output);
                 await TranslationSmokeChecks.Run();
                 await ErrorAssistantSmokeChecks.Run(window, output);
+                await AiSettingsSmokeChecks.Run(window, output);
                 window.Activate();
                 await window.CheckTranslationSettingsLink(output);
                 await window.CheckAppList(output);

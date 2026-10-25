@@ -17,6 +17,15 @@ Each desktop key uses Windows DPAPI for the current user. A screenshot is kept
 in memory for the request, not written to the app's data directory. Other software
 running as the same user is outside this storage protection boundary.
 
+In development 0.4.15, AI connection setup is centralized in main Settings. Its
+optional **Test connection** action sends one fixed prompt and a synthetic 64×64
+solid-color JPEG, without private attachments, conversation or diagnostics. This
+is an explicit potentially billable request, separate from the chat's usage counter.
+Changing draft credentials/recipient, canceling or unloading invalidates the pending
+result; an old response cannot approve a different connection. Test output is
+restricted to local status text; it does not display arbitrary response bodies or
+credentials. A matching test answer is not proof of diagnostic accuracy or account health.
+
 The 0.4.15 development preview adds [Smart Repair](docs/SMART-REPAIR.md). Optional
 diagnostics are local, bounded reads of selected Application/System error logs and
 a minimal system summary. They require an editable preview and a separate one-request

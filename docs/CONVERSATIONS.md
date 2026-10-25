@@ -2,10 +2,13 @@
 
 The existing error assistant now keeps a conversation rather than replacing its
 last answer. The composer stays at the bottom; **Enter** sends, **Shift+Enter**
-adds a line. The current service/model can be changed through the existing service
-settings and an inline vision-model picker. Opening the model picker loads that
-recipient's available models; there is no manually invented catalog or assumption
-that every account has access. Model lookup itself is not an inference request.
+adds a line. Choose the service, authentication and available vision model in
+[Settings → AI service](AI-SETTINGS.md), with an optional connection test and an
+action to open the assistant. The composer displays the saved connection without
+an embedded setup form or editable model picker. **More → Settings** preserves the
+current chat, draft and attachments; returning reuses the same assistant window.
+Catalog lookup itself is not an inference request, while the optional connection
+test is a separate, explicit request that may consume provider usage.
 
 Follow-up requests include recent text as bounded, lower-trust JSON context through
 the existing twenty provider adapters. A normal explanation/greeting can use a

@@ -1,14 +1,19 @@
 # Sign in with ChatGPT
 
 Baseera 0.4.9 adds the official **Continue with ChatGPT** flow to the Windows app.
-Select OpenAI in Settings or the error assistant's connection form, then choose
+In development 0.4.15, select OpenAI in **Settings → AI service**, then choose
 ChatGPT account or click Continue with ChatGPT below the provider. No API key is
 needed for this connection method.
 
 1. Complete sign-in and consent on OpenAI's page in the system browser.
 2. Return to Baseera. The first successful plan-enabled sign-in explains plan usage.
 3. Load the account's image-capable models, choose one, then save settings.
-4. Error assistance and window translation use that saved account and model.
+4. Optionally test the connection, then open the error assistant from Settings.
+   Error assistance and window translation use that saved account and model.
+
+The assistant no longer embeds a connection form. Its **More → Settings** action
+preserves the temporary conversation and draft while the connection is edited in
+main Settings. See [central setup and connection test](AI-SETTINGS.md).
 
 An eligible ChatGPT plan, permission to use it, and available account/app usage are
 required. Sign-in does not guarantee unlimited or free requests. Use **Manage ChatGPT
@@ -31,13 +36,14 @@ From 0.4.13, Sign out cancels requests and removes the selected registration fro
 Baseera’s local account store, including its saved name, email, subject, client ID
 and credentials. Every open picker and connection draft removes that profile, and
 the selected account/model are cleared before remote revocation is attempted.
-A notice in the error assistant offers to close that assistant window. Baseera
-stays open; reopening the assistant cannot restore the removed account.
+In development 0.4.15, sign-out is performed in main Settings. Baseera stays open;
+an open assistant clears that account's conversation and disables Send. It offers
+a link back to Settings, and reopening cannot restore the removed account.
 
 Saved API keys, API model choices, other open API drafts and unrelated registrations
 are preserved. There is no automatic API-key billing fallback. The remote revocation
 attempt is bounded to twenty seconds. If it cannot be confirmed, the profile is
-still removed locally and the notice explains how to disconnect Baseera in ChatGPT
+still removed locally and the status explains how to disconnect Baseera in ChatGPT
 settings. This does not delete the user’s OpenAI account or sign their browser out.
 
 At startup, legacy profiles left by older sign-outs are pruned only when all access,

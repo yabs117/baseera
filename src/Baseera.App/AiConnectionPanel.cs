@@ -41,22 +41,24 @@ internal sealed partial class AiConnectionPanel : StackPanel
     private int revision;
     private bool updating;
 
-    internal AiConnectionPanel(AiConnectionDraft draft, Action saved, bool dialog = false,
+    internal AiConnectionPanel(AiConnectionDraft draft, Action saved,
         Func<string, string, CancellationToken, Task<IReadOnlyList<AiModelOption>>>? list = null,
-        Func<string, CancellationToken, Task<bool>>? signOutProfile = null)
+        Func<string, CancellationToken, Task<bool>>? signOutProfile = null,
+        Func<AiProbeConnection, CancellationToken, Task<AiProbeResult>>? probe = null, Action? openAssistant = null)
     {
         this.draft = draft; this.saved = saved;
+        this.probe = probe ?? ((connection, ct) => AiConnectionProbe.Test(connection, ct)); this.openAssistant = openAssistant;
         this.signOutProfile = signOutProfile ?? ((account, ct) => ChatGptAuth.SignOut(account, ct));
         this.list = list ?? ((provider, key, ct) => AiCatalog.ListVisionModels(provider, key, ct));
         if (!AiProviders.Contains(draft.Provider)) draft.Provider = "gemini";
         AddLabel("aiService"); Service.ItemsSource = AiProviders.All;
         Service.SelectedItem = AiProviders.Get(draft.Provider); AddControl(Service);
-        Id(Service, dialog ? "ErrorAssistantService" : "AiService");
+        Id(Service, "AiService");
         BuildSignInArea();
         var note = new TextBlock { Text = I18n.T("aiDirectServices"), TextWrapping = TextWrapping.Wrap, FontSize = 12 };
         note.SetResourceReference(TextBlock.ForegroundProperty, "Muted"); AddControl(note);
         keyLabel = AddLabel("aiKey"); AddControl(KeyInput);
-        Id(KeyInput, dialog ? "ErrorAssistantApiKey" : "AiApiKey");
+        Id(KeyInput, "AiApiKey");
         System.Windows.Automation.AutomationProperties.SetName(KeyInput, I18n.T("aiKey"));
         savedKey.Text = I18n.T("keySaved"); savedKey.SetResourceReference(TextBlock.ForegroundProperty, "Muted"); AddControl(savedKey);
         forget = Button("forgetKey", Forget); AddControl(forget);
@@ -64,12 +66,13 @@ internal sealed partial class AiConnectionPanel : StackPanel
         var modelsNote = new TextBlock { Text = I18n.T("aiModelsNote"), TextWrapping = TextWrapping.Wrap, FontSize = 12 };
         modelsNote.SetResourceReference(TextBlock.ForegroundProperty, "Muted"); AddControl(modelsNote);
         AddLabel("model"); AddControl(ModelInput);
-        Id(ModelInput, dialog ? "ErrorAssistantModel" : "AiModelPicker");
+        Id(ModelInput, "AiModelPicker");
         System.Windows.Automation.AutomationProperties.SetName(ModelInput, I18n.T("model"));
-        save = Button(dialog ? "errorSaveKey" : "save", Save); save.SetResourceReference(System.Windows.Controls.Control.BackgroundProperty, "Accent");
+        save = Button("save", Save); save.SetResourceReference(System.Windows.Controls.Control.BackgroundProperty, "Accent");
         save.SetResourceReference(System.Windows.Controls.Control.BorderBrushProperty, "Accent");
         ((TextBlock)save.Content).SetResourceReference(TextBlock.ForegroundProperty, "OnAccent"); AddControl(save);
         status.SetResourceReference(TextBlock.ForegroundProperty, "Muted"); AddControl(status); Id(status, "AiConnectionStatus");
+        BuildTestArea();
         Service.SelectionChanged += (_, _) =>
         {
             if (updating || Service.SelectedItem is not AiProvider selected || selected.Id == draft.Provider) return;
@@ -82,10 +85,11 @@ internal sealed partial class AiConnectionPanel : StackPanel
             var state = draft.For(draft.Provider); state.Key = KeyInput.Password; state.Models = []; state.Fingerprint = "";
             updating = true; ModelInput.ItemsSource = Array.Empty<AiModelOption>(); updating = false;
             status.Text = "";
+            RefreshTestControls();
         };
         ModelInput.SelectionChanged += (_, _) =>
         {
-            if (!updating) draft.Current.Model = (ModelInput.SelectedItem as AiModelOption)?.Id ?? "";
+            if (!updating) { CancelTest(); draft.Current.Model = (ModelInput.SelectedItem as AiModelOption)?.Id ?? ""; RefreshTestControls(); }
         };
         Loaded += (_, _) => { ChatGptAuth.SessionSignedOut += OnSessionSignedOut; RefreshProvider(); };
         Unloaded += (_, _) => { ChatGptAuth.SessionSignedOut -= OnSessionSignedOut; CancelLoad(); CancelSignIn(); };
@@ -125,7 +129,7 @@ internal sealed partial class AiConnectionPanel : StackPanel
             RefreshSignInArea();
             status.Text = "";
         }
-        finally { updating = false; }
+        finally { updating = false; RefreshTestControls(); }
     }
 
     private void OnSessionSignedOut(string account)
@@ -142,6 +146,7 @@ internal sealed partial class AiConnectionPanel : StackPanel
     }
     private void CancelLoad()
     {
+        CancelTest();
         revision++; loading?.Cancel(); loading = null;
         if (load is not null) load.IsEnabled = true;
     }
@@ -154,6 +159,7 @@ internal sealed partial class AiConnectionPanel : StackPanel
         {
             string key = chatGpt ? "" : KeyInput.Password.Length > 0 ? KeyInput.Password : Settings.GetKey(provider);
             load.IsEnabled = false; status.Text = I18n.T("aiLoadingModels");
+            RefreshTestControls();
             var models = chatGpt ? await ChatGptAuth.Models(draft.ChatGptAccount, cancellation.Token) : await list(provider, key, cancellation.Token);
             if (version != revision || cancellation.IsCancellationRequested || provider != draft.Provider) return;
             var state = draft.Current; state.Models = models; state.Fingerprint = chatGpt ? ChatGptAuth.Fingerprint(draft.ChatGptAccount) : Fingerprint(key);
@@ -163,7 +169,7 @@ internal sealed partial class AiConnectionPanel : StackPanel
         }
         catch (OperationCanceledException) { if (version == revision) status.Text = I18n.T("cancel"); }
         catch (Exception ex) { if (version == revision) status.Text = I18n.T("aiCatalogFailed") + " " + ex.Message; }
-        finally { if (version == revision) { loading = null; load.IsEnabled = true; } }
+        finally { if (version == revision) { loading = null; load.IsEnabled = true; RefreshTestControls(); } }
     }
     private void Save()
     {
@@ -182,7 +188,7 @@ internal sealed partial class AiConnectionPanel : StackPanel
             if (draft.Provider == "openai") Settings.Current.OpenAiAuth = "api";
             Settings.Current.AiProvider = draft.Provider; Settings.Save();
             state.Key = ""; updating = true; KeyInput.Clear(); updating = false;
-            RefreshProvider(); status.Text = I18n.T("errorKeySaved"); saved();
+            RefreshProvider(); status.Text = I18n.T("aiSettingsSaved"); ConnectionSaved(); saved();
         }
         catch (Exception ex) { updating = false; status.Text = I18n.T("errorSaveFailed") + " " + ex.Message; }
     }

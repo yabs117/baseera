@@ -15,9 +15,13 @@ report export. Repairs from changed input remain disabled until reanalysis.
 Its [conversation view](docs/ADVICE-PRESENTATION.md) shows the submitted message,
 service logo/model, selectable formatted replies and independently copied code.
 The [continuous conversation](docs/CONVERSATIONS.md) adds a bottom composer,
-bounded follow-up context, model selection, images/video, local voice recording
+bounded follow-up context, images/video, local voice recording
 and explicit transcription. A local checkpoint asks permission after each ten
 analysis/transcription attempts; it does not know the provider's account balance.
+AI provider, key/sign-in and model selection now live together in
+[Settings → AI service](docs/AI-SETTINGS.md), with an explicit text/image connection
+test and **Open error assistant**. The assistant is for conversation; returning
+from Settings keeps the current temporary chat, draft and attachments.
 
 [العربية](docs/README.ar.md) · [Français](docs/README.fr.md) · [Español](docs/README.es.md)
 
@@ -85,8 +89,8 @@ Settings are grouped by purpose; unsaved translation settings survive appearance
 
 The error assistant can be enabled or disabled with the other tools in Settings.
 When enabled, it also opens separately before the main window on a normal launch. If
-no AI service is configured, it offers a setup form first; closing it lets you keep using
-the app. Keys are protected by the local Windows account and shared with window
+no AI service is configured, it opens the relevant main Settings card first in the
+development preview. Keys are protected by the local Windows account and shared with window
 translation. Error text and the selected image are sent to the selected service only after you
 press **Analyze error**. Review a full-window screenshot before sending: it may
 contain private information. The response gives possible causes, checks and steps,
@@ -131,8 +135,10 @@ confirmation and a Manage usage link are included. See [ChatGPT sign-in](docs/CH
 
 The connection editor reopens without an empty form. From 0.4.13, ChatGPT sign-out
 removes the selected account’s saved profile (including its name/email and local
-credentials) from Baseera, then offers to close only the error assistant. Reopening
-it shows no signed-out account. Old tokenless signed-out profiles are cleaned up at
+credentials) from Baseera. In development 0.4.15 this action lives in main Settings;
+an open assistant keeps its input, clears that account's chat and disables Send
+until reconfigured, without forcing the whole app to close. Reopening Settings
+shows no signed-out account. Old tokenless signed-out profiles are cleaned up at
 startup. API keys, their model choices and unrelated account registrations remain
 independent; the app does not silently switch to API-key billing.
 

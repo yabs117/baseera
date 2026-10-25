@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Security.Cryptography;
 using System.Text.Json;
 using System.Runtime.InteropServices;
 using System.Windows.Automation;
@@ -18,13 +17,14 @@ internal sealed partial class ErrorAssistantWindow
 {
     private readonly ConversationLedger conversation = new();
     private readonly List<AdvicePresenter> turns = [];
-    private readonly ComboBox chatModel = new() { MinWidth = 180, MaxWidth = 350, MaxDropDownHeight = 260, FlowDirection = FlowDirection.LeftToRight };
+    private readonly TextBlock savedConnection = new() { FontSize = 11, TextWrapping = TextWrapping.Wrap };
+    private readonly Border setupBanner = new();
     private readonly TextBlock chatUsage = new(), voiceStatus = new(), videoStatus = new();
     private readonly StackPanel voicePanel = new(), videoPanel = new();
     private readonly Expander assistantTools = new();
     private readonly Border checkpoint = new();
     private readonly StackPanel emptyChat = new() { Margin = new Thickness(24, 65, 24, 24), HorizontalAlignment = HorizontalAlignment.Center };
-    private Button modelLoad = new(), recordButton = new(), transcribeButton = new(), voicePlay = new(), voiceDiscard = new(), newChat = new();
+    private Button recordButton = new(), transcribeButton = new(), voicePlay = new(), voiceDiscard = new(), newChat = new();
     private readonly Func<ErrorChatRequest, CancellationToken, Task<ErrorAdvice>>? analyzeConversation;
     private readonly Func<long, bool>? confirmRequests;
     private readonly Func<IVoiceRecorder> recorderFactory;
@@ -37,11 +37,8 @@ internal sealed partial class ErrorAssistantWindow
     private System.Media.SoundPlayer? playback;
     private readonly Stopwatch recordingClock = new();
     private readonly DispatcherTimer recordingTimer = new() { Interval = TimeSpan.FromMilliseconds(250) };
-    private CancellationTokenSource? mediaRequest, voiceRequest, modelRequest;
+    private CancellationTokenSource? mediaRequest, voiceRequest;
     private ErrorVideo? video;
-    private bool settingModel;
-    private bool modelChoiceRequired;
-    private string modelRecipient = "", modelFingerprint = "";
     private string composerRecipient = "";
     private bool NetworkBusy => active is not null || diagnosticRequest is not null || mediaRequest is not null || voiceRequest is not null || repairRunning;
     private Border BuildComposer()
@@ -55,7 +52,11 @@ internal sealed partial class ErrorAssistantWindow
         AutomationProperties.SetAutomationId(checkpoint, "ChatCheckpoint"); Add(panel, checkpoint, 8);
 
         var top = new WrapPanel { VerticalAlignment = VerticalAlignment.Center };
-        top.Children.Add(configureButton);
+        savedConnection.Foreground = Brush("Muted"); top.Children.Add(savedConnection);
+        var setup = new StackPanel(); Add(setup, Text(I18n.T("aiSetupRequired"), 12), 6);
+        setup.Children.Add(Action("aiOpenSettings", () => ShowConnectionSettings()));
+        setupBanner.Child = setup; setupBanner.Padding = new Thickness(12); setupBanner.BorderBrush = Brush("Line"); setupBanner.BorderThickness = new Thickness(1); setupBanner.CornerRadius = new CornerRadius(5);
+        System.Windows.Automation.AutomationProperties.SetAutomationId(setupBanner, "AssistantSetupNotice"); Add(panel, setupBanner, 8);
         var utilities = new WrapPanel { VerticalAlignment = VerticalAlignment.Center };
         var attach = Action("chatAttach", () => { }); attach.MinWidth = 0;
         var menu = new ContextMenu { Background = Brush("Surface"), Foreground = Brush("Ink"), BorderBrush = Brush("Line") };
@@ -69,7 +70,7 @@ internal sealed partial class ErrorAssistantWindow
         var more = Action("chatMore", () => { }); more.MinWidth = 0; utilities.Children.Add(more);
         var moreMenu = new ContextMenu { Background = Brush("Surface"), Foreground = Brush("Ink") };
         void More(string key, Action action) { var item = new MenuItem { Header = I18n.T(key), Foreground = Brush("Ink") }; item.Click += (_, _) => action(); moreMenu.Items.Add(item); }
-        More("chatDictation", StartDictation); More("chatExport", ExportConversation); More("errorClose", Close);
+        More("chatDictation", StartDictation); More("chatExport", ExportConversation); More("settings", () => ShowConnectionSettings()); More("errorClose", Close);
         more.ContextMenu = moreMenu; more.Click += (_, _) => { moreMenu.PlacementTarget = more; moreMenu.IsOpen = true; };
         Add(panel, top, 4);
 
@@ -95,10 +96,6 @@ internal sealed partial class ErrorAssistantWindow
             if (e.Key == System.Windows.Input.Key.Enter && System.Windows.Input.Keyboard.Modifiers == System.Windows.Input.ModifierKeys.None)
             { e.Handled = true; await Analyze(); }
         };
-        AutomationProperties.SetAutomationId(chatModel, "ChatModelPicker"); AutomationProperties.SetName(chatModel, I18n.T("model"));
-        chatModel.Margin = new Thickness(0, 0, 8, 8); chatModel.MinHeight = 32; top.Children.Add(chatModel);
-        modelLoad = Action("chatModels", async () => await LoadChatModels()); modelLoad.MinWidth = 0; modelLoad.Padding = new Thickness(9, 5, 9, 5); modelLoad.ToolTip = I18n.T("chatModels");
-        modelLoad.Content = new System.Windows.Shapes.Path { Data = Geometry.Parse("M2,7 A5,5 0 1 1 4,11 M2,3 L2,7 L6,7"), Stroke = Brush("Muted"), StrokeThickness = 1.3, Width = 15, Height = 15, Stretch = Stretch.Uniform }; top.Children.Add(modelLoad);
         analyzeButton = Action("errorAnalyze", async () => await Analyze(), true); analyzeButton.MinWidth = 40; analyzeButton.ToolTip = I18n.T("chatSend");
         analyzeButton.Content = new System.Windows.Shapes.Path { Data = Geometry.Parse("M7,13 L7,2 M2,7 L7,2 L12,7"), Stroke = Brush("OnAccent"), StrokeThickness = 1.8, Width = 14, Height = 14, Stretch = Stretch.Uniform };
         AutomationProperties.SetName(analyzeButton, I18n.T("chatSend")); utilities.Children.Add(analyzeButton);
@@ -108,9 +105,7 @@ internal sealed partial class ErrorAssistantWindow
         feedback.FontSize = 11; feedback.Foreground = Brush("Muted"); feedback.MaxHeight = 35; feedback.TextTrimming = TextTrimming.CharacterEllipsis;
         feedback.SetBinding(ToolTipProperty, new System.Windows.Data.Binding("Text") { Source = feedback }); Add(panel, feedback, 0);
         var privacy = Text(I18n.T("chatContextPrivacy"), 10, true); privacy.ToolTip = I18n.T("chatContextPrivacy"); privacy.MaxHeight = 28; privacy.TextTrimming = TextTrimming.CharacterEllipsis; Add(panel, privacy, 0);
-        SeedModel();
-        chatModel.SelectionChanged += (_, _) => SaveChatModel();
-        chatModel.DropDownOpened += async (_, _) => { if (modelRecipient != DiagnosticRecipient) await LoadChatModels(); };
+        RefreshSavedConnection(true);
         recordingTimer.Tick += (_, _) =>
         {
             if (recorder?.Recording != true) return;
@@ -120,47 +115,16 @@ internal sealed partial class ErrorAssistantWindow
         return new Border { Child = new ScrollViewer { Content = panel, MaxHeight = Math.Max(280, Height * .5), VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled }, Background = Brush("Surface"), BorderBrush = Brush("Line"), BorderThickness = new Thickness(0, 1, 0, 0) };
     }
     private void OpenTools() { assistantTools.IsExpanded = true; assistantTools.BringIntoView(); }
-    private void SeedModel()
+    internal void FocusComposer() => problem.Focus();
+    internal void RefreshSavedConnection(bool acknowledged = false)
     {
-        settingModel = true;
-        chatModel.ItemsSource = string.IsNullOrWhiteSpace(AiCatalog.Model) ? Array.Empty<AiModelOption>() : new[] { new AiModelOption(AiCatalog.Model, AiCatalog.Model, AiCatalog.Provider, "aiTierVaries") };
-        chatModel.SelectedIndex = 0; settingModel = false;
-        modelChoiceRequired = false;
-        composerRecipient = DiagnosticRecipient; UpdateMediaStatus();
-        if (configureButton is not null) { configureButton.Content = Text(AiProviderBadge.Name(AiCatalog.Provider, ChatGptAuth.Selected), 12); configureButton.ToolTip = I18n.T("errorConfigure"); }
-    }
-    private string ConnectionFingerprint() => ChatGptAuth.Selected ? ChatGptAuth.Fingerprint(Settings.Current.ChatGptAccount) : Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(Settings.GetKey(AiCatalog.Provider))));
-    private async Task LoadChatModels()
-    {
-        if (NetworkBusy || modelRequest is not null || recorder?.Recording == true) return;
-        using var request = new CancellationTokenSource(); modelRequest = request; modelLoad.IsEnabled = false;
-        string recipient = DiagnosticRecipient;
-        try
-        {
-            string fingerprint = ConnectionFingerprint(); feedback.Text = I18n.T("aiLoadingModels");
-            var options = ChatGptAuth.Selected ? await ChatGptAuth.Models(Settings.Current.ChatGptAccount, request.Token) : await AiCatalog.ListVisionModels(AiCatalog.Provider, Settings.GetKey(AiCatalog.Provider), request.Token);
-            if (closed || request.IsCancellationRequested || recipient != DiagnosticRecipient || fingerprint != ConnectionFingerprint()) return;
-            settingModel = true; modelRecipient = recipient; modelFingerprint = fingerprint; chatModel.ItemsSource = options;
-            chatModel.SelectedItem = options.FirstOrDefault(x => x.Id == AiCatalog.Model); settingModel = false;
-            modelChoiceRequired = chatModel.SelectedItem is null;
-            feedback.Text = options.Count == 0 ? I18n.T("aiNoVisionModels") : I18n.T("chatSelectModel");
-        }
-        catch (OperationCanceledException) { }
-        catch (Exception ex) { if (!closed) feedback.Text = I18n.T("aiCatalogFailed") + " " + ex.Message; }
-        finally { settingModel = false; modelRequest = null; if (!closed) RefreshSmartControls(); }
-    }
-    private void SaveChatModel()
-    {
-        if (settingModel || chatModel.SelectedItem is not AiModelOption option) return;
-        try
-        {
-            if (NetworkBusy || modelRecipient != DiagnosticRecipient || modelFingerprint != ConnectionFingerprint()) { SeedModel(); return; }
-            if (ChatGptAuth.Selected) Settings.Current.ChatGptModel = option.Id; else Settings.SetModel(AiCatalog.Provider, option.Id);
-            modelChoiceRequired = false;
-            Settings.Save(); feedback.Text = I18n.T("chatModelChanged");
-            RefreshSmartControls();
-        }
-        catch (Exception ex) { feedback.Text = I18n.T("errorSaveFailed") + " " + ex.GetType().Name; }
+        if (closed) return;
+        if (acknowledged || composerRecipient.Length == 0) composerRecipient = DiagnosticRecipient;
+        savedConnection.Text = Configured() ? AiProviderBadge.Name(AiCatalog.Provider, ChatGptAuth.Selected) + " · " + AiCatalog.Model : I18n.T("aiConnectionNotConfigured");
+        UpdateMediaStatus();
+        if (recording is not null && recorder?.Recording != true)
+            voiceStatus.Text = string.Format(I18n.T("chatRecordingReady"), recordingClock.Elapsed.TotalSeconds.ToString("0.0")) + "\n" + I18n.T(VoiceTranscription.Supported(AiCatalog.Provider, ChatGptAuth.Selected) ? "chatAudioPrivacy" : "chatAudioUnsupported");
+        RefreshSmartControls();
     }
     private bool AllowRequest()
     {
@@ -185,9 +149,9 @@ internal sealed partial class ErrorAssistantWindow
     }
     private void RefreshConversationControls(bool idle)
     {
-        modelLoad.IsEnabled = idle && modelRequest is null; chatModel.IsEnabled = idle && modelRequest is null;
+        setupBanner.Visibility = realAnalyzer && !Configured() ? Visibility.Visible : Visibility.Collapsed;
         cancelButton.Visibility = cancelButton.IsEnabled ? Visibility.Visible : Visibility.Collapsed;
-        emptyChat.Visibility = turns.Count == 0 && !showConnection ? Visibility.Visible : Visibility.Collapsed;
+        emptyChat.Visibility = turns.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         newChat.IsEnabled = idle; recordButton.IsEnabled = active is null && diagnosticRequest is null && mediaRequest is null && voiceRequest is null && !repairRunning;
         recordButton.Content = Text(I18n.T(recorder?.Recording == true ? "chatStopRecording" : "chatRecord"), 13);
         transcribeButton.IsEnabled = idle && recording is not null && VoiceTranscription.Supported(AiCatalog.Provider, ChatGptAuth.Selected);
@@ -292,7 +256,7 @@ internal sealed partial class ErrorAssistantWindow
     }
     private void CloseConversation()
     {
-        foreach (var turn in turns) turn.Dispose(); conversation.Clear(); mediaRequest?.Cancel(); voiceRequest?.Cancel(); modelRequest?.Cancel();
+        foreach (var turn in turns) turn.Dispose(); conversation.Clear(); mediaRequest?.Cancel(); voiceRequest?.Cancel();
         DiscardRecording(); video = null;
     }
     private void RestoreChatDraft(string text, ErrorImage? picture, ErrorVideo? clip)
