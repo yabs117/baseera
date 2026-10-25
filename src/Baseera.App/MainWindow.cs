@@ -73,13 +73,27 @@ public sealed partial class MainWindow : Window
         if (!Dispatcher.CheckAccess()) { _ = Dispatcher.InvokeAsync(() => OnChatGptSignedOut(account)); return; }
         if (IsLoaded && page is "translate" or "errors") Render(preserveScroll: true);
     }
-    private void ShowErrorAssistant()
+    internal ErrorAssistantWindow? CurrentErrorAssistant => errorAssistant;
+    internal Func<AiProbeConnection, CancellationToken, Task<AiProbeResult>>? ConnectionProbeOverride { get; set; }
+    internal void OpenAiSettings(ErrorAssistantWindow? origin = null)
+    {
+        if (origin is not null && !ReferenceEquals(errorAssistant, origin))
+        {
+            errorAssistant = origin;
+            origin.Closed += (_, _) => { if (ReferenceEquals(errorAssistant, origin)) errorAssistant = null; };
+        }
+        if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
+        Show(); Activate(); OpenTranslationSettings();
+    }
+    internal void ShowErrorAssistant()
     {
         if (!Settings.Current.ErrorAssistantEnabled) return;
-        if (errorAssistant?.IsVisible == true) { errorAssistant.Activate(); return; }
-        errorAssistant = new ErrorAssistantWindow(this);
-        try { errorAssistant.ShowDialog(); }
-        finally { errorAssistant = null; }
+        if (!AiCatalog.Configured()) { OpenAiSettings(); return; }
+        if (errorAssistant is { } existing)
+        { existing.RefreshSavedConnection(true); if (!existing.IsVisible) existing.Show(); existing.Activate(); existing.FocusComposer(); return; }
+        var created = new ErrorAssistantWindow(this); errorAssistant = created;
+        created.Closed += (_, _) => { if (ReferenceEquals(errorAssistant, created)) errorAssistant = null; };
+        created.Show();
     }
     internal bool ShowStartupWelcome()
     {

@@ -356,6 +356,7 @@ public sealed partial class MainWindow
     private void SettingsPage(StackPanel body)
     {
         Heading(body, "settings", "settingsDesc");
+        AiSettingsSection(body);
         SelfUpdateSettings(body);
         SectionHeading(body, "appearance"); var appearance = Stack(); var language = LanguageCombo(); language.Margin = new Thickness(0); appearance.Children.Add(SettingRow("language", language)); Divider(appearance);
         var dark = Toggle("dark", Settings.Current.Dark, value => { Settings.Current.Dark = value; Settings.Save(); ApplyTheme(); Render(true); }); dark.Content = null;
@@ -376,8 +377,12 @@ public sealed partial class MainWindow
             Settings.Current.ExplorerMenu = explorerDraft ?? Settings.Current.ExplorerMenu;
             Settings.Save(); Settings.ApplyWindowsIntegration(); ApplyExplorerShortcut(); startupDraft = startupScanDraft = explorerDraft = null; Render(true); return Task.CompletedTask;
         }, true); apply.HorizontalAlignment = HorizontalAlignment.Left; windows.Children.Add(apply); body.Children.Add(Card(windows));
-        var provider = Stack(); SectionHeading(provider, "translationProvider");
-        var connection = new AiConnectionPanel(aiConnectionDraft, () => SetOperationStatus("done"));
+    }
+    private void AiSettingsSection(StackPanel body)
+    {
+        var provider = Stack(); SectionHeading(provider, "aiSettingsTitle");
+        provider.Children.Add(Text(I18n.T("aiSettingsHelp"), 12, true));
+        var connection = new AiConnectionPanel(aiConnectionDraft, () => SetOperationStatus("done"), probe: ConnectionProbeOverride, openAssistant: ShowErrorAssistant);
         provider.Children.Add(connection);
         translationKeyInput = connection.MissingInput; translationModelInput = connection.ModelInput;
         translationProviderSection = Card(provider);

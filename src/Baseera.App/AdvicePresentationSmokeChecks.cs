@@ -65,17 +65,29 @@ internal static class AdvicePresentationSmokeChecks
                     Find<System.Windows.Controls.Image>(dialog, "AdviceProviderLogo").Source is null)
                     throw new Exception("Response provider identity is missing.");
                 string originalModel = AiCatalog.Model; settings.AiProvider = "anthropic";
+                Find<TextBox>(dialog, "ErrorDescription").Text = "Edited after sending";
+                if (Find<AdviceTextView>(presentation, "AdviceUserText").VisibleText != "OneDrive sync error")
+                    throw new Exception("Conversation rewrote the sent message after editing the composer.");
+                Find<TextBox>(dialog, "ErrorDescription").Text = "OneDrive sync error";
                 var sample = Sample(language); pending.SetResult(sample); await Settle(owner);
                 if (Find<TextBlock>(dialog, "AdviceProviderName").Text != "OpenAI" || Find<TextBlock>(dialog, "AdviceModelName").Text != originalModel)
                     throw new Exception("Provider identity changed after the request started.");
                 settings.AiProvider = "openai";
                 // Force motion for this test even on CI hosts with Windows animation disabled.
                 presentation.Reveal(sample, animate: true); await Task.Delay(300);
-                var greeting = Children(presentation).OfType<TextBlock>().First(t => AdviceLocale.Interface.Greeting.StartsWith(t.Text, StringComparison.Ordinal) && t.FontSize == 14);
-                if (!presentation.IsTyping || greeting.Text.Length == 0 || greeting.Text == AdviceLocale.Interface.Greeting ||
+                var greeting = Find<AdviceTextView>(presentation, "AdviceGreeting");
+                if (!presentation.IsTyping || greeting.VisibleText.Length == 0 || greeting.VisibleText == AdviceLocale.Interface.Greeting ||
                     !Find<Button>(presentation, "AdviceRevealAll").IsVisible || Find<Button>(presentation, "errorCopyAdvice").IsVisible)
                     throw new Exception("Advice was not progressively revealed.");
                 if (language == "ar" && presentation.FlowDirection != FlowDirection.RightToLeft) throw new Exception("Arabic answer is not RTL.");
+                if (language == "en")
+                {
+                    greeting.Focus(); greeting.Selection.Select(greeting.Document.ContentStart, greeting.Document.ContentEnd);
+                    await Task.Delay(80); string pausedText = greeting.VisibleText; await Task.Delay(160);
+                    if (greeting.VisibleText != pausedText || !presentation.IsTyping) throw new Exception("Revealing text destroyed an active reader selection.");
+                    greeting.Selection.Select(greeting.Document.ContentEnd, greeting.Document.ContentEnd); await Task.Delay(180);
+                    if (greeting.VisibleText.Length <= pausedText.Length) throw new Exception("Reveal did not resume after selection was released.");
+                }
                 if (language is "ar" or "en")
                 {
                     await Task.Delay(1100); dialog.UpdateLayout();
@@ -91,22 +103,86 @@ internal static class AdvicePresentationSmokeChecks
                     if (scroll.ScrollableHeight - scroll.VerticalOffset > 44) throw new Exception("Answer following did not resume at the bottom.");
                 }
                 Click(presentation, "AdviceRevealAll"); await Settle(owner);
-                if (presentation.IsTyping || !Children(presentation).OfType<TextBlock>().Any(t => t.Text == sample.Summary) ||
-                    !Children(presentation).OfType<TextBlock>().Any(t => t.Text == sample.Checks[0]) ||
+                if (presentation.IsTyping || !Children(presentation).OfType<AdviceTextView>().Any(t => t.VisibleText == sample.Summary) ||
+                    !Children(presentation).OfType<AdviceTextView>().Any(t => t.VisibleText == sample.Checks[0]) ||
                     !Find<Button>(presentation, "errorCopyAdvice").IsVisible || Find<Button>(presentation, "AdviceRevealAll").IsVisible)
                     throw new Exception("Show all did not finish the complete response.");
                 WindowAppearance.SavePreview(dialog, Path.Combine(output, "advice-complete-" + language + ".png"));
+                presentation.BringIntoView(); await Settle(owner);
+                if (language is "ar" or "en") WindowAppearance.SavePreview(dialog, Path.Combine(output, "advice-conversation-" + language + ".png"));
 
                 // A new request replaces the old timer, then closing detaches the active timer.
                 presentation.Reveal(sample, animate: true); Click(dialog, "errorAnalyze"); await Settle(owner);
-                if (presentation.IsTyping || ReferenceEquals(presentation, Children(dialog).OfType<AdvicePresenter>().Single()))
+                if (presentation.IsTyping || ReferenceEquals(presentation, Children(dialog).OfType<AdvicePresenter>().Last()))
                     throw new Exception("Reanalysis retained the previous animation.");
-                var replacement = Children(dialog).OfType<AdvicePresenter>().Single(); replacement.Reveal(sample, animate: true);
+                var replacement = Children(dialog).OfType<AdvicePresenter>().Last(); replacement.Reveal(sample, animate: true);
                 await Task.Delay(100); dialog.Close();
-                string stopped = string.Join("|", Children(replacement).OfType<TextBlock>().Select(t => t.Text));
+                string stopped = string.Join("|", Children(replacement).OfType<AdviceTextView>().Select(t => t.VisibleText));
                 await Task.Delay(120);
-                if (replacement.IsTyping || stopped != string.Join("|", Children(replacement).OfType<TextBlock>().Select(t => t.Text)))
+                if (replacement.IsTyping || stopped != string.Join("|", Children(replacement).OfType<AdviceTextView>().Select(t => t.VisibleText)))
                     throw new Exception("Closing the dialog left a typing timer alive.");
+            }
+
+            // Exercise the actual conversation/formatting controls for every bundled service.
+            using var fixtureBitmap = new System.Drawing.Bitmap(240, 80);
+            using (var graphics = System.Drawing.Graphics.FromImage(fixtureBitmap))
+            {
+                graphics.Clear(System.Drawing.Color.White);
+                using var fixtureFont = new System.Drawing.Font("Arial", 14);
+                graphics.DrawString("Example error 0x80070005", fixtureFont, System.Drawing.Brushes.Black, 8, 24);
+            }
+            using var fixturePng = new MemoryStream(); fixtureBitmap.Save(fixturePng, System.Drawing.Imaging.ImageFormat.Png);
+            var attachment = ErrorAssistant.Prepare(fixturePng.ToArray(), "fixture-error.png");
+            foreach (bool dark in new[] { false, true })
+            {
+                settings.Dark = dark; settings.Language = dark ? "ar" : "en"; owner.ApplyTheme();
+                var gallery = new Window { Owner = owner, Title = "Baseera — conversation preview", Width = 780, Height = 760, ShowInTaskbar = false,
+                    FontFamily = Brand.InterfaceFont, FontSize = 13, FlowDirection = FlowDirection.LeftToRight, WindowStartupLocation = WindowStartupLocation.CenterOwner };
+                gallery.SetResourceReference(Window.BackgroundProperty, "Bg"); gallery.SetResourceReference(Window.ForegroundProperty, "Ink");
+                gallery.Show();
+                foreach (var provider in AiProviders.All)
+                {
+                    string copied = ""; bool ar = settings.Language == "ar";
+                    string submitted = ar ? "توقفت مزامنة OneDrive. ماذا أفحص أولًا؟" : "OneDrive stopped syncing. What should I check first?";
+                    var styled = new AdvicePresenter(provider.Id, "example-vision-model", provider.Id == "openai", submitted,
+                        provider.Id == "gemini" ? attachment : null, sharedDiagnostics: true, clipboardWriter: text => copied = text);
+                    var canvas = new StackPanel { Margin = new Thickness(28), FlowDirection = ar ? FlowDirection.RightToLeft : FlowDirection.LeftToRight };
+                    canvas.Children.Add(styled);
+                    var viewport = new ScrollViewer { Content = canvas, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
+                    gallery.Content = viewport; await Settle(owner);
+                    if (styled.IsTyping || !Find<TextBlock>(styled, "AdviceState").Text.Contains(I18n.T("adviceWaiting"))) throw new Exception("Pending response invented content before service completion.");
+                    if (provider.Id == "gemini")
+                    {
+                        if (Find<System.Windows.Controls.Image>(styled, "AdviceUserImage").Source is null) throw new Exception("Submitted image thumbnail is missing.");
+                        WindowAppearance.SavePreview(gallery, Path.Combine(output, "conversation-waiting-" + (ar ? "ar" : "en") + ".png"));
+                    }
+                    var styledAdvice = Sample(settings.Language) with
+                    {
+                        Cause = ar ? "ابدأ بمراجعة **رسالة الحالة**. احتفظ برمز `0x80070005` كما هو؛ الصورة وحدها لا تؤكد السبب." : "Start with the **status message**. Keep the code `0x80070005` unchanged; a screenshot alone cannot confirm the cause.",
+                        Steps = ar ? ["افتح OneDrive واقرأ حالة المزامنة.", "إذا كان العطل متعلقًا باستعلام DNS، فهذا نص للمراجعة فقط:\n```text\nipconfig.exe /displaydns\n```\nنسخ النص لا ينفّذه."] :
+                            ["Open OneDrive and read its sync status.", "If the failed operation is a DNS lookup, inspect this text first:\n```text\nipconfig.exe /displaydns\n```\nCopying this text does not run it."]
+                    };
+                    styled.Reveal(styledAdvice, animate: false); await Settle(owner);
+                    var richViews = Children(styled).OfType<AdviceTextView>().ToArray();
+                    if (richViews.Any(v => !v.IsReadOnly || v.ActualWidth <= 0 || v.ActualHeight <= 0 || v.ActualWidth > 730)) throw new Exception("Conversation text lost selection/readability or overflowed its viewport.");
+                    if (!richViews.SelectMany(v => v.Document.Blocks.OfType<System.Windows.Documents.Paragraph>()).SelectMany(p => p.Inlines).OfType<System.Windows.Documents.Run>().Any(r => r.FontWeight == FontWeights.SemiBold))
+                        throw new Exception("Bold response emphasis was lost.");
+                    var command = richViews.Single(v => v.VisibleText == "ipconfig.exe /displaydns");
+                    if (command.FlowDirection != FlowDirection.LeftToRight) throw new Exception("Code direction followed Arabic prose.");
+                    command.Selection.Select(command.Document.ContentStart, command.Document.ContentEnd);
+                    if (!command.Selection.Text.Contains("ipconfig.exe /displaydns")) throw new Exception("Response text cannot be selected.");
+                    Click(styled, "AdviceCopyCode"); if (copied != "ipconfig.exe /displaydns") throw new Exception("Copy code changed or executed the displayed text.");
+                    Click(styled, "errorCopyAdvice"); if (!copied.Contains(styledAdvice.Cause) || !copied.Contains(styledAdvice.Summary)) throw new Exception("Full-response copy omitted advice.");
+                    viewport.ScrollToHome(); await Settle(owner);
+                    if (provider.Id is "openai" or "anthropic" or "gemini" or "xai") WindowAppearance.SavePreview(gallery, Path.Combine(output, "conversation-" + provider.Id + (dark ? "-ar-dark" : "-en") + ".png"));
+                    if (provider.Id == "anthropic")
+                    {
+                        command.BringIntoView(); await Settle(owner);
+                        WindowAppearance.SavePreview(gallery, Path.Combine(output, "conversation-code-" + (dark ? "ar" : "en") + ".png"));
+                    }
+                    styled.Dispose();
+                }
+                gallery.Close();
             }
 
             settings.Language = "en"; settings.Dark = false; owner.ApplyTheme(); owner.Render();
@@ -117,13 +193,13 @@ internal static class AdvicePresentationSmokeChecks
             for (int i = 0; i < 8; i++)
             {
                 await Task.Delay(45);
-                var value = Children(unicode).OfType<TextBlock>().Single(t => t.FontSize == 18).Text;
+                var value = Find<AdviceTextView>(unicode, "AdviceSummary").VisibleText;
                 if (value.Length != accents.Summary.Length && !StringInfo.ParseCombiningCharacters(accents.Summary).Contains(value.Length))
                     throw new Exception("Typing split a Unicode text element.");
             }
             // Respect reduced motion: all text is immediately available and no animation is scheduled.
             unicode.Reveal(accents, animate: false);
-            if (unicode.IsTyping || !Children(unicode).OfType<TextBlock>().Any(t => t.Text == accents.Summary)) throw new Exception("Reduced motion failed.");
+            if (unicode.IsTyping || !Children(unicode).OfType<AdviceTextView>().Any(t => t.VisibleText == accents.Summary)) throw new Exception("Reduced motion failed.");
             unicode.Reveal(new("A", "B", ["C"], [], "D"), animate: true);
             for (int i = 0; i < 50 && unicode.IsTyping; i++) await Task.Delay(60);
             if (unicode.IsTyping || !Find<Button>(unicode, "errorCopyAdvice").IsVisible) throw new Exception("Typing did not naturally complete.");
@@ -140,7 +216,7 @@ internal static class AdvicePresentationSmokeChecks
             if (Children(blocked).OfType<AdvicePresenter>().Any()) throw new Exception("Canceled request retained a response panel.");
             blocked.Close();
             File.WriteAllText(Path.Combine(output, "advice-presentation-result.txt"),
-                "PASS: 20 bundled provider logos in both themes; request-scoped provider/model identity; progressive four-language responses and RTL; Unicode text elements; show all; complete sections; natural completion; reduced motion; reanalysis, cancellation, close and late response cleanup. No live AI requests.");
+                "PASS: 20 bundled provider logos and rendered conversation layouts in both themes; immutable submitted-message/image context; request-scoped provider/model identity; inert bold/inline/fenced-code formatting; selectable read-only text and selection-aware reveal pause/resume; exact code and full-response copy through a fake clipboard; LTR code inside RTL replies; real waiting state; progressive four-language responses; Unicode text elements; show all; natural completion; reduced motion; reanalysis/cancel/close/late-response cleanup. No live AI requests, clipboard changes or command execution.");
         }
         finally
         {

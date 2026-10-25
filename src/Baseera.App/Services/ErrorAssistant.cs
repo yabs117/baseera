@@ -4,10 +4,11 @@ using System.Drawing.Imaging;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using Baseera.Core;
 
 namespace Baseera.App.Services;
 
-internal sealed record ErrorAdvice(string Summary, string Cause, IReadOnlyList<string> Steps, IReadOnlyList<string> Checks, string Confidence, AdviceLocale? Locale = null);
+internal sealed record ErrorAdvice(string Summary, string Cause, IReadOnlyList<string> Steps, IReadOnlyList<string> Checks, string Confidence, AdviceLocale? Locale = null, IReadOnlyList<string>? RepairActions = null, string? Message = null);
 internal sealed record ErrorImage(byte[] Bytes, string Label);
 
 internal static class ErrorAssistant
@@ -54,19 +55,23 @@ internal static class ErrorAssistant
     }
 
     internal static async Task<ErrorAdvice> Analyze(string description, ErrorImage? image, string language, CancellationToken ct,
-        HttpClient? suppliedClient = null, string? suppliedKey = null, string? suppliedModel = null, string? suppliedProvider = null)
+        HttpClient? suppliedClient = null, string? suppliedKey = null, string? suppliedModel = null, string? suppliedProvider = null, string approvedDiagnostics = "",
+        IReadOnlyList<ConversationExchange>? conversation = null, ErrorVideo? video = null, string attachmentContext = "", string localRepairs = "")
     {
         description = description.Trim();
         if (description.Length > 12_000) throw new InvalidDataException(I18n.T("errorTextSize"));
-        if (description.Length == 0 && image is null) throw new InvalidOperationException(I18n.T("errorNeedInput"));
+        if (description.Length == 0 && image is null && video is null && string.IsNullOrWhiteSpace(approvedDiagnostics)) throw new InvalidOperationException(I18n.T("errorNeedInput"));
         string provider = suppliedProvider ?? AiCatalog.Provider;
         bool chatGpt = suppliedProvider is null && suppliedKey is null && ChatGptAuth.Selected;
         string key = suppliedKey ?? (chatGpt ? "" : Settings.GetKey(provider));
         string model = (suppliedModel ?? (chatGpt ? AiCatalog.Model : Settings.GetModel(provider))).Trim();
         if ((!chatGpt && string.IsNullOrWhiteSpace(key)) || !AiCatalog.ValidModel(provider, model)) throw new InvalidOperationException(I18n.T("needsKey"));
         if (image is { Bytes.Length: > 8_000_000 }) throw new InvalidDataException(I18n.T("errorImageSize"));
+        if (approvedDiagnostics.Length > DiagnosticPrivacy.MaxCharacters) throw new InvalidDataException(I18n.T("errorTextSize"));
 
-        string prompt = ErrorAssistantPrompt.Input(description, image is not null, language);
+        if (video is not null && (provider != "gemini" || video.Bytes.Length is < 1 or > 12000000 || video.Seconds is <= 0 or > 60 ||
+            video.Mime is not ("video/mp4" or "video/webm" or "video/wmv" or "video/avi" or "video/mov"))) throw new InvalidDataException(I18n.T("chatVideoUnsupported"));
+        string prompt = ErrorAssistantPrompt.Input(description, image is not null, language, approvedDiagnostics, conversation, attachmentContext, localRepairs);
         if (provider != "gemini")
         {
             string answer = await AiVision.Complete(provider, prompt, image?.Bytes, "image/jpeg", key, model, ct, suppliedClient, useChatGpt: chatGpt,
@@ -75,6 +80,7 @@ internal static class ErrorAssistant
         }
         var parts = new List<object> { new { text = prompt } };
         if (image is not null) parts.Add(new { inline_data = new { mime_type = "image/jpeg", data = Convert.ToBase64String(image.Bytes) } });
+        if (video is not null) parts.Add(new { inline_data = new { mime_type = video.Mime, data = Convert.ToBase64String(video.Bytes) } });
         bool ownClient = suppliedClient is null;
         using var client = ownClient ? AiCatalog.Client(TimeSpan.FromSeconds(90)) : null;
         var http = suppliedClient ?? client!;
@@ -130,9 +136,14 @@ internal static class ErrorAssistant
             throw new InvalidDataException("Invalid response language.");
         var localization = new AdviceLocale(tag, direction == "rtl", AdviceLocale.GreetingFor(tag, Value(locale, "greeting", 300)), Value(locale, "cause_title", 100),
             Value(locale, "steps_title", 100), Value(locale, "checks_title", 100), Value(locale, "confidence_title", 100));
+        IReadOnlyList<string> repairs = root.TryGetProperty("repair_actions", out _) ? RepairCatalog.ValidateRecommendations(Lines(root, "repair_actions", 3)) : Array.Empty<string>();
+        string mode = root.TryGetProperty("response_mode", out var style) ? style.GetString() ?? "diagnosis" : "diagnosis";
+        if (mode is not ("diagnosis" or "conversation")) throw new InvalidDataException("Invalid response mode.");
+        string? message = mode == "conversation" ? Value(root, "message", 6000) : null;
+        if (message is not null && repairs.Count > 0) throw new InvalidDataException("Repair actions require a structured diagnosis.");
         var result = new ErrorAdvice(Value(root, "summary", 400), Value(root, "cause", 1200), Lines(root, "steps", 8),
-            Lines(root, "checks", 5), Value(root, "confidence", 150), localization);
-        if (result.Steps.Count == 0) throw new InvalidDataException("No troubleshooting steps returned.");
+            Lines(root, "checks", 5), Value(root, "confidence", 150), localization, repairs, message);
+        if (result.Steps.Count == 0 && message is null) throw new InvalidDataException("No troubleshooting steps returned.");
         return result;
     }
 }

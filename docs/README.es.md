@@ -1,11 +1,13 @@
 # Baseera
 
+**Versión preliminar 0.4.15:** Smart Repair amplía el asistente existente con diagnósticos locales opcionales, vista previa editable y consentimiento por análisis. Solo ejecuta tres herramientas predefinidas tras confirmación independiente y UAC si corresponde: caché DNS, SFC y DISM. Sin scripts generados ni reinicio automático. [Detalles y límites](SMART-REPAIR.md). [Notas de versión y descarga](RELEASE-0.4.15.md).
+
 Aplicación experimental para Windows: análisis local de archivos, traducción de
 ventanas con Gemini, actualizaciones WinGet elegidas y conversión de imágenes/PDF.
 Interfaz en árabe (RTL), inglés, francés y español.
 
 Requisitos: Windows 10/11 x64. El runtime .NET está incluido. Para compilar con SDK 10:
-`./build.ps1 -Test -Publish`. Abre `artifacts/Baseera-v0.4.14-Windows-x64/Baseera.exe`.
+`./build.ps1 -Test -Publish`. Abre `artifacts/Baseera-v0.4.15-Windows-x64/Baseera.exe`.
 La extensión del navegador se descarga por separado: sigue `START-HERE.html` y carga la carpeta `extension` en Chrome/Edge. No abras sus archivos fuente con doble clic.
 
 Activa solo las herramientas que necesitas. Elige entre 20 servicios directos, como Gemini, OpenAI (modelos ChatGPT), Claude y Grok. Introduce la clave del servicio y carga sus modelos con visión. Se eliminó OpenRouter y se corrigió el cierre al cambiar de servicio. El acceso y los precios dependen de la cuenta. [Servicios y pruebas](AI-SERVICES.md). Envía la captura al servicio seleccionado

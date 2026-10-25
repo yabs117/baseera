@@ -30,6 +30,26 @@ public partial class App : Application
             {
                 string output = e.Args.SkipWhile(x => x != "--smoke").Skip(1).FirstOrDefault() ?? "artifacts";
                 Directory.CreateDirectory(output);
+                if (e.Args.Contains("--ai-settings-only"))
+                {
+                    Settings.Current.Onboarded = true; window.ApplyTheme(); window.Render();
+                    await AiSettingsSmokeChecks.Run(window, output); Shutdown(0); return;
+                }
+                if (e.Args.Contains("--conversation-only"))
+                {
+                    Settings.Current.Onboarded = true; window.ApplyTheme(); window.Render();
+                    await ConversationSmokeChecks.Run(window, output); Shutdown(0); return;
+                }
+                if (e.Args.Contains("--advice-only"))
+                {
+                    Settings.Current.Onboarded = true; window.ApplyTheme(); window.Render();
+                    await AdvicePresentationSmokeChecks.Run(window, output); Shutdown(0); return;
+                }
+                if (e.Args.Contains("--smart-repair-only"))
+                {
+                    Settings.Current.Onboarded = true; window.ApplyTheme(); window.Render();
+                    await SmartRepairSmokeChecks.Run(window, output); Shutdown(0); return;
+                }
                 int renders = 0;
                 void SaveView(string name) { Snapshot(window, Path.Combine(output, name + ".png")); renders++; }
                 Settings.Current.Onboarded = false; Settings.Current.ShowWelcomeOnStartup = false;
@@ -84,10 +104,13 @@ public partial class App : Application
                 await window.CheckStatusLocalization(output);
                 await TranslationSmokeChecks.Run();
                 await ErrorAssistantSmokeChecks.Run(window, output);
+                await AiSettingsSmokeChecks.Run(window, output);
                 window.Activate();
                 await window.CheckTranslationSettingsLink(output);
                 await window.CheckAppList(output);
                 await window.CheckInteractionsAndInspection(output);
+                await SmartRepairSmokeChecks.Run(window, output);
+                await ConversationSmokeChecks.Run(window, output);
                 foreach (string language in new[] { "en", "ar", "fr", "es" })
                 foreach (bool dark in new[] { false, true })
                 {
@@ -123,7 +146,7 @@ public partial class App : Application
         };
         window.Show();
     }
-    private static void Snapshot(Window window, string path)
+    internal static void Snapshot(Window window, string path)
     {
         window.UpdateLayout();
         // Render the opaque LTR frame, including its RTL descendants.

@@ -2,6 +2,11 @@
 
 ## Implemented preview
 
+- Preview 0.4.15: existing error assistant expanded into Smart Repair with
+  selected read-only diagnostics, preview/redaction, single-analysis sharing consent,
+  qualified evidence-aware guidance and explicitly approved fixed native repairs.
+  See [scope and limits](SMART-REPAIR.md). Included in [0.4.15-preview](RELEASE-0.4.15.md).
+
 - WPF desktop shell, collapsible vector-icon navigation, light/dark appearance.
 - First-run opt-in features, Arabic RTL, English, French, Spanish.
 - Bounded recursive ZIP inspection and folder scanning without extraction.
@@ -40,6 +45,8 @@ assurance, or maintainer history that has not occurred.
 
 - [x] Connection panel reopen regression checks and immediate global ChatGPT session disconnection, preserving API connections and unrelated account registrations.
 
-- [x] Remove signed-out account identity and profile from storage/pickers/drafts, clean legacy tokenless entries, and offer to close/reopen the assistant without that account.
+- [x] Remove signed-out account identity and profile from storage/pickers/drafts and clean legacy tokenless entries. Preview 0.4.15 centralizes sign-out in Settings; open assistants clear the account's chat and disable Send without closing the app.
+
+- [x] Preview 0.4.15: one AI configuration card in main Settings, an explicit synthetic-image connection test, and a conversation-only assistant that retains its temporary chat/draft/attachments during Settings navigation.
 
 - [x] Streaming large-file inspection, bounded archive indexing, visible progress and file hashes; clean executable download with legacy updater compatibility; Windows Settings-inspired interaction states and motion preference support.

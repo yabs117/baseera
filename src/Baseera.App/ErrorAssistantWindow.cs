@@ -6,46 +6,50 @@ using DragDropEffects = System.Windows.DragDropEffects;
 
 namespace Baseera.App;
 
-internal sealed class ErrorAssistantWindow : Window
+internal sealed partial class ErrorAssistantWindow : Window
 {
     private readonly Func<string, ErrorImage?, string, CancellationToken, Task<ErrorAdvice>> analyze;
     private readonly bool realAnalyzer;
-    private readonly Func<string, CancellationToken, Task<bool>>? signOutProfile;
     private readonly Grid frame = new();
     private readonly TextBox problem = new() { AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
     private readonly ComboBox windows = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
     private readonly StackPanel result = new();
-    private readonly StackPanel connection = new();
-    private StackPanel planNotice = new();
-    private Border connectionBorder = new();
     private readonly TextBlock feedback = new() { TextWrapping = TextWrapping.Wrap };
     private readonly TextBlock imageLabel = new() { TextWrapping = TextWrapping.Wrap };
     private readonly System.Windows.Controls.Image preview = new() { MaxHeight = 260, MaxWidth = 690, Stretch = Stretch.Uniform, HorizontalAlignment = HorizontalAlignment.Left };
     private readonly TextBlock windowCount = new() { TextWrapping = TextWrapping.Wrap };
     private Button analyzeButton = new(), cancelButton = new();
-    private Button configureButton = new();
     private ErrorImage? image;
     private CancellationTokenSource? active;
     private AdvicePresenter? presentation;
     private ScrollViewer bodyScroll = null!;
     private bool closed, followResponse, scrollingResponse, scrollQueued;
-    private bool showConnection;
     private string responseAccount = "";
-    private AiConnectionPanel connectionPanel = null!;
 
     internal ErrorAssistantWindow(Window owner,
         Func<string, ErrorImage?, string, CancellationToken, Task<ErrorAdvice>>? analyze = null,
-        Func<string, CancellationToken, Task<bool>>? signOutProfile = null)
+        Func<Baseera.Core.DiagnosticOptions, CancellationToken, Task<string>>? collectDiagnostics = null,
+        Func<string, ErrorImage?, string, string, CancellationToken, Task<ErrorAdvice>>? analyzeDiagnostics = null,
+        Func<string, Baseera.Core.RepairApproval?>? approveRepair = null,
+        RepairRunner? repairRunner = null,
+        Func<ErrorChatRequest, CancellationToken, Task<ErrorAdvice>>? analyzeConversation = null,
+        Func<long, bool>? confirmRequests = null, Func<IVoiceRecorder>? recorderFactory = null,
+        Func<byte[], string, string, string, CancellationToken, Task<string>>? transcribeAudio = null, Func<bool>? approveAudioUpload = null)
     {
         Owner = owner;
-        this.signOutProfile = signOutProfile;
-        realAnalyzer = analyze is null;
+        realAnalyzer = analyze is null && analyzeDiagnostics is null && analyzeConversation is null;
+        this.analyzeConversation = analyzeConversation; this.confirmRequests = confirmRequests;
+        this.approveAudioUpload = approveAudioUpload;
+        this.recorderFactory = recorderFactory ?? (() => new VoiceRecording());
+        this.transcribeAudio = transcribeAudio ?? ((audio, provider, key, model, ct) => VoiceTranscription.Transcribe(audio, provider, key, model, ct));
         this.analyze = analyze ?? ((description, picture, language, ct) => ErrorAssistant.Analyze(description, picture, language, ct));
-        showConnection = analyze is null && !Configured();
+        problem.TextChanged += (_, _) => RefreshSmartControls();
+        collectDiagnosticData = collectDiagnostics ?? ((options, ct) => WindowsDiagnostics.Collect(options, ct));
+        analyzeDiagnosticData = analyzeDiagnostics; this.approveRepair = approveRepair; this.repairRunner = repairRunner ?? RepairRunner.Shared;
         WindowStyle = WindowStyle.SingleBorderWindow; ResizeMode = ResizeMode.CanResize;
         ShowInTaskbar = false; WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        Width = Math.Min(820, SystemParameters.WorkArea.Width - 28);
-        Height = Math.Min(790, SystemParameters.WorkArea.Height - 28);
+        Width = Math.Min(960, SystemParameters.WorkArea.Width - 28);
+        Height = Math.Min(860, SystemParameters.WorkArea.Height - 28);
         MinWidth = Math.Min(600, Width); MinHeight = Math.Min(550, Height);
         FontFamily = Brand.InterfaceFont; FontSize = 13; Icon = Brand.WindowIcon;
         UseLayoutRounding = true; SnapsToDevicePixels = true;
@@ -55,8 +59,13 @@ internal sealed class ErrorAssistantWindow : Window
         Content = frame;
         SourceInitialized += (_, _) => WindowAppearance.Apply(this, Settings.Current.Dark);
         ChatGptAuth.SessionSignedOut += OnSessionSignedOut;
-        Closed += (_, _) => { closed = true; ChatGptAuth.SessionSignedOut -= OnSessionSignedOut; active?.Cancel(); presentation?.Dispose(); };
-        Loaded += (_, _) => { if (showConnection) connectionPanel.MissingInput.Focus(); else problem.Focus(); };
+        Closing += (_, e) =>
+        {
+            if (repairRunning && MessageBox.Show(this, I18n.T("smartCloseRunning"), I18n.T("smartApproveTitle"), MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) != MessageBoxResult.Yes) e.Cancel = true;
+        };
+        Closed += (_, _) => { closed = true; ChatGptAuth.SessionSignedOut -= OnSessionSignedOut; active?.Cancel(); diagnosticRequest?.Cancel(); CloseConversation(); };
+        Loaded += (_, _) => problem.Focus();
+        Activated += (_, _) => { if (!NetworkBusy) RefreshSavedConnection(); };
         PreviewKeyDown += (_, e) =>
         {
             if (e.Key == System.Windows.Input.Key.V && System.Windows.Input.Keyboard.Modifiers == System.Windows.Input.ModifierKeys.Control && HasClipboardImage())
@@ -64,9 +73,13 @@ internal sealed class ErrorAssistantWindow : Window
         };
         AllowDrop = true;
         DragOver += (_, e) => { e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop) ? DragDropEffects.Copy : DragDropEffects.None; e.Handled = true; };
-        Drop += (_, e) =>
+        Drop += async (_, e) =>
         {
-            if (e.Data.GetData(DataFormats.FileDrop) is string[] files && files.Length == 1) TryLoadImage(() => ErrorAssistant.PrepareFile(files[0]));
+            if (e.Data.GetData(DataFormats.FileDrop) is string[] files && files.Length == 1)
+            {
+                if (new[] { ".mp4", ".wmv", ".avi", ".webm", ".mov" }.Contains(Path.GetExtension(files[0]).ToLowerInvariant())) await LoadVideo(files[0]);
+                else TryLoadImage(() => ErrorAssistant.PrepareFile(files[0]));
+            }
         };
         Render();
     }
@@ -98,48 +111,13 @@ internal sealed class ErrorAssistantWindow : Window
         frame.RowDefinitions.Add(new RowDefinition());
         frame.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-        var header = new StackPanel { Margin = new Thickness(28, 24, 28, 20) };
-        var title = Text(I18n.T("errorAssistantTitle"), 26); title.FontWeight = arabic ? FontWeights.Medium : FontWeights.SemiBold; Add(header, title, 6);
-        Add(header, Text(I18n.T("errorAssistantIntro"), 13, true), 0);
+        var header = new StackPanel { Margin = new Thickness(22, 16, 22, 12) };
+        var title = Text(I18n.T("errorAssistantTitle"), 22); title.FontWeight = arabic ? FontWeights.Medium : FontWeights.SemiBold; Add(header, title, 4);
+        Add(header, Text(I18n.T("assistantConversationIntro"), 13, true), 0);
         var shortcut = Text(I18n.T("errorShortcut"), 12, true); shortcut.Margin = new Thickness(0, 8, 0, 0); header.Children.Add(shortcut);
         frame.Children.Add(header);
 
-        var body = new StackPanel { Margin = new Thickness(28, 0, 28, 20) };
-        connection.Children.Clear();
-        var connectTitle = Text(I18n.T("errorConnect"), 15); connectTitle.FontWeight = FontWeights.SemiBold; Add(connection, connectTitle, 6);
-        Add(connection, Text(I18n.T("errorConnectHelp"), 12, true), 14);
-        connectionPanel = new AiConnectionPanel(new AiConnectionDraft(), () =>
-        {
-            showConnection = false; connectionBorder.Visibility = Visibility.Collapsed;
-            configureButton.Visibility = Visibility.Visible; analyzeButton.IsEnabled = true;
-            planNotice.Visibility = ChatGptAuth.UsingPlan ? Visibility.Visible : Visibility.Collapsed;
-            feedback.Text = I18n.T("errorKeySaved"); problem.Focus();
-        }, dialog: true, signOutProfile: signOutProfile);
-        Add(connection, connectionPanel, 4);
-        Add(connection, Text(I18n.T("errorKeyLocal"), 12, true), 0);
-        connectionBorder = new Border { Background = Brush("Surface"), BorderBrush = Brush("Line"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(5), Padding = new Thickness(18), Child = connection,
-            Visibility = showConnection ? Visibility.Visible : Visibility.Collapsed };
-        System.Windows.Automation.AutomationProperties.SetAutomationId(connectionBorder, "ErrorConnectionSection");
-        Add(body, connectionBorder, 14);
-        configureButton = Action("errorConfigure", () => ShowConnectionSettings(chooseProvider: true));
-        configureButton.HorizontalAlignment = HorizontalAlignment.Left; configureButton.Visibility = showConnection ? Visibility.Collapsed : Visibility.Visible; Add(body, configureButton, 14);
-        planNotice = ChatGptUi.PlanNotice(); planNotice.Visibility = ChatGptAuth.UsingPlan ? Visibility.Visible : Visibility.Collapsed; Add(body, planNotice, 8);
-
-        Add(body, Text(I18n.T("errorDescription"), 15), 5);
-        problem.Height = 130; problem.Tag = I18n.T("errorDescriptionHint"); problem.FlowDirection = FlowDirection.LeftToRight;
-        System.Windows.Automation.AutomationProperties.SetAutomationId(problem, "ErrorDescription");
-        Add(body, problem, 12);
-
-        var attachment = new StackPanel { Orientation = Orientation.Horizontal };
-        Add(attachment, Action("errorPaste", PasteClipboard), 0);
-        Add(attachment, Action("errorChooseImage", ChooseImage), 0);
-        Add(attachment, Action("errorRemoveImage", () => SetImage(null)), 0);
-        Add(body, attachment, 8);
-        imageLabel.Text = image is null ? I18n.T("errorNoImage") : image.Label;
-        imageLabel.Foreground = Brush("Muted"); Add(body, imageLabel, 8);
-        preview.Visibility = image is null ? Visibility.Collapsed : Visibility.Visible;
-        Add(body, preview, 12);
-
+        var body = new StackPanel { Margin = new Thickness(0, 8, 0, 12) };
         Add(body, Text(I18n.T("errorCaptureWindow"), 13), 5);
         var captureRow = new Grid(); captureRow.ColumnDefinitions.Add(new ColumnDefinition()); captureRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         RefreshWindows(); windows.DisplayMemberPath = "Title"; windows.Tag = I18n.T("errorChooseWindow"); windows.Margin = new Thickness(0, 0, 10, 0);
@@ -149,11 +127,19 @@ internal sealed class ErrorAssistantWindow : Window
         windowCount.Foreground = Brush("Muted"); Add(body, windowCount, 5);
         var refresh = Action("refresh", RefreshWindows); refresh.HorizontalAlignment = HorizontalAlignment.Left; Add(body, refresh, 12);
         Add(body, Text(I18n.T("errorPrivacy"), 12, true), 16);
+        Add(body, BuildDiagnostics(), 16);
 
         result.Children.Clear();
         System.Windows.Automation.AutomationProperties.SetAutomationId(result, "ErrorAdviceResult");
-        Add(body, result, 0);
-        bodyScroll = new ScrollViewer { Content = body, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
+        var thread = new StackPanel { Margin = new Thickness(22, 0, 22, 12) };
+        assistantTools.Header = I18n.T("chatTools"); assistantTools.Content = body; assistantTools.IsExpanded = false;
+        System.Windows.Automation.AutomationProperties.SetAutomationId(assistantTools, "ConversationTools"); Add(thread, assistantTools, 10);
+        emptyChat.Children.Add(new System.Windows.Controls.Image { Source = Brand.WindowIcon, Width = 36, Height = 36, Margin = new Thickness(0, 0, 0, 14) });
+        emptyChat.Children.Add(Text(I18n.T("chatEmptyTitle"), 20));
+        var emptyHint = Text(I18n.T("chatEmptyHelp"), 13, true); emptyHint.Margin = new Thickness(0, 8, 0, 0); emptyHint.MaxWidth = 480; emptyChat.Children.Add(emptyHint);
+        Add(thread, emptyChat, 0);
+        Add(thread, result, 0); Add(thread, repairActions, 8); Add(thread, repairStatus, 12); Add(thread, BuildSession(), 0);
+        bodyScroll = new ScrollViewer { Content = thread, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
         System.Windows.Automation.AutomationProperties.SetAutomationId(bodyScroll, "ErrorAssistantScroll");
         bodyScroll.ScrollChanged += (_, e) =>
         {
@@ -167,41 +153,35 @@ internal sealed class ErrorAssistantWindow : Window
         };
         Grid.SetRow(bodyScroll, 1); frame.Children.Add(bodyScroll);
 
-        var footer = new DockPanel { Background = Brush("Surface"), LastChildFill = false, Margin = new Thickness(0), HorizontalAlignment = HorizontalAlignment.Stretch };
-        var actions = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(28, 16, 28, 10), HorizontalAlignment = HorizontalAlignment.Right };
-        cancelButton = Action("cancel", () => active?.Cancel()); cancelButton.IsEnabled = active is not null; Add(actions, cancelButton, 0);
-        analyzeButton = Action("errorAnalyze", async () => await Analyze(), true);
-        analyzeButton.IsEnabled = active is null && (!realAnalyzer || Configured()); Add(actions, analyzeButton, 0);
-        var close = Action("errorClose", Close); Add(actions, close, 0); footer.Children.Add(actions);
-        feedback.Foreground = Brush("Muted"); feedback.VerticalAlignment = VerticalAlignment.Center;
-        feedback.Margin = new Thickness(28, 16, 0, 10); DockPanel.SetDock(feedback, Dock.Left); footer.Children.Add(feedback);
-        var footerBorder = new Border { Child = footer, Background = Brush("Surface"), BorderBrush = Brush("Line"), BorderThickness = new Thickness(0, 1, 0, 0) };
+        var footerBorder = BuildComposer();
         Grid.SetRow(footerBorder, 2); frame.Children.Add(footerBorder);
+        RefreshSmartControls();
     }
 
-    private void ShowConnectionSettings(bool focus = true, bool chooseProvider = false)
+    private void ShowConnectionSettings()
     {
-        showConnection = true; connectionBorder.Visibility = Visibility.Visible; configureButton.Visibility = Visibility.Collapsed;
-        if (!focus) return;
-        followResponse = false;
-        _ = Dispatcher.InvokeAsync(() =>
-        {
-            if (closed) return;
-            bodyScroll.UpdateLayout();
-            var input = chooseProvider ? connectionPanel.Service : connectionPanel.MissingInput;
-            input.BringIntoView(); input.Focus();
-        }, System.Windows.Threading.DispatcherPriority.Loaded);
+        if (NetworkBusy || recorder?.Recording == true) { feedback.Text = I18n.T("aiFinishBeforeSettings"); return; }
+        InvalidateDiagnosticConsent();
+        presentation?.Finish();
+        if (Owner is MainWindow main) { Hide(); main.OpenAiSettings(this); }
     }
 
     private void OnSessionSignedOut(string account)
     {
         if (!Dispatcher.CheckAccess()) { _ = Dispatcher.InvokeAsync(() => OnSessionSignedOut(account)); return; }
         if (closed) return;
+        InvalidateDiagnosticConsent();
+        RefreshSavedConnection();
         if (responseAccount == account) { active?.Cancel(); presentation?.Finish(); }
-        planNotice.Visibility = ChatGptAuth.UsingPlan ? Visibility.Visible : Visibility.Collapsed;
+        if (conversation.Recipient == "openai|chatgpt|" + account)
+        {
+            voiceRequest?.Cancel();
+            foreach (var turn in turns) turn.Dispose(); turns.Clear(); result.Children.Clear(); presentation = null;
+            conversation.Clear(); repairActions.Children.Clear(); repairSession.Clear(); ClearDiagnostics(); RenderSession();
+        }
         if (realAnalyzer && !Configured())
         {
-            analyzeButton.IsEnabled = false; ShowConnectionSettings(focus: false); feedback.Text = I18n.T("chatGptSignedOut");
+            analyzeButton.IsEnabled = false; feedback.Text = I18n.T("chatGptSignedOut"); RefreshSmartControls();
         }
     }
 
@@ -264,6 +244,8 @@ internal sealed class ErrorAssistantWindow : Window
     private void SetImage(ErrorImage? value)
     {
         image = value;
+        if (value is not null) { video = null; UpdateMediaStatus(); }
+        RefreshSmartControls();
         imageLabel.Text = value?.Label ?? I18n.T("errorNoImage");
         preview.Source = null; preview.Visibility = value is null ? Visibility.Collapsed : Visibility.Visible;
         if (value is null) return;
@@ -303,46 +285,79 @@ internal sealed class ErrorAssistantWindow : Window
     }
     private async Task Analyze()
     {
-        if (active is not null) return;
+        if (NetworkBusy || recorder?.Recording == true) return;
+        if (composerRecipient != DiagnosticRecipient)
+        { RefreshSavedConnection(true); InvalidateDiagnosticConsent(); feedback.Text = I18n.T("chatConnectionChanged"); return; }
         if (!Configured() && realAnalyzer) { ShowConnectionSettings(); feedback.Text = I18n.T("errorKeyMissing"); return; }
-        if (string.IsNullOrWhiteSpace(problem.Text) && image is null) { feedback.Text = I18n.T("errorNeedInput"); return; }
+        if (problem.Text.Length > 12000) { feedback.Text = I18n.T("errorTextSize"); return; }
+        if (recording is not null && !recordingTranscribed) { feedback.Text = I18n.T("chatReviewAudio"); return; }
+        if (string.IsNullOrWhiteSpace(problem.Text) && image is null && video is null && (diagnosticShare.IsChecked != true || string.IsNullOrWhiteSpace(diagnosticPreview.Text))) { feedback.Text = I18n.T("errorNeedInput"); return; }
+        if (diagnosticShare.IsChecked == true && diagnosticRecipient != DiagnosticRecipient) { InvalidateDiagnosticConsent(); feedback.Text = I18n.T("smartReviewRecipient"); return; }
+        if (!AllowRequest()) return;
+        string diagnostics;
+        try { diagnostics = ApprovedDiagnostics(); }
+        catch (InvalidOperationException ex) { feedback.Text = ex.Message; return; }
+        string submittedDescription = problem.Text, submittedProvider = AiCatalog.Provider, submittedModel = AiCatalog.Model;
+        ErrorVideo? submittedVideo = video;
+        ErrorImage? submittedImage = image ?? submittedVideo?.Frames;
+        string mediaContext = submittedVideo is null ? submittedImage is null ? "" : "A user-selected image is attached to this turn only." :
+            submittedProvider == "gemini" ? $"Original video with audio is attached to this turn only; duration {submittedVideo.Seconds:0.0}s." :
+            $"Only six evenly sampled video frames over {submittedVideo.Seconds:0.0}s are attached. No audio or continuous motion is available; do not claim you inspected unsampled moments.";
+        var history = conversation.Context(); conversation.BeginRequest();
+        string localRepairs = string.Join("\n", repairSession.Activity.TakeLast(5).Select(x => $"{x.ActionId}: {x.Status}; exit={x.ExitCode}; UTC {x.Time:O}")
+            .Concat(repairSession.Observations.TakeLast(2).Select(x => $"User-reported outcome, not independently verified: {x.Outcome}; UTC {x.Time:O}")));
         using var request = new CancellationTokenSource(); active = request;
         analyzeButton.IsEnabled = false; cancelButton.IsEnabled = true;
-        feedback.Text = I18n.T("errorAnalyzing"); presentation?.Dispose(); result.Children.Clear();
+        presentation?.Finish(); feedback.Text = I18n.T("errorAnalyzing");
+        repairActions.Children.Clear(); repairStatus.Text = ""; repairSession.Clear(); sessionDetails.IsExpanded = false; reportDiagnostics.IsChecked = false; RenderSession(); RefreshSmartControls();
         responseAccount = ChatGptAuth.Selected ? Settings.Current.ChatGptAccount : "";
-        var current = new AdvicePresenter(AiCatalog.Provider, AiCatalog.Model, ChatGptAuth.Selected);
-        presentation = current; result.Children.Add(current); followResponse = true; FollowResponse();
+        var current = new AdvicePresenter(submittedProvider, submittedModel, ChatGptAuth.Selected, submittedDescription, submittedImage, diagnostics.Length > 0,
+            showGreeting: conversation.Completed == 0);
+        presentation = current; result.Children.Add(current); turns.Add(current);
+        problem.Clear(); SetImage(null); video = null; UpdateMediaStatus(); DiscardRecording();
+        assistantTools.IsExpanded = false; followResponse = true; FollowResponse();
         current.Changed += FollowResponse;
-        current.Completed += () => { if (!closed && ReferenceEquals(presentation, current)) feedback.Text = I18n.T("errorReady"); };
+        current.Completed += () => { if (!closed && ReferenceEquals(presentation, current)) { feedback.Text = I18n.T("errorReady"); RefreshSmartControls(); } };
         current.Copied += () => feedback.Text = I18n.T("errorCopied");
         current.CopyFailed += message => feedback.Text = I18n.T("errorClipboardFailed") + " " + message;
         try
         {
             string language = Settings.Current.Language switch { "ar" => "Arabic", "fr" => "French", "es" => "Spanish", _ => "English" };
-            var advice = await analyze(problem.Text, image, language, request.Token);
+            var chatRequest = new ErrorChatRequest(submittedDescription, submittedImage, submittedVideo, language, diagnostics, history, mediaContext, localRepairs);
+            var advice = analyzeConversation is not null ? await analyzeConversation(chatRequest, request.Token) :
+                analyzeDiagnosticData is not null ? await analyzeDiagnosticData(submittedDescription, submittedImage, language, diagnostics, request.Token) :
+                realAnalyzer ? await ErrorAssistant.Analyze(submittedDescription, submittedProvider == "gemini" && submittedVideo is not null ? null : submittedImage, language, request.Token, approvedDiagnostics: diagnostics,
+                    conversation: history, video: submittedProvider == "gemini" ? submittedVideo : null, attachmentContext: mediaContext, localRepairs: localRepairs) :
+                await analyze(submittedDescription, submittedImage, language, request.Token);
             request.Token.ThrowIfCancellationRequested();
             if (closed) return;
-            feedback.Text = I18n.T("adviceWriting"); current.Reveal(advice);
+            analyzedDescription = submittedDescription; analyzedImage = submittedImage;
+            conversation.Add(submittedDescription, AdviceHistory(advice), mediaContext, contextAllowed: diagnostics.Length == 0);
+            if (turns.Count > Baseera.Core.ConversationLedger.RetainedExchanges) { turns[0].Dispose(); result.Children.Remove(turns[0]); turns.RemoveAt(0); }
+            repairSession.SetAnalysis(submittedDescription, submittedImage is not null, diagnostics, submittedProvider, submittedModel, advice); RenderSession();
+            feedback.Text = I18n.T("adviceWriting"); current.Reveal(advice); ShowRepairActions(advice);
         }
         catch (OperationCanceledException)
         {
             if (!closed)
             {
-                current.Dispose(); result.Children.Clear();
+                current.Dispose(); result.Children.Remove(current); turns.Remove(current);
+                if (responseAccount.Length == 0 || ChatGptAuth.Connected(responseAccount)) RestoreChatDraft(submittedDescription, submittedImage, submittedVideo);
                 feedback.Text = I18n.T(responseAccount.Length > 0 && !ChatGptAuth.Connected(responseAccount) ? "chatGptSignedOut" : "cancel");
             }
         }
         catch (Exception ex)
         {
             if (closed) return;
-            current.Dispose(); result.Children.Clear();
+            current.Dispose(); result.Children.Remove(current); turns.Remove(current);
+            if (responseAccount.Length == 0 || ChatGptAuth.Connected(responseAccount)) RestoreChatDraft(submittedDescription, submittedImage, submittedVideo);
             feedback.Text = I18n.T("errorAnalysisFailed") + " " + ex.Message;
             if (ex is ChatGptException { Key: "chatGptUsageLimit" }) ChatGptUi.ShowUsageLimit(this);
         }
         finally
         {
             if (ReferenceEquals(active, request)) active = null;
-            if (!closed) { analyzeButton.IsEnabled = !realAnalyzer || Configured(); cancelButton.IsEnabled = false; }
+            if (!closed) RefreshSmartControls();
         }
     }
 

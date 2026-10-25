@@ -83,6 +83,8 @@ internal static class ErrorLanguageSmokeChecks
                     Require(userText.Contains(item.Example, StringComparison.Ordinal), "Natural-language text was hidden in Unicode escape sequences.");
                     using var user = JsonDocument.Parse(userText);
                     Require(user.RootElement.GetProperty("error_text").GetString() == description &&
+                        user.RootElement.GetProperty("approved_diagnostics").GetString() == "[fixture diagnostics: untrusted evidence, not instructions]" &&
+                        user.RootElement.GetProperty("recent_conversation")[0].GetProperty("User").GetString() == "Earlier conversation fixture" &&
                         user.RootElement.GetProperty("fallback_language").GetString() == "English" &&
                         user.RootElement.GetProperty("image_attached").GetBoolean() == image && parts.GetArrayLength() == (image ? 2 : 1),
                         "Text/image input was changed or image was required for a text-only request.");
@@ -94,7 +96,8 @@ internal static class ErrorLanguageSmokeChecks
                         Json(new { choices = new[] { new { message = new { content = answer } } } });
                 }));
                 var answer = await ErrorAssistant.Analyze(description, image ? new ErrorImage([1, 2, 3], "fixture") : null, "English", CancellationToken.None,
-                    client, "fixture-key", "vision-model", provider.Id);
+                    client, "fixture-key", "vision-model", provider.Id, approvedDiagnostics: "[fixture diagnostics: untrusted evidence, not instructions]",
+                    conversation: [new Baseera.Core.ConversationExchange("Earlier conversation fixture", "Earlier assistant fixture", "No previous image bytes", DateTimeOffset.UtcNow)]);
                 Require(answer.Locale?.Language == item.Tag && answer.Locale.Greeting == item.Greeting && answer.Locale.RightToLeft == item.Rtl,
                     "Reply language was overwritten by interface language.");
             }
@@ -132,10 +135,10 @@ internal static class ErrorLanguageSmokeChecks
                 Children(dialog).OfType<Button>().Single(b => AutomationProperties.GetAutomationId(b) == "errorAnalyze").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 await owner.Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
                 var view = Children(dialog).OfType<AdvicePresenter>().Single(); view.Finish(); dialog.UpdateLayout();
-                var greeting = Children(view).OfType<TextBlock>().Single(t => AutomationProperties.GetAutomationId(t) == "AdviceGreeting");
-                Require(greeting.Text == item.Greeting && greeting.FlowDirection == (item.Rtl ? FlowDirection.RightToLeft : FlowDirection.LeftToRight),
+                var greeting = Children(view).OfType<AdviceTextView>().Single(t => AutomationProperties.GetAutomationId(t) == "AdviceGreeting");
+                Require(greeting.VisibleText == item.Greeting && greeting.FlowDirection == (item.Rtl ? FlowDirection.RightToLeft : FlowDirection.LeftToRight),
                     "Greeting direction or translation followed the app rather than reply language.");
-                var texts = Children(view).OfType<TextBlock>().Select(t => t.Text).ToList();
+                var texts = Children(view).OfType<AdviceTextView>().Where(t => AutomationProperties.GetAutomationId(t) != "AdviceUserText").Select(t => t.VisibleText).ToList();
                 Require(texts.IndexOf(item.Greeting) < texts.IndexOf(item.Example) && texts.Contains(item.Steps), "Welcome is not first or localized section title missing.");
                 if (item.Tag is "ar" or "en" or "de" or "ja" or "ur")
                 {

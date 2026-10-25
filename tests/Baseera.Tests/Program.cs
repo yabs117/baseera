@@ -62,6 +62,9 @@ try
     Check(folderReport.Files.Count == 2 && folderReport.Findings.Any(f => f.Code == "process-injection-api"), "Folder scan reaches nested files");
     Check(new ModScanner(new ScanLimits(MaxEntries: 1)).Scan(folder).Incomplete, "Folder budget reports incomplete coverage");
     StreamingScanChecks.Run(Check, root);
+    SmartRepairChecks.Run(Check);
+    AdviceMarkupChecks.Run(Check);
+    ConversationChecks.Run(Check);
     SelfUpdateChecks.Run(Check, root);
     AppIdentityChecks.Run(Check);
     Console.WriteLine($"{passed} tests passed.");

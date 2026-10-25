@@ -31,32 +31,32 @@ internal static class ConnectionRegressionSmokeChecks
         try
         {
             Settings.Current.AiProvider = "gemini"; Settings.Current.GeminiModel = "gemini-3.8-flash"; Settings.SetKey("gemini", "fixture-key-not-live");
+            owner.ResetConnectionDraftForSmoke();
             foreach (string locale in new[] { "ar", "en", "fr", "es" })
             {
                 Settings.Current.Language = locale; Settings.Current.Dark = locale == "ar"; owner.ApplyTheme(); owner.Render();
                 var dialog = new ErrorAssistantWindow(owner); dialog.Show(); await Settle(owner);
+                Click(dialog, "chatTools"); await Settle(owner);
                 var description = Find<TextBox>(dialog, "ErrorDescription"); description.Text = "Keep this error description";
                 typeof(ErrorAssistantWindow).GetMethod("SetImage", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.Invoke(dialog, [image]);
-                var panel = Nodes(dialog).OfType<AiConnectionPanel>().Single();
-                Require(!panel.IsVisible && Find<Button>(dialog, "errorConfigure").IsVisible, "Configured assistant should initially hide connection controls.");
+                Require(!Nodes(dialog).OfType<AiConnectionPanel>().Any() && !Nodes(dialog).OfType<PasswordBox>().Any(), "Assistant still embeds connection settings.");
                 for (int attempt = 0; attempt < 3; attempt++)
                 {
-                    Click(dialog, "errorConfigure"); await Settle(owner); dialog.UpdateLayout();
-                    Require(panel.IsVisible && panel.Service.IsVisible && panel.Service.Items.Count == 20 && ReferenceEquals(panel, Nodes(dialog).OfType<AiConnectionPanel>().Single()),
-                        "Reopening connection showed an empty or replaced panel.");
-                    var scroll = Find<ScrollViewer>(dialog, "ErrorAssistantScroll");
-                    var bounds = panel.Service.TransformToAncestor(scroll).TransformBounds(new Rect(0, 0, panel.Service.ActualWidth, panel.Service.ActualHeight));
-                    Require(bounds.Top >= 0 && bounds.Bottom <= scroll.ActualHeight && panel.Service.IsKeyboardFocusWithin,
-                        "Changing service did not bring the provider into view and focus it.");
-                    foreach (var service in AiProviders.All) { panel.Service.SelectedItem = service; dialog.UpdateLayout(); Require(panel.Service.IsVisible, "Provider switch hid the form."); }
+                    typeof(ErrorAssistantWindow).GetMethod("ShowConnectionSettings", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.Invoke(dialog, null);
+                    await Settle(owner); owner.UpdateLayout();
+                    var panel = Nodes(owner).OfType<AiConnectionPanel>().Single();
+                    Require(!dialog.IsVisible && panel.IsVisible && panel.Service.Items.Count == 20, "Settings round trip showed an empty form or left the assistant over Settings.");
+                    var scroll = Nodes(owner).OfType<ScrollViewer>().First(s => Nodes(s).Contains(panel));
+                    var bounds = panel.ModelInput.TransformToAncestor(scroll).TransformBounds(new Rect(0, 0, panel.ModelInput.ActualWidth, panel.ModelInput.ActualHeight));
+                    Require(bounds.Top >= 0 && bounds.Bottom <= scroll.ActualHeight && panel.ModelInput.IsKeyboardFocusWithin, "AI settings did not focus the model in view.");
+                    foreach (var service in AiProviders.All) { panel.Service.SelectedItem = service; owner.UpdateLayout(); Require(panel.Service.IsVisible, "Provider switch hid the form."); }
                     panel.Service.SelectedItem = AiProviders.Get("gemini");
-                    Click(panel, "errorSaveKey"); await Settle(owner);
-                    Require(!panel.IsVisible && Find<Button>(dialog, "errorConfigure").IsVisible && description.Text == "Keep this error description" &&
+                    Click(panel, "save"); await Settle(owner); Click(panel, "AiOpenAssistant"); await Settle(owner);
+                    Require(dialog.IsVisible && ReferenceEquals(dialog, owner.CurrentErrorAssistant) && description.Text == "Keep this error description" &&
                         Nodes(dialog).OfType<System.Windows.Controls.Image>().Any(view => view.Source is not null && view.IsVisible),
-                        "Saving the connection lost input/image state or failed to close the editor.");
+                        "Returning from Settings lost the assistant, input or image.");
                 }
-                Click(dialog, "errorConfigure"); await Settle(owner);
-                if (locale is "ar" or "en") WindowAppearance.SavePreview(dialog, Path.Combine(output, "connection-reopen-" + locale + ".png"));
+                if (locale is "ar" or "en") App.Snapshot(dialog, Path.Combine(output, "connection-reopen-" + locale + ".png"));
                 dialog.Close();
             }
         }
@@ -65,7 +65,7 @@ internal static class ConnectionRegressionSmokeChecks
             Settings.Current.Language = language; Settings.Current.AiProvider = provider; Settings.Current.GeminiModel = model; Settings.Current.Dark = dark;
             Settings.SetKey("gemini", key); Settings.Save(); owner.ApplyTheme(); owner.Render(); owner.Activate();
         }
-        File.WriteAllText(Path.Combine(output, "connection-reopen-result.txt"), "PASS: configured assistant reopens the real connection panel in four languages; provider visible/in viewport/focused; three save/reopen cycles; all twenty provider switches; description and image preserved. No live AI request.");
+        File.WriteAllText(Path.Combine(output, "connection-reopen-result.txt"), "PASS: settings-only connection form in four languages; no assistant password/provider/model editor; three settings/save/reopen cycles; all twenty provider switches; same assistant, description and image preserved. No live AI request.");
     }
 
     internal static async Task<bool> CheckSignOut(MainWindow owner, string account, string otherAccount, HttpClient authHttp, Action releaseRemote, string output)
@@ -74,16 +74,16 @@ internal static class ConnectionRegressionSmokeChecks
         var models = AiProviders.All.ToDictionary(p => p.Id, p => Settings.GetModel(p.Id));
         Settings.Current.Language = "ar"; Settings.Current.Dark = true; owner.ApplyTheme(); owner.Render();
         Task<bool>? logout = null;
-        var assistant = new ErrorAssistantWindow(owner, signOutProfile: (id, ct) => logout = ChatGptAuth.SignOut(id, ct, authHttp));
+        var assistant = new ErrorAssistantWindow(owner);
         var another = new ErrorAssistantWindow(owner);
         var oauthDraft = new AiConnectionDraft { Provider = "openai", OpenAiMode = "chatgpt", ChatGptAccount = account,
             ChatGpt = new() { Model = Settings.Current.ChatGptModel, Models = [new(Settings.Current.ChatGptModel, "Fixture vision", "OpenAI", "chatGptPlan")] } };
         var apiDraft = new AiConnectionDraft { Provider = "anthropic", OpenAiMode = "api", ChatGptAccount = account };
         apiDraft.For("anthropic").Key = "unsaved-api-draft";
         var observer = new AiConnectionPanel(oauthDraft, () => { });
-        AiConnectionPanel oauth = null!;
+        var oauth = new AiConnectionPanel(new AiConnectionDraft(), () => { }, signOutProfile: (id, ct) => logout = ChatGptAuth.SignOut(id, ct, authHttp));
         var api = new AiConnectionPanel(apiDraft, () => { });
-        var contents = new StackPanel(); contents.Children.Add(observer); contents.Children.Add(api);
+        var contents = new StackPanel(); contents.Children.Add(oauth); contents.Children.Add(observer); contents.Children.Add(api);
         var host = new Window { Owner = owner, Width = 680, Height = 720, ShowInTaskbar = false, Content = new ScrollViewer { Content = contents } };
         var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         using var pendingHttp = new HttpClient(new Waiting(started));
@@ -92,8 +92,6 @@ internal static class ConnectionRegressionSmokeChecks
         try
         {
             owner.Navigate("translate"); assistant.Show(); another.Show(); host.Show(); await Settle(owner);
-            oauth = Nodes(assistant).OfType<AiConnectionPanel>().Single();
-            Click(assistant, "errorConfigure"); await Settle(owner);
             Require(ChatGptAuth.UsingPlan && Find<Button>(oauth, "chatGptSignOut").IsEnabled, "Fixture is not connected before sign-out.");
             Find<TextBox>(assistant, "ErrorDescription").Text = "Preserve this text after sign-out";
             inference = ChatGptAuth.Complete(account, Settings.Current.ChatGptModel, "Fixture", null, "image/jpeg", deadline.Token, pendingHttp);
@@ -110,7 +108,8 @@ internal static class ConnectionRegressionSmokeChecks
             Require(owner.IsVisible && assistant.IsVisible && another.IsVisible && host.IsVisible, "Signing out closed an application window.");
             Require(Nodes(owner).OfType<Button>().Any(b => AutomationProperties.GetAutomationId(b) == "TranslationProviderSettings"), "Translation retained its connected state.");
             Require(oauth.ModelInput.Items.Count == 0 && !Find<Button>(oauth, "chatGptSignOut").IsEnabled &&
-                Nodes(assistant).OfType<AiConnectionPanel>().Single().IsVisible && Nodes(another).OfType<AiConnectionPanel>().Single().IsVisible &&
+                !Nodes(assistant).OfType<AiConnectionPanel>().Any() && !Nodes(another).OfType<AiConnectionPanel>().Any() &&
+                Find<Border>(assistant, "AssistantSetupNotice").IsVisible && Find<Border>(another, "AssistantSetupNotice").IsVisible &&
                 !Find<Button>(assistant, "errorAnalyze").IsEnabled && !Find<Button>(another, "errorAnalyze").IsEnabled,
                 "An open panel retained models or an enabled analysis after global sign-out.");
             Require(Find<TextBox>(assistant, "ErrorDescription").Text == "Preserve this text after sign-out" && api.KeyInput.Password == "unsaved-api-draft",
@@ -118,10 +117,11 @@ internal static class ConnectionRegressionSmokeChecks
             Require(AiProviders.All.All(p => Settings.GetKey(p.Id) == keys[p.Id] && Settings.GetModel(p.Id) == models[p.Id]), "API credentials or model choices changed.");
             bool canceled = false; try { await inference; } catch (OperationCanceledException) { canceled = true; }
             Require(canceled, "In-flight account inference survived sign-out.");
-            Click(oauth, "errorSaveKey"); Require(Settings.Current.ChatGptAccount.Length == 0 && !AiCatalog.Configured(), "A stale model was saved after sign-out.");
+            Click(oauth, "save"); Require(Settings.Current.ChatGptAccount.Length == 0 && !AiCatalog.Configured(), "A stale model was saved after sign-out.");
             releaseRemote(); bool revoked = await logout!; await Settle(owner);
             Require(revoked && api.KeyInput.Password == "unsaved-api-draft", "Remote revocation failed or touched the independent API draft.");
-            var notice = Application.Current.Windows.OfType<Window>().Single(w => w.IsVisible && AutomationProperties.GetAutomationId(w) == "ChatGptSignOutNotice");
+            // Independently retain native close-notice coverage; Settings sign-out no longer opens a modal in the assistant.
+            var notice = ChatGptUi.CreateSignOutDialog(assistant, revoked, assistant.Close); notice.Show(); await Settle(owner);
             Require(WindowAppearance.HasNativeCaption(notice, requireMinMax: false), "Sign-out notice lost the native caption.");
             await notice.Dispatcher.InvokeAsync(() => notice.UpdateLayout(), System.Windows.Threading.DispatcherPriority.Render);
             await Task.Delay(200);
@@ -129,7 +129,7 @@ internal static class ConnectionRegressionSmokeChecks
             Click(notice, "CloseAssistantAfterSignOut"); await Settle(owner);
             Require(!assistant.IsVisible && owner.IsVisible && another.IsVisible && host.IsVisible, "Close confirmation did not close only the error assistant.");
             WindowAppearance.SavePreview(another, Path.Combine(output, "chatgpt-global-signout.png"));
-            File.WriteAllText(Path.Combine(output, "chatgpt-signout-result.txt"), "PASS: actual assistant Sign out button removes account identity before delayed remote revocation; all pickers and drafts clear the profile; two assistants and translation update; inference canceled; close notice closes only the assistant; main app stays open; API keys/models and unsaved API draft preserved; unrelated registration stays connected. Fake OAuth only.");
+            File.WriteAllText(Path.Combine(output, "chatgpt-signout-result.txt"), "PASS: Settings Sign out button removes account before delayed remote revocation; all pickers/drafts clear identity; two conversation-only assistants and translation update; inference canceled; native close notice tested separately; main app stays open; API keys/models and unsaved API draft preserved; unrelated registration stays connected. Fake OAuth only.");
             return revoked;
         }
         finally
@@ -169,9 +169,12 @@ internal static class ConnectionRegressionSmokeChecks
             {
                 Settings.Current.Language = locale; Settings.Current.Dark = locale == "ar"; owner.ApplyTheme(); owner.Render();
                 var reopened = new ErrorAssistantWindow(owner); reopened.Show(); await Settle(owner);
-                var picker = Find<ComboBox>(reopened, "ChatGptAccountPicker");
-                Require(picker.Items.Count == 0 && !picker.IsVisible && !Find<Button>(reopened, "chatGptSignOut").IsVisible &&
-                    Find<Button>(reopened, "chatGptContinue").IsVisible, "Reopening the assistant displayed the removed account.");
+                owner.OpenAiSettings(); await Settle(owner);
+                var connection = Nodes(owner).OfType<AiConnectionPanel>().Single(); connection.Service.SelectedItem = AiProviders.Get("openai");
+                Find<ComboBox>(connection, "OpenAiConnectionMethod").SelectedIndex = 1; await Settle(owner);
+                var picker = Find<ComboBox>(connection, "ChatGptAccountPicker");
+                Require(picker.Items.Count == 0 && !picker.IsVisible && !Find<Button>(connection, "chatGptSignOut").IsVisible &&
+                    Find<Button>(connection, "chatGptContinue").IsVisible && !Nodes(reopened).OfType<AiConnectionPanel>().Any(), "Reopening Settings or the assistant displayed a removed account.");
                 var notice = ChatGptUi.CreateSignOutDialog(reopened, revoked: false, reopened.Close); notice.Show(); await Settle(owner);
                 Require(Nodes(notice).OfType<TextBlock>().Any(t => t.Text == I18n.T("chatGptCloseAssistantHelp")) &&
                     Nodes(notice).OfType<TextBlock>().Any(t => t.Text == I18n.T("chatGptRevocationUnconfirmed")), "Localized close notice or unconfirmed-revocation explanation missing.");

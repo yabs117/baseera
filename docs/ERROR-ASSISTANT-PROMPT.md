@@ -73,6 +73,19 @@ the device, guarantee an immediate solution, invent commands/URLs, or recommend
 deleting user data or bypassing security. Baseera still provides advice; it does
 not automatically execute those suggestions.
 
+The 0.4.15 Smart Repair preview adds `approved_diagnostics` as a
+separate lower-trust input field. It stays empty without per-analysis review and
+approval. Diagnostic text never enters instruction channels. Instructions require
+evidence-aware causes, explicit uncertainty and missing facts, and prohibit claiming
+causation from nearby events or certainty from empty/partial logs.
+
+The response schema requests `repair_actions`: zero to three catalog IDs. Legacy
+responses without that field remain accepted as advice-only. Unknown, duplicate or
+oversized action lists are rejected. Only validated catalog IDs can create review
+buttons; no AI-supplied path, argument or script is executable. Native repair needs
+a separate exact-command confirmation and, where applicable, Windows UAC.
+See [Smart Repair scope and verification](SMART-REPAIR.md).
+
 Automated tests inspect fake HTTP payloads for all twenty adapters, verify text-only
 and image request handling, reject malformed locale metadata, and render fifteen
 sample reply locales independently of interface language. They also cover greeting
