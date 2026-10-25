@@ -1,0 +1,38 @@
+name: Security analysis
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: '21 6 * * 1'
+permissions:
+  contents: read
+jobs:
+  dependencies:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Audit direct and transitive packages
+        shell: pwsh
+        run: dotnet restore src/Baseera.App/Baseera.App.csproj -p:NuGetAudit=true -p:NuGetAuditMode=all -p:WarningsAsErrors="NU1901;NU1902;NU1903;NU1904"
+  codeql:
+    runs-on: windows-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - uses: github/codeql-action/init@v4
+        with:
+          languages: csharp
+          queries: security-extended
+      - name: Build for analysis
+        shell: pwsh
+        run: dotnet build src/Baseera.App/Baseera.App.csproj -c Release -p:NuGetAudit=true
+      - uses: github/codeql-action/analyze@v4
