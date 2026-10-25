@@ -12,6 +12,8 @@ download linked below. Build the current source to try it.
 It also offers selectable diagnostic periods and literal event filtering, a local
 evidence overview, command activity, user-reported outcomes and private case
 report export. Repairs from changed input remain disabled until reanalysis.
+Its [conversation view](docs/ADVICE-PRESENTATION.md) shows the submitted message,
+service logo/model, selectable formatted replies and independently copied code.
 
 [العربية](docs/README.ar.md) · [Français](docs/README.fr.md) · [Español](docs/README.es.md)
 

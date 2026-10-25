@@ -30,6 +30,11 @@ public partial class App : Application
             {
                 string output = e.Args.SkipWhile(x => x != "--smoke").Skip(1).FirstOrDefault() ?? "artifacts";
                 Directory.CreateDirectory(output);
+                if (e.Args.Contains("--advice-only"))
+                {
+                    Settings.Current.Onboarded = true; window.ApplyTheme(); window.Render();
+                    await AdvicePresentationSmokeChecks.Run(window, output); Shutdown(0); return;
+                }
                 if (e.Args.Contains("--smart-repair-only"))
                 {
                     Settings.Current.Onboarded = true; window.ApplyTheme(); window.Render();

@@ -14,6 +14,7 @@ internal sealed partial class ErrorAssistantWindow
     private readonly TextBox diagnosticMatch = new() { MaxLength = 100, FlowDirection = FlowDirection.LeftToRight };
     private readonly StackPanel evidenceSummary = new(), sessionActivity = new();
     private readonly Border sessionPanel = new();
+    private readonly Expander sessionDetails = new();
     private readonly TextBlock caseNotice = new() { TextWrapping = TextWrapping.Wrap };
     private readonly CheckBox reportDiagnostics = new();
     private readonly SmartRepairSession repairSession = new();
@@ -80,6 +81,8 @@ internal sealed partial class ErrorAssistantWindow
         resolvedButton.IsEnabled = unresolvedButton.IsEnabled = reportButton.IsEnabled && CurrentCase;
         caseNotice.Visibility = repairSession.Advice is not null && !CurrentCase ? Visibility.Visible : Visibility.Collapsed;
         repairActions.IsEnabled = idle && presentation?.IsTyping != true && CurrentCase;
+        repairActions.Visibility = presentation?.IsTyping == true ? Visibility.Collapsed : Visibility.Visible;
+        sessionPanel.Visibility = repairSession.Advice is null || presentation?.IsTyping == true ? Visibility.Collapsed : Visibility.Visible;
         cancelButton.IsEnabled = active is not null || diagnosticRequest is not null;
     }
     private async Task CollectDiagnostics()
@@ -177,7 +180,7 @@ internal sealed partial class ErrorAssistantWindow
     private Border BuildSession()
     {
         var body = new StackPanel(); var title = Text(I18n.T("smartSessionTitle"), 15); title.FontWeight = FontWeights.SemiBold;
-        Add(body, title, 6); Add(body, Text(I18n.T("smartSessionHelp"), 12, true), 12);
+        Add(body, Text(I18n.T("smartSessionHelp"), 12, true), 12);
         caseNotice.Text = I18n.T("smartCaseChanged"); caseNotice.Foreground = Brush("Muted"); Add(body, caseNotice, 8);
         Add(body, sessionActivity, 8);
         var outcomes = new WrapPanel();
@@ -190,7 +193,9 @@ internal sealed partial class ErrorAssistantWindow
         Add(body, reportDiagnostics, 8);
         reportButton = Action("smartSaveReport", SaveSessionReport); reportButton.HorizontalAlignment = HorizontalAlignment.Left; Add(body, reportButton, 6);
         Add(body, Text(I18n.T("smartReportPrivacy"), 12, true), 0);
-        sessionPanel.Child = body; sessionPanel.Padding = new Thickness(16); sessionPanel.CornerRadius = new CornerRadius(5);
+        body.Margin = new Thickness(0, 12, 0, 0); sessionDetails.Header = title; sessionDetails.Content = body;
+        System.Windows.Automation.AutomationProperties.SetAutomationId(sessionDetails, "SmartSessionDetails");
+        sessionPanel.Child = sessionDetails; sessionPanel.Padding = new Thickness(16); sessionPanel.CornerRadius = new CornerRadius(5);
         sessionPanel.BorderBrush = Brush("Line"); sessionPanel.BorderThickness = new Thickness(1); sessionPanel.Background = Brush("Surface");
         sessionPanel.Visibility = Visibility.Collapsed;
         System.Windows.Automation.AutomationProperties.SetAutomationId(sessionPanel, "SmartRepairSession"); return sessionPanel;
@@ -205,7 +210,8 @@ internal sealed partial class ErrorAssistantWindow
     }
     private void RenderSession()
     {
-        sessionPanel.Visibility = repairSession.Advice is null ? Visibility.Collapsed : Visibility.Visible;
+        sessionPanel.Visibility = repairSession.Advice is null || presentation?.IsTyping == true ? Visibility.Collapsed : Visibility.Visible;
+        if (repairSession.Activity.Count > 0) sessionDetails.IsExpanded = true;
         sessionActivity.Children.Clear();
         foreach (var entry in repairSession.Activity.TakeLast(5))
         {

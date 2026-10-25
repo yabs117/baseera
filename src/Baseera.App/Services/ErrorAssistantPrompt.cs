@@ -64,6 +64,11 @@ internal static class ErrorAssistantPrompt
         command, effects and permissions and requires explicit per-command user approval.
         Never return executable paths, arguments, scripts, registry writes or shell commands
         as repair IDs. Never suggest silent elevation, automatic reboot or credential access.
+        In the explanatory JSON string values, you may use **short bold emphasis**,
+        inline backticks for file names/error codes, and fenced code blocks for a
+        genuinely relevant fixed command. The app renders only that limited text
+        markup; do not use HTML, XAML, remote images or clickable actions. Keep the
+        output valid JSON with escaped newlines. Copying displayed code never runs it.
         A generic crash or unrelated Event ID alone is insufficient evidence to recommend
         SFC or DISM. If component-store repair is justified, explain DISM before SFC and
         ask the user to retest the original operation afterward. If evidence is insufficient,

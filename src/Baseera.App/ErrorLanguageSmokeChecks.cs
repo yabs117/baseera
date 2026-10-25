@@ -133,10 +133,10 @@ internal static class ErrorLanguageSmokeChecks
                 Children(dialog).OfType<Button>().Single(b => AutomationProperties.GetAutomationId(b) == "errorAnalyze").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 await owner.Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
                 var view = Children(dialog).OfType<AdvicePresenter>().Single(); view.Finish(); dialog.UpdateLayout();
-                var greeting = Children(view).OfType<TextBlock>().Single(t => AutomationProperties.GetAutomationId(t) == "AdviceGreeting");
-                Require(greeting.Text == item.Greeting && greeting.FlowDirection == (item.Rtl ? FlowDirection.RightToLeft : FlowDirection.LeftToRight),
+                var greeting = Children(view).OfType<AdviceTextView>().Single(t => AutomationProperties.GetAutomationId(t) == "AdviceGreeting");
+                Require(greeting.VisibleText == item.Greeting && greeting.FlowDirection == (item.Rtl ? FlowDirection.RightToLeft : FlowDirection.LeftToRight),
                     "Greeting direction or translation followed the app rather than reply language.");
-                var texts = Children(view).OfType<TextBlock>().Select(t => t.Text).ToList();
+                var texts = Children(view).OfType<AdviceTextView>().Where(t => AutomationProperties.GetAutomationId(t) != "AdviceUserText").Select(t => t.VisibleText).ToList();
                 Require(texts.IndexOf(item.Greeting) < texts.IndexOf(item.Example) && texts.Contains(item.Steps), "Welcome is not first or localized section title missing.");
                 if (item.Tag is "ar" or "en" or "de" or "ja" or "ur")
                 {

@@ -4,6 +4,8 @@ Smart Repair extends the existing Windows error assistant. It keeps text-only an
 image analysis, the current AI provider/account integrations, progressive responses,
 the four interface languages, Arabic RTL, and the existing sidebar entry. This is
 an unreleased development change; the published 0.4.14 download does not include it.
+The [conversation presentation](ADVICE-PRESENTATION.md) adds submitted-message
+context, selectable formatted replies, code copying and a quieter response layout.
 
 ## Workflow
 
@@ -49,7 +51,9 @@ dialog. If the user edits the description/image while a result is visible or bei
 generated, its repairs and outcome controls are disabled until the input matches
 again or is analyzed anew. The report clearly remains a snapshot of the previous
 analysis. A new analysis clears the previous case and its export-inclusion choice;
-closing the window discards the in-memory case. Histories retain at most twenty
+closing the window discards the in-memory case. Follow-up remains collapsed until
+opened or an actual command attempt is recorded, and is hidden while text reveals.
+Histories retain at most twenty
 command attempts and twenty user observations. The latest five attempts are shown.
 
 ## Read-only collection and privacy
@@ -122,7 +126,7 @@ write their own standard servicing logs. Output is not silently uploaded to AI.
 ## Verification
 
 Local verification on 2026-10-25: build and self-contained Windows x64 publish
-completed with zero warnings/errors; **73 core checks**, **5 extension protocol
+completed with zero warnings/errors; **78 core checks**, **5 extension protocol
 tests**, the existing **58 UI renders** and regression suites, and the additional
 Smart Repair consent/source-selection/fake-execution/four-language checks passed
 on the final packaged executable. This does not constitute live repair validation.

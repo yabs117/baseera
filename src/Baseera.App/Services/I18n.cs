@@ -9,6 +9,15 @@ public static class I18n
     }
     public static readonly Dictionary<string, string[]> Words = new()
     {
+        ["adviceSelectionPaused"] = ["توقّف عرض الكلمات مؤقتًا أثناء تحديد النص.", "Reveal paused while you select text.", "Affichage suspendu pendant la sélection du texte.", "Visualización pausada mientras seleccionas texto."],
+        ["adviceYou"] = ["أنت", "You", "Vous", "Tú"],
+        ["adviceSubmittedMessage"] = ["عرض الرسالة المرسلة", "View submitted message", "Afficher le message envoyé", "Ver mensaje enviado"],
+        ["adviceImageAttached"] = ["الصورة المرسلة مع الرسالة", "Image sent with this message", "Image envoyée avec ce message", "Imagen enviada con este mensaje"],
+        ["adviceDiagnosticsAttached"] = ["أُرفقت بيانات التشخيص التي وافقت عليها.", "Your approved diagnostics were attached.", "Vos diagnostics approuvés ont été joints.", "Se adjuntaron los diagnósticos que autorizaste."],
+        ["adviceWaiting"] = ["بانتظار رد الخدمة…", "Waiting for the service…", "En attente de la réponse…", "Esperando respuesta del servicio…"],
+        ["adviceCopyCode"] = ["نسخ النص", "Copy text", "Copier le texte", "Copiar texto"],
+        ["adviceCode"] = ["نص للمراجعة", "Text to review", "Texte à vérifier", "Texto para revisar"],
+        ["adviceResponseTime"] = ["وصل الرد خلال {0} ث", "Response received in {0}s", "Réponse reçue en {0}s", "Respuesta recibida en {0}s"],
         ["smartMatchHelp"] = ["تصفية اختيارية باسم التطبيق أو رمز الخطأ (نص حرفي). يبحث في أحدث 200 حدث ضمن الفترة؛ قد تُحذف أحداث أقدم أو غير مطابقة.", "Optional app name or error code filter (literal text). Searches the latest 200 events in the range; older or nonmatching events may be omitted.", "Filtre facultatif par application ou code d’erreur (texte littéral). Recherche dans les 200 événements récents ; les autres peuvent être omis.", "Filtro opcional por aplicación o código de error (texto literal). Busca en los últimos 200 eventos; se pueden omitir otros eventos."],
         ["smartTimeRange"] = ["فترة أحداث ويندوز", "Windows event time range", "Période des événements Windows", "Periodo de eventos de Windows"],
         ["smartHours"] = ["آخر {0} ساعة", "Last {0} hours", "Dernières {0} heures", "Últimas {0} horas"],

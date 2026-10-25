@@ -126,6 +126,7 @@ internal static class SmartRepairSmokeChecks
                     Click(dialog, "errorAnalyze"); await Until(() => inputs.Count == 2);
                     Require(inputs[1] == reviewed && share.IsChecked != true, "Reviewed diagnostics were changed or approval was reused.");
                     presentation = Nodes(dialog).OfType<AdvicePresenter>().Single(); presentation.Finish(); await Settle(owner);
+                    Find<Expander>(dialog, "SmartSessionDetails").IsExpanded = true; await Settle(owner);
                     Require(Find<Button>(dialog, "smartSaveReport").IsEnabled && Find<CheckBox>(dialog, "SmartReportDiagnostics").IsChecked != true,
                         "Report was unavailable after analysis or diagnostics were included by default.");
                     var description = Find<TextBox>(dialog, "ErrorDescription"); string original = description.Text; description.Text += " changed";

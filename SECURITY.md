@@ -36,6 +36,11 @@ user-provided text can contain sensitive data, so review the report before shari
 Reports are not automatically uploaded or attached to feedback. Editing the error
 description or replacing its image disables stale repair actions until reanalysis.
 
+The desktop conversation renderer parses a small bounded subset of text markup
+into read-only WPF Runs, not HTML/XAML. It creates no navigable links or remote
+images from model output. Code blocks are selectable/copyable text only; their
+copy buttons do not enter the repair runner or bypass command approval.
+
 AI recommendations cannot become arbitrary commands. Only three immutable catalog
 actions are executable: DNS cache clearing, SFC repair and DISM component-store
 repair with restart suppressed. Each needs an unchecked-by-default acknowledgement

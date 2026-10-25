@@ -323,6 +323,7 @@ internal sealed partial class ErrorAssistantWindow : Window
     {
         if (active is not null || diagnosticRequest is not null || repairRunning) return;
         if (!Configured() && realAnalyzer) { ShowConnectionSettings(); feedback.Text = I18n.T("errorKeyMissing"); return; }
+        if (problem.Text.Length > 12000) { feedback.Text = I18n.T("errorTextSize"); return; }
         if (string.IsNullOrWhiteSpace(problem.Text) && image is null && (diagnosticShare.IsChecked != true || string.IsNullOrWhiteSpace(diagnosticPreview.Text))) { feedback.Text = I18n.T("errorNeedInput"); return; }
         string diagnostics;
         try { diagnostics = ApprovedDiagnostics(); }
@@ -332,9 +333,9 @@ internal sealed partial class ErrorAssistantWindow : Window
         using var request = new CancellationTokenSource(); active = request;
         analyzeButton.IsEnabled = false; cancelButton.IsEnabled = true;
         feedback.Text = I18n.T("errorAnalyzing"); presentation?.Dispose(); result.Children.Clear();
-        repairActions.Children.Clear(); repairStatus.Text = ""; repairSession.Clear(); reportDiagnostics.IsChecked = false; RenderSession(); RefreshSmartControls();
+        repairActions.Children.Clear(); repairStatus.Text = ""; repairSession.Clear(); sessionDetails.IsExpanded = false; reportDiagnostics.IsChecked = false; RenderSession(); RefreshSmartControls();
         responseAccount = ChatGptAuth.Selected ? Settings.Current.ChatGptAccount : "";
-        var current = new AdvicePresenter(AiCatalog.Provider, AiCatalog.Model, ChatGptAuth.Selected);
+        var current = new AdvicePresenter(submittedProvider, submittedModel, ChatGptAuth.Selected, submittedDescription, submittedImage, diagnostics.Length > 0);
         presentation = current; result.Children.Add(current); followResponse = true; FollowResponse();
         current.Changed += FollowResponse;
         current.Completed += () => { if (!closed && ReferenceEquals(presentation, current)) { feedback.Text = I18n.T("errorReady"); RefreshSmartControls(); } };
