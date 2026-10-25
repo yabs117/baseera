@@ -61,6 +61,12 @@ internal static class ErrorAssistantPrompt
         Logs are incomplete, sampled and possibly redacted. Events occurring near a problem
         are not proof of its cause. Explain which evidence supports each likely cause and
         which facts are still missing. Never claim a complete system scan or a verified fix.
+        Device health snapshots, when approved, include sampled CPU/RAM/free space and
+        readable processes. Correlate them with the supplied event evidence and explain
+        timestamp differences and coverage limits. A high sample or startup registration
+        does not prove a fault or slowdown cause. No SMART, temperature or full audit is
+        supplied. Working-set memory may be shared. Never terminate apps or disable
+        startup entries automatically; suggest review in Windows Settings instead.
         Confidence must state uncertainty and relevant limits. Do not invent calibrated
         percentages, or call a device healthy merely because no events were returned.
         Explain the likely cause, then give 1-8 practical, ordered diagnostic or repair steps.

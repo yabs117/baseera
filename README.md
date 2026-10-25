@@ -4,6 +4,11 @@ A modular Windows companion with a compact desktop interface. Enable just the
 tools you need: local file inspection, window translation, selected app updates,
 image conversion, and an error assistant that explains copied Windows errors.
 
+**Development 0.4.16:** the [device control center](docs/DEVICE-CENTER.md) adds local
+CPU/RAM/storage readings, resource observations, process and startup review, and
+optional combined device/event evidence in Smart Repair. These changes are under
+development and are not in the published 0.4.15 download below.
+
 **Preview 0.4.15:** [Baseera Smart Repair](docs/SMART-REPAIR.md)
 extends the existing error assistant with optional read-only diagnostics, a reviewed
 one-request sharing step, and three fixed native repair actions requiring explicit

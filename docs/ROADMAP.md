@@ -2,6 +2,11 @@
 
 ## Implemented preview
 
+- Development 0.4.16: local device control/health/performance centers, sampled CPU,
+  physical memory and fixed-volume space, readable process and startup registration
+  review, and opt-in combined device/event diagnosis. [Scope](DEVICE-CENTER.md).
+  This development change is not yet in the public 0.4.15 release.
+
 - Preview 0.4.15: existing error assistant expanded into Smart Repair with
   selected read-only diagnostics, preview/redaction, single-analysis sharing consent,
   qualified evidence-aware guidance and explicitly approved fixed native repairs.

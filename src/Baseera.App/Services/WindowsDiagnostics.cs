@@ -9,11 +9,13 @@ namespace Baseera.App.Services;
 internal interface IWindowsDiagnosticSource
 {
     string SystemSummary();
+    string DeviceHealth(CancellationToken token) => "[Device health source unavailable.]";
     IEnumerable<string> Events(string channel, int hours, string matchText, CancellationToken token);
 }
 
 internal sealed class WindowsDiagnosticSource : IWindowsDiagnosticSource
 {
+    public string DeviceHealth(CancellationToken token) => DeviceMonitor.DiagnosticText(DeviceMonitor.Collect(true, token).GetAwaiter().GetResult());
     public string SystemSummary()
     {
         long free = new DriveInfo(Path.GetPathRoot(Environment.SystemDirectory)!).AvailableFreeSpace / (1024 * 1024);
@@ -80,6 +82,7 @@ internal static class WindowsDiagnostics
                 text.AppendLine();
             }
             if (options.SystemInfo) Read("System summary", () => new[] { source.SystemSummary() });
+            if (options.DeviceHealth) Read("Device health and performance snapshot", () => new[] { source.DeviceHealth(timeout.Token) });
             if (options.ApplicationEvents) Read("Application critical/errors", () => source.Events("Application", options.Hours, options.MatchText, timeout.Token));
             if (options.SystemEvents) Read("System critical/errors", () => source.Events("System", options.Hours, options.MatchText, timeout.Token));
             token.ThrowIfCancellationRequested();

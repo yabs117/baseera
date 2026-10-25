@@ -63,6 +63,7 @@ try
     Check(new ModScanner(new ScanLimits(MaxEntries: 1)).Scan(folder).Incomplete, "Folder budget reports incomplete coverage");
     StreamingScanChecks.Run(Check, root);
     SmartRepairChecks.Run(Check);
+    DeviceHealthChecks.Run(Check);
     AdviceMarkupChecks.Run(Check);
     ConversationChecks.Run(Check);
     SelfUpdateChecks.Run(Check, root);

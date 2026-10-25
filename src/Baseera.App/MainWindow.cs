@@ -45,7 +45,9 @@ public sealed partial class MainWindow : Window
             if (e.Key == System.Windows.Input.Key.E && System.Windows.Input.Keyboard.Modifiers == (System.Windows.Input.ModifierKeys.Control | System.Windows.Input.ModifierKeys.Shift))
             { e.Handled = true; ShowErrorAssistant(); }
         };
-        Closed += (_, _) => { ChatGptAuth.SessionSignedOut -= OnChatGptSignedOut; operation?.Cancel(); lifetime.Cancel(); updateTimer.Stop(); selfUpdateTimer.Stop(); overlay?.Close(); explorerShortcut?.Dispose(); };
+        deviceTimer.Tick += async (_, _) => { if (IsVisible && WindowState != WindowState.Minimized) await RefreshDevice(); };
+        Loaded += (_, _) => StartDeviceMonitor();
+        Closed += (_, _) => { StopDeviceMonitor(); ChatGptAuth.SessionSignedOut -= OnChatGptSignedOut; operation?.Cancel(); lifetime.Cancel(); updateTimer.Stop(); selfUpdateTimer.Stop(); overlay?.Close(); explorerShortcut?.Dispose(); };
         if (!smoke)
         {
             ApplyExplorerShortcut();
@@ -90,10 +92,11 @@ public sealed partial class MainWindow : Window
         if (!Settings.Current.ErrorAssistantEnabled) return;
         if (!AiCatalog.Configured()) { OpenAiSettings(); return; }
         if (errorAssistant is { } existing)
-        { existing.RefreshSavedConnection(true); if (!existing.IsVisible) existing.Show(); existing.Activate(); existing.FocusComposer(); return; }
+        { existing.RefreshSavedConnection(true); if (!existing.IsVisible) existing.Show(); existing.Activate(); existing.FocusComposer(); ApplyPendingDeviceReview(existing); return; }
         var created = new ErrorAssistantWindow(this); errorAssistant = created;
         created.Closed += (_, _) => { if (ReferenceEquals(errorAssistant, created)) errorAssistant = null; };
         created.Show();
+        ApplyPendingDeviceReview(created);
     }
     internal bool ShowStartupWelcome()
     {

@@ -18,6 +18,7 @@ public sealed class Preferences
     public bool UpdatesEnabled { get; set; }
     public bool ConvertEnabled { get; set; }
     public bool ErrorAssistantEnabled { get; set; } = true;
+    public bool AutoRefreshDevice { get; set; } = true;
     public bool StartWithWindows { get; set; }
     public bool ScanAtStartup { get; set; }
     public string ScanPath { get; set; } = "";

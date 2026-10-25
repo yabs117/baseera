@@ -150,6 +150,7 @@ public sealed partial class MainWindow
 
     public void Render(bool preserveScroll = false)
     {
+        StopDeviceMonitor();
         selectedNavigationIndicator = null;
         translationProviderSection = null; translationKeyInput = null; translationModelInput = null;
         double offset = preserveScroll ? scroller.VerticalOffset : 0;
@@ -182,7 +183,7 @@ public sealed partial class MainWindow
         bottom.Children.Add(NavigationButton("feedback"));
         bottom.Children.Add(NavigationButton("settings"));
         DockPanel.SetDock(bottom, Dock.Bottom); navigation.Children.Add(bottom);
-        var links = Stack(); links.Children.Add(NavigationButton("home"));
+        var links = Stack(); links.Children.Add(NavigationButton("home")); links.Children.Add(NavigationButton("health")); links.Children.Add(NavigationButton("performance"));
         if (expanded) { var label = Text(I18n.T("yourTools"), 11, true); label.Margin = new Thickness(16, 22, 0, 8); links.Children.Add(label); }
         else links.Children.Add(new Border { Height = 18 });
         foreach (string tool in Tools) links.Children.Add(NavigationButton(tool));
@@ -208,9 +209,11 @@ public sealed partial class MainWindow
             case "scan": ScanPage(body); break; case "translate": TranslationPage(body); break;
             case "updates": UpdatesPage(body); break; case "convert": ConvertPage(body); break;
             case "errors": ErrorAssistantPage(body); break;
+            case "health": DeviceHealthPage(body); break; case "performance": PerformancePage(body); break;
             case "feedback": FeedbackPage(body); break;
-            case "settings": SettingsPage(body); break; default: Home(body); break;
+            case "settings": SettingsPage(body); break; default: ControlHome(body); break;
         }
+        StartDeviceMonitor();
         if (offset > 0) _ = Dispatcher.InvokeAsync(() => scroller.ScrollToVerticalOffset(offset), System.Windows.Threading.DispatcherPriority.Loaded);
         if (pendingTranslationSettings && translationProviderSection is { } section)
         {
@@ -365,6 +368,7 @@ public sealed partial class MainWindow
         appearance.Children.Add(SettingRow("welcomeRepeat", welcomeStartup)); Divider(appearance);
         var welcome = Action("welcomeReopen", ShowWelcome); welcome.Margin = new Thickness(0); appearance.Children.Add(SettingRow("welcomeGuide", welcome)); body.Children.Add(Card(appearance));
         SectionHeading(body, "yourTools"); FeatureChoices(body);
+        var monitoring = Stack(); monitoring.Children.Add(Toggle("deviceAutoRefresh", Settings.Current.AutoRefreshDevice, value => { Settings.Current.AutoRefreshDevice = value; Settings.Save(); })); monitoring.Children.Add(Text(I18n.T("deviceLocalOnly"), 12, true)); body.Children.Add(Card(monitoring));
         SectionHeading(body, "windowsIntegration"); var windows = Stack();
         windows.Children.Add(Toggle("startup", startupDraft ?? Settings.Current.StartWithWindows, value => startupDraft = value));
         windows.Children.Add(Toggle("startupScan", startupScanDraft ?? Settings.Current.ScanAtStartup, value => startupScanDraft = value));

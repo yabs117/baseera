@@ -5,7 +5,7 @@ namespace Baseera.App;
 
 internal sealed partial class ErrorAssistantWindow
 {
-    private readonly CheckBox diagnosticSystem = new(), diagnosticApplication = new(), diagnosticEvents = new(), diagnosticShare = new();
+    private readonly CheckBox diagnosticSystem = new(), diagnosticApplication = new(), diagnosticEvents = new(), diagnosticHealth = new(), diagnosticShare = new();
     private readonly TextBox diagnosticPreview = new() { AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MaxLength = DiagnosticPrivacy.MaxCharacters,
         Height = 160, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, FlowDirection = FlowDirection.LeftToRight };
     private readonly StackPanel repairActions = new();
@@ -51,6 +51,7 @@ internal sealed partial class ErrorAssistantWindow
             Add(body, check, 4);
         }
         Source(diagnosticSystem, "smartSystemInfo"); Source(diagnosticApplication, "smartApplicationEvents"); Source(diagnosticEvents, "smartSystemEvents");
+        Source(diagnosticHealth, "deviceDiagnosticSource");
         Add(body, Text(I18n.T("smartTimeRange"), 12, true), 4);
         foreach (int hours in new[] { 1, 6, 24, 72 }) diagnosticRange.Items.Add(new ComboBoxItem { Content = string.Format(I18n.T("smartHours"), hours), Tag = hours });
         System.Windows.Automation.AutomationProperties.SetAutomationId(diagnosticRange, "SmartDiagnosticRange");
@@ -82,7 +83,7 @@ internal sealed partial class ErrorAssistantWindow
         bool idle = !NetworkBusy && recorder?.Recording != true;
         analyzeButton.IsEnabled = idle && (!realAnalyzer || Configured());
         collectDiagnostics.IsEnabled = idle;
-        foreach (var check in new[] { diagnosticSystem, diagnosticApplication, diagnosticEvents }) check.IsEnabled = idle;
+        foreach (var check in new[] { diagnosticSystem, diagnosticApplication, diagnosticEvents, diagnosticHealth }) check.IsEnabled = idle;
         diagnosticRange.IsEnabled = idle;
         diagnosticMatch.IsEnabled = idle;
         reportButton.IsEnabled = idle && repairSession.Advice is not null && presentation?.IsTyping != true;
@@ -98,8 +99,8 @@ internal sealed partial class ErrorAssistantWindow
     {
         if (active is not null || diagnosticRequest is not null || repairRunning) return;
         int hours = diagnosticRange.SelectedItem is ComboBoxItem { Tag: int selected } ? selected : 24;
-        var options = new DiagnosticOptions(diagnosticSystem.IsChecked == true, diagnosticApplication.IsChecked == true, diagnosticEvents.IsChecked == true, hours, diagnosticMatch.Text);
-        if (!options.SystemInfo && !options.ApplicationEvents && !options.SystemEvents) { feedback.Text = I18n.T("smartChooseSource"); return; }
+        var options = new DiagnosticOptions(diagnosticSystem.IsChecked == true, diagnosticApplication.IsChecked == true, diagnosticEvents.IsChecked == true, hours, diagnosticMatch.Text, diagnosticHealth.IsChecked == true);
+        if (!options.SystemInfo && !options.ApplicationEvents && !options.SystemEvents && !options.DeviceHealth) { feedback.Text = I18n.T("smartChooseSource"); return; }
         diagnosticPreview.Clear();
         using var request = new CancellationTokenSource(); diagnosticRequest = request; InvalidateDiagnosticConsent(); RefreshSmartControls();
         feedback.Text = I18n.T("smartCollecting");
@@ -123,6 +124,25 @@ internal sealed partial class ErrorAssistantWindow
         // Per-request approval. Editing, collecting, changing providers, or a new
         // analysis requires another explicit check. Only the displayed text is sent.
         InvalidateDiagnosticConsent(); return value;
+    }
+    internal bool ReviewDeviceSnapshot(DeviceSnapshot snapshot)
+    {
+        if (closed || NetworkBusy || recorder?.Recording == true) { feedback.Text = I18n.T("deviceBusy"); return false; }
+        diagnosticHealth.IsChecked = true;
+        diagnosticPreview.Text = DiagnosticPrivacy.Sanitize(DeviceMonitor.DiagnosticText(snapshot), Environment.UserName, Environment.MachineName);
+        if (string.IsNullOrWhiteSpace(problem.Text)) problem.Text = I18n.T("deviceDiagnosticQuestion");
+        InvalidateDiagnosticConsent(); assistantTools.IsExpanded = true;
+        if (System.Windows.LogicalTreeHelper.GetParent(diagnosticPreview) is not null)
+        {
+            foreach (var expander in FindDiagnosticExpanders(assistantTools)) expander.IsExpanded = true;
+        }
+        feedback.Text = I18n.T("deviceDiagnosticsNotice"); diagnosticPreview.BringIntoView(); return true;
+    }
+    private static IEnumerable<Expander> FindDiagnosticExpanders(DependencyObject root)
+    {
+        if (root is Expander expander) yield return expander;
+        foreach (var child in LogicalTreeHelper.GetChildren(root).OfType<DependencyObject>())
+            foreach (var nested in FindDiagnosticExpanders(child)) yield return nested;
     }
     private void ShowRepairActions(ErrorAdvice advice)
     {

@@ -3,6 +3,14 @@
 Baseera is a preview, not an antivirus replacement. No detection rate or safety
 guarantee has been measured. Keep Windows protection enabled.
 
+Development 0.4.16 adds read-only local device monitoring while a center page is
+visible. Automatic basic readings can be disabled in Settings. Only the performance
+page reads bounded process names/working sets and startup registration names; it
+does not read command lines, execute targets or modify startup state. Snapshots
+stay in memory. Device/event evidence reaches an AI service only through the
+existing editable preview and separate one-request consent. Process names can
+reveal app usage; review before sharing. [Scope](docs/DEVICE-CENTER.md).
+
 The scanner does not execute targets, extract archive contents to disk, exclude
 files from Defender, quarantine files, or upload them. Static indicators can be
 benign. Encrypted/unsupported archives and exhausted limits are reported as
