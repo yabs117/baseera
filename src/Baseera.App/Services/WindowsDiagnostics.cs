@@ -9,7 +9,7 @@ namespace Baseera.App.Services;
 internal interface IWindowsDiagnosticSource
 {
     string SystemSummary();
-    IEnumerable<string> Events(string channel, int hours, CancellationToken token);
+    IEnumerable<string> Events(string channel, int hours, string matchText, CancellationToken token);
 }
 
 internal sealed class WindowsDiagnosticSource : IWindowsDiagnosticSource
@@ -19,14 +19,15 @@ internal sealed class WindowsDiagnosticSource : IWindowsDiagnosticSource
         long free = new DriveInfo(Path.GetPathRoot(Environment.SystemDirectory)!).AvailableFreeSpace / (1024 * 1024);
         return $"Windows version/build: {Environment.OSVersion.Version}\nOS architecture: {RuntimeInformation.OSArchitecture}\nLogical processors: {Environment.ProcessorCount}\nSystem drive free MiB: {free}\nUptime hours: {TimeSpan.FromMilliseconds(Environment.TickCount64).TotalHours:0.0}";
     }
-    public IEnumerable<string> Events(string channel, int hours, CancellationToken token)
+    public IEnumerable<string> Events(string channel, int hours, string matchText, CancellationToken token)
     {
         if (channel is not ("Application" or "System") || hours is < 1 or > 72) throw new ArgumentException("Invalid event query.");
         var query = new EventLogQuery(channel, PathType.LogName,
             $"*[System[(Level=1 or Level=2) and TimeCreated[timediff(@SystemTime) <= {hours * 3600000L}]]]" ) { ReverseDirection = true };
         using var reader = new EventLogReader(query) { BatchSize = 8 };
         using var cancel = token.Register(reader.CancelReading);
-        for (int i = 0; i < 15; i++)
+        matchText = matchText.Trim(); int matched = 0;
+        for (int i = 0; i < (matchText.Length == 0 ? 15 : 200) && matched < 15; i++)
         {
             token.ThrowIfCancellationRequested();
             using var item = reader.ReadEvent(TimeSpan.FromMilliseconds(400));
@@ -35,9 +36,12 @@ internal sealed class WindowsDiagnosticSource : IWindowsDiagnosticSource
             try { message = item.FormatDescription() ?? "Message unavailable."; }
             catch (EventLogException) { message = "Message unavailable; event ID and provider retained."; }
             if (message.Length > 1600) message = message[..(char.IsHighSurrogate(message[1599]) ? 1599 : 1600)] + " [truncated]";
-            yield return $"{item.TimeCreated?.ToUniversalTime():O} | {channel} | {item.ProviderName} | ID {item.Id} | Level {item.Level}\n{message}";
+            string record = $"{item.TimeCreated?.ToUniversalTime():O} | {channel} | {item.ProviderName} | ID {item.Id} | Level {item.Level}\n{message}";
+            if (!Matches(record, matchText)) continue;
+            matched++; yield return record;
         }
     }
+    internal static bool Matches(string record, string matchText) => record.Contains(matchText.Trim(), StringComparison.OrdinalIgnoreCase);
 }
 
 internal static class WindowsDiagnostics
@@ -51,6 +55,8 @@ internal static class WindowsDiagnostics
             var text = new StringBuilder("Baseera Smart Repair — local read-only diagnostics\n");
             text.AppendLine($"Collected UTC: {DateTimeOffset.UtcNow:O}; lookback: {options.Hours} h.");
             text.AppendLine("Scope: selected sources only; at most 15 critical/error events per channel. This is not a complete system audit. Redaction is best effort; review the text before sharing.\n");
+            if (!string.IsNullOrWhiteSpace(options.MatchText))
+                text.AppendLine("Literal text filter: " + System.Text.Json.JsonSerializer.Serialize(options.MatchText.Trim()) + "; searches at most 200 recent critical/error entries per channel within the time range and collection deadline. Matches cover event headers and the first 1600 message characters only. Older/nonmatching events are omitted.\n");
             void Read(string label, Func<IEnumerable<string>> read)
             {
                 text.AppendLine("--- " + label + " ---");
@@ -66,6 +72,7 @@ internal static class WindowsDiagnostics
                         text.AppendLine(line); count++;
                     }
                     if (count == 0) text.AppendLine("[No matching events returned. This does not prove the absence of a problem.]");
+                    if (count == 15) text.AppendLine("[Sample limit reached; additional matching events may exist.]");
                 }
                 catch (OperationCanceledException) when (!token.IsCancellationRequested) { text.AppendLine("[Collection deadline reached; source incomplete.]"); }
                 catch (Exception ex) when (ex is EventLogException or UnauthorizedAccessException or IOException or System.ComponentModel.Win32Exception)
@@ -73,8 +80,8 @@ internal static class WindowsDiagnostics
                 text.AppendLine();
             }
             if (options.SystemInfo) Read("System summary", () => new[] { source.SystemSummary() });
-            if (options.ApplicationEvents) Read("Application critical/errors", () => source.Events("Application", options.Hours, timeout.Token));
-            if (options.SystemEvents) Read("System critical/errors", () => source.Events("System", options.Hours, timeout.Token));
+            if (options.ApplicationEvents) Read("Application critical/errors", () => source.Events("Application", options.Hours, options.MatchText, timeout.Token));
+            if (options.SystemEvents) Read("System critical/errors", () => source.Events("System", options.Hours, options.MatchText, timeout.Token));
             token.ThrowIfCancellationRequested();
             return DiagnosticPrivacy.Sanitize(text.ToString(), Environment.UserName, Environment.MachineName);
         }, token);

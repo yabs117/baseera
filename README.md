@@ -9,6 +9,9 @@ extends the existing error assistant with optional read-only diagnostics, a revi
 one-request sharing step, and three fixed native repair actions requiring explicit
 per-command approval. This development change is not yet in the published 0.4.14
 download linked below. Build the current source to try it.
+It also offers selectable diagnostic periods and literal event filtering, a local
+evidence overview, command activity, user-reported outcomes and private case
+report export. Repairs from changed input remain disabled until reanalysis.
 
 [العربية](docs/README.ar.md) · [Français](docs/README.fr.md) · [Español](docs/README.es.md)
 

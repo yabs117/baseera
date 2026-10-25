@@ -24,6 +24,17 @@ sharing approval before being included in an AI request. Redaction is best effor
 logs may still contain sensitive data and must be reviewed. No Security channel,
 credential store, personal files or raw event XML is requested. Diagnostics remain
 in memory and are not attached to feedback or persisted in preferences.
+Optional event filtering is literal text matching, never an interpolated XPath or
+shell expression. A local index groups displayed event headers and error codes;
+it neither authenticates edited logs nor establishes a cause or a healthy device.
+
+Case reports are saved only through an explicit local file picker. They include
+the analyzed description/advice and bounded in-memory command/outcome history;
+diagnostic snapshots are excluded unless separately selected. Stored credentials,
+account identifiers and screenshot bytes are not exported. Redaction is best effort:
+user-provided text can contain sensitive data, so review the report before sharing.
+Reports are not automatically uploaded or attached to feedback. Editing the error
+description or replacing its image disables stale repair actions until reanalysis.
 
 AI recommendations cannot become arbitrary commands. Only three immutable catalog
 actions are executable: DNS cache clearing, SFC repair and DISM component-store

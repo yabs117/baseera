@@ -45,6 +45,7 @@ internal sealed partial class ErrorAssistantWindow : Window
         this.signOutProfile = signOutProfile;
         realAnalyzer = analyze is null && analyzeDiagnostics is null;
         this.analyze = analyze ?? ((description, picture, language, ct) => ErrorAssistant.Analyze(description, picture, language, ct));
+        problem.TextChanged += (_, _) => RefreshSmartControls();
         collectDiagnosticData = collectDiagnostics ?? ((options, ct) => WindowsDiagnostics.Collect(options, ct));
         analyzeDiagnosticData = analyzeDiagnostics; this.approveRepair = approveRepair; this.repairRunner = repairRunner ?? RepairRunner.Shared;
         showConnection = realAnalyzer && !Configured();
@@ -165,7 +166,7 @@ internal sealed partial class ErrorAssistantWindow : Window
         result.Children.Clear();
         System.Windows.Automation.AutomationProperties.SetAutomationId(result, "ErrorAdviceResult");
         Add(body, result, 0);
-        Add(body, repairActions, 8); Add(body, repairStatus, 0);
+        Add(body, repairActions, 8); Add(body, repairStatus, 12); Add(body, BuildSession(), 0);
         bodyScroll = new ScrollViewer { Content = body, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
         System.Windows.Automation.AutomationProperties.SetAutomationId(bodyScroll, "ErrorAssistantScroll");
         bodyScroll.ScrollChanged += (_, e) =>
@@ -190,6 +191,7 @@ internal sealed partial class ErrorAssistantWindow : Window
         feedback.Margin = new Thickness(28, 16, 0, 10); DockPanel.SetDock(feedback, Dock.Left); footer.Children.Add(feedback);
         var footerBorder = new Border { Child = footer, Background = Brush("Surface"), BorderBrush = Brush("Line"), BorderThickness = new Thickness(0, 1, 0, 0) };
         Grid.SetRow(footerBorder, 2); frame.Children.Add(footerBorder);
+        RefreshSmartControls();
     }
 
     private void ShowConnectionSettings(bool focus = true, bool chooseProvider = false)
@@ -279,6 +281,7 @@ internal sealed partial class ErrorAssistantWindow : Window
     private void SetImage(ErrorImage? value)
     {
         image = value;
+        RefreshSmartControls();
         imageLabel.Text = value?.Label ?? I18n.T("errorNoImage");
         preview.Source = null; preview.Visibility = value is null ? Visibility.Collapsed : Visibility.Visible;
         if (value is null) return;
@@ -324,10 +327,12 @@ internal sealed partial class ErrorAssistantWindow : Window
         string diagnostics;
         try { diagnostics = ApprovedDiagnostics(); }
         catch (InvalidOperationException ex) { feedback.Text = ex.Message; return; }
+        string submittedDescription = problem.Text, submittedProvider = AiCatalog.Provider, submittedModel = AiCatalog.Model;
+        ErrorImage? submittedImage = image;
         using var request = new CancellationTokenSource(); active = request;
         analyzeButton.IsEnabled = false; cancelButton.IsEnabled = true;
         feedback.Text = I18n.T("errorAnalyzing"); presentation?.Dispose(); result.Children.Clear();
-        repairActions.Children.Clear(); repairStatus.Text = ""; RefreshSmartControls();
+        repairActions.Children.Clear(); repairStatus.Text = ""; repairSession.Clear(); reportDiagnostics.IsChecked = false; RenderSession(); RefreshSmartControls();
         responseAccount = ChatGptAuth.Selected ? Settings.Current.ChatGptAccount : "";
         var current = new AdvicePresenter(AiCatalog.Provider, AiCatalog.Model, ChatGptAuth.Selected);
         presentation = current; result.Children.Add(current); followResponse = true; FollowResponse();
@@ -338,11 +343,13 @@ internal sealed partial class ErrorAssistantWindow : Window
         try
         {
             string language = Settings.Current.Language switch { "ar" => "Arabic", "fr" => "French", "es" => "Spanish", _ => "English" };
-            var advice = analyzeDiagnosticData is not null ? await analyzeDiagnosticData(problem.Text, image, language, diagnostics, request.Token) :
-                realAnalyzer ? await ErrorAssistant.Analyze(problem.Text, image, language, request.Token, approvedDiagnostics: diagnostics) :
-                await analyze(problem.Text, image, language, request.Token);
+            var advice = analyzeDiagnosticData is not null ? await analyzeDiagnosticData(submittedDescription, submittedImage, language, diagnostics, request.Token) :
+                realAnalyzer ? await ErrorAssistant.Analyze(submittedDescription, submittedImage, language, request.Token, approvedDiagnostics: diagnostics) :
+                await analyze(submittedDescription, submittedImage, language, request.Token);
             request.Token.ThrowIfCancellationRequested();
             if (closed) return;
+            analyzedDescription = submittedDescription; analyzedImage = submittedImage;
+            repairSession.SetAnalysis(submittedDescription, submittedImage is not null, diagnostics, submittedProvider, submittedModel, advice); RenderSession();
             feedback.Text = I18n.T("adviceWriting"); current.Reveal(advice); ShowRepairActions(advice);
         }
         catch (OperationCanceledException)

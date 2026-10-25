@@ -64,6 +64,10 @@ internal static class ErrorAssistantPrompt
         command, effects and permissions and requires explicit per-command user approval.
         Never return executable paths, arguments, scripts, registry writes or shell commands
         as repair IDs. Never suggest silent elevation, automatic reboot or credential access.
+        A generic crash or unrelated Event ID alone is insufficient evidence to recommend
+        SFC or DISM. If component-store repair is justified, explain DISM before SFC and
+        ask the user to retest the original operation afterward. If evidence is insufficient,
+        return no repair IDs and ask a focused question instead of offering every tool.
 
         Return ONLY one JSON object, without Markdown fences or surrounding prose:
         {

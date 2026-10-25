@@ -12,9 +12,11 @@ internal static class SmartRepairSmokeChecks
     private sealed class Source : IWindowsDiagnosticSource
     {
         internal readonly List<string> Calls = [];
+        internal int Hours; internal string MatchText = "";
         public string SystemSummary() { Calls.Add("info"); return "Windows fixture build; no identifiers"; }
-        public IEnumerable<string> Events(string channel, int hours, CancellationToken token)
+        public IEnumerable<string> Events(string channel, int hours, string matchText, CancellationToken token)
         {
+            Hours = hours; MatchText = matchText;
             Calls.Add(channel); token.ThrowIfCancellationRequested();
             if (channel == "System") throw new UnauthorizedAccessException();
             return Enumerable.Repeat(@"Application crash 1000 C:\Users\FixtureUser\secret.txt fixture@example.com 192.168.1.2 password=secret;", 100);
@@ -39,6 +41,10 @@ internal static class SmartRepairSmokeChecks
         string evidence = await WindowsDiagnostics.Collect(new DiagnosticOptions(ApplicationEvents: true, SystemEvents: true), CancellationToken.None, source);
         Require(source.Calls.SequenceEqual(new[] { "Application", "System" }) && !evidence.Contains("FixtureUser") && !evidence.Contains("fixture@example.com") && evidence.Contains("Source unavailable") && evidence.Length <= DiagnosticPrivacy.MaxCharacters,
             "Selected read-only sources, redaction or unavailable-source coverage failed.");
+        Require(WindowsDiagnosticSource.Matches("Example App ERROR 0x80070005", " error 0X80070005 ") && !WindowsDiagnosticSource.Matches("Example App", "App.*") && WindowsDiagnosticSource.Matches("anything", ""),
+            "Literal filtering was case-sensitive, regex-based or rejected empty filters.");
+        await WindowsDiagnostics.Collect(new DiagnosticOptions(ApplicationEvents: true, Hours: 6, MatchText: "0x80070005"), CancellationToken.None, source);
+        Require(source.Hours == 6 && source.MatchText == "0x80070005", "Selected time range/filter did not reach diagnostic source.");
         using (var cancel = new CancellationTokenSource())
         {
             cancel.Cancel(); bool canceled = false;
@@ -49,6 +55,19 @@ internal static class SmartRepairSmokeChecks
         fixture["repair_actions"] = new JsonArray("flush-dns");
         var advice = ErrorAssistant.ParseAdvice(fixture.ToJsonString());
         Require(advice.RepairActions!.SequenceEqual(new[] { "flush-dns" }), "Catalog recommendations were not parsed.");
+        var report = new SmartRepairSession();
+        report.SetAnalysis("Example problem user@example.com", true, "Reviewed diagnostics private-marker password=private-secret;", "gemini", "fixture-model", advice);
+        report.Record("flush-dns", "declined"); report.Record("sfc-repair", "completed", 3010); report.Observe("still-present");
+        var defaultReport = JsonNode.Parse(report.Export(false))!;
+        Require(defaultReport["approved_diagnostics"]!.GetValue<string>() == "" && !report.Export(false).Contains("private-marker") &&
+            !report.Export(false).Contains("user@example.com") && defaultReport["repairs"]!.AsArray().Count == 2 &&
+            defaultReport["user_reported_outcomes"]![0]!["Outcome"]!.GetValue<string>() == "still-present", "Local report leaked excluded diagnostics or lost actual activity/outcome.");
+        Require(report.Export(true).Contains("private-marker") && !report.Export(true).Contains("private-secret"), "Explicit diagnostic export lost the snapshot or skipped redaction.");
+        for (int i = 0; i < 25; i++) { report.Record("flush-dns", "completed", 0); report.Observe("resolved"); }
+        Require(report.Activity.Count == 20 && report.Observations.Count == 20, "Window-scoped case history is unbounded.");
+        report.SetAnalysis("New case", false, "", "gemini", "fixture-model", advice);
+        Require(report.Activity.Count == 0 && report.Observations.Count == 0 && !report.Export(true).Contains("private-marker"), "A new case retained old observations or diagnostic evidence.");
+        report.Clear(); Require(report.Advice is null && report.AnalyzedAt is null, "Clearing a case retained its report.");
         fixture["repair_actions"] = new JsonArray("cmd.exe /c malicious");
         bool rejected = false;
         try { ErrorAssistant.ParseAdvice(fixture.ToJsonString()); } catch (InvalidDataException) { rejected = true; }
@@ -107,15 +126,30 @@ internal static class SmartRepairSmokeChecks
                     Click(dialog, "errorAnalyze"); await Until(() => inputs.Count == 2);
                     Require(inputs[1] == reviewed && share.IsChecked != true, "Reviewed diagnostics were changed or approval was reused.");
                     presentation = Nodes(dialog).OfType<AdvicePresenter>().Single(); presentation.Finish(); await Settle(owner);
+                    Require(Find<Button>(dialog, "smartSaveReport").IsEnabled && Find<CheckBox>(dialog, "SmartReportDiagnostics").IsChecked != true,
+                        "Report was unavailable after analysis or diagnostics were included by default.");
+                    var description = Find<TextBox>(dialog, "ErrorDescription"); string original = description.Text; description.Text += " changed";
+                    Click(dialog, "SmartRepair-flush-dns"); Click(dialog, "smartResolved");
+                    Require(reviews == 0 && !Find<Button>(dialog, "smartResolved").IsEnabled, "Changed case executed stale repair or accepted an unrelated outcome.");
+                    description.Text = original;
                     Click(dialog, "SmartRepair-flush-dns"); await Settle(owner); Require(commands == 0, "Declined repair executed.");
                     approve = true; Click(dialog, "SmartRepair-flush-dns"); await Until(() => commands == 1);
+                    share.IsChecked = true; Click(dialog, "smartUnresolved"); Require(share.IsChecked != true, "Unresolved follow-up reused sharing consent.");
+                    var localCase = (SmartRepairSession)typeof(ErrorAssistantWindow).GetField("repairSession", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.GetValue(dialog)!;
+                    Require(localCase.Activity.Count == 2 && localCase.Activity[0].Status == "declined" && localCase.Activity[1].ExitCode == 0 && localCase.Observations.Last().Outcome == "still-present",
+                        "UI did not record the declined/completed commands or user outcome.");
+                    var range = Find<ComboBox>(dialog, "SmartDiagnosticRange"); range.SelectedIndex = 3;
+                    Require(preview.Text == "" && share.IsChecked != true && collections == 1, "Changing the time range retained stale evidence or collected silently.");
+                    range.SelectedIndex = 2;
                     Click(dialog, "smartClear"); Require(preview.Text == "" && share.IsChecked != true, "Clear retained diagnostics or consent.");
                     // Render only fixture diagnostics; no real machine data is collected or published.
-                    preview.Text = "Windows fixture build\nApplication | Event 1000 | Example crash\n[Source unavailable: permission denied]";
+                    preview.Text = "2026-10-25T10:30:00.0000000Z | Application | Example App | ID 1000 | Level 2\nExample app crash. Error code 0x80070005\n[Source unavailable: permission denied]";
                     await Settle(owner);
                     if (locale is "ar" or "en")
                     {
                         WindowAppearance.SavePreview(dialog, Path.Combine(output, "smart-repair-actions-" + locale + ".png"));
+                        Find<Border>(dialog, "SmartRepairSession").BringIntoView(); await Settle(dialog);
+                        WindowAppearance.SavePreview(dialog, Path.Combine(output, "smart-repair-session-" + locale + ".png"));
                         expander.BringIntoView(); await Settle(dialog);
                         WindowAppearance.SavePreview(dialog, Path.Combine(output, "smart-repair-" + locale + ".png"));
                     }
@@ -149,7 +183,7 @@ internal static class SmartRepairSmokeChecks
             Click(canceledDialog, "smartClear"); await Until(() => Find<Button>(canceledDialog, "smartCollect").IsEnabled);
             Require(Find<TextBox>(canceledDialog, "SmartDiagnosticPreview").Text == "" && Find<CheckBox>(canceledDialog, "SmartDiagnosticConsent").IsChecked != true, "Clearing did not cancel an in-flight collection.");
             canceledDialog.Close();
-            File.WriteAllText(Path.Combine(output, "smart-repair-result.txt"), "PASS: fixture-only selected diagnostic sources, bounded/redacted preview, denied-source coverage, cancellation, no startup collection, no unapproved transmission, edit invalidation, one-request sharing, no execution on declined approval, fixed native command paths/arguments, serialized repairs, UAC rejection, exit/restart status, explicit unchecked approval dialogs and four-language/RTL UI. No real event logs, live API, UAC prompt or Windows repair command was used.");
+            File.WriteAllText(Path.Combine(output, "smart-repair-result.txt"), "PASS: fixture-only selected diagnostic sources, bounded/redacted preview, literal filters/time ranges, denied-source coverage, cancellation, no startup collection, no unapproved transmission, edit invalidation, one-request sharing, stale-input repair rejection, no execution on declined approval, fixed native command paths/arguments, serialized repairs, UAC rejection, exit/restart status, explicit unchecked approval dialogs, local case reports excluding diagnostics by default, bounded activity/user observations, fresh-case reset and four-language/RTL UI. No real event logs, live API, UAC prompt or Windows repair command was used.");
         }
         finally { Settings.Current.Language = language; Settings.Current.Dark = dark; owner.ApplyTheme(); owner.Render(); }
     }
