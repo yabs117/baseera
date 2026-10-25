@@ -73,7 +73,7 @@ the device, guarantee an immediate solution, invent commands/URLs, or recommend
 deleting user data or bypassing security. Baseera still provides advice; it does
 not automatically execute those suggestions.
 
-The 0.4.15 Smart Repair development preview adds `approved_diagnostics` as a
+The 0.4.15 Smart Repair preview adds `approved_diagnostics` as a
 separate lower-trust input field. It stays empty without per-analysis review and
 approval. Diagnostic text never enters instruction channels. Instructions require
 evidence-aware causes, explicit uncertainty and missing facts, and prohibit claiming

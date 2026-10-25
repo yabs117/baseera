@@ -1,6 +1,6 @@
 # Error-assistant conversation presentation
 
-The 0.4.15 development preview presents each analysis as a submitted-message/answer
+The 0.4.15 preview presents each analysis as a submitted-message/answer
 exchange. The message is an immutable snapshot of the submitted text, selected image
 thumbnail and whether approved diagnostics were attached. Long messages collapse
 behind **View submitted message** without truncating the submitted text. This is

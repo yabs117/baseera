@@ -4,11 +4,11 @@ A modular Windows companion with a compact desktop interface. Enable just the
 tools you need: local file inspection, window translation, selected app updates,
 image conversion, and an error assistant that explains copied Windows errors.
 
-**Development preview 0.4.15:** [Baseera Smart Repair](docs/SMART-REPAIR.md)
+**Preview 0.4.15:** [Baseera Smart Repair](docs/SMART-REPAIR.md)
 extends the existing error assistant with optional read-only diagnostics, a reviewed
 one-request sharing step, and three fixed native repair actions requiring explicit
-per-command approval. This development change is not yet in the published 0.4.14
-download linked below. Build the current source to try it.
+per-command approval. These changes are included in the 0.4.15 download below.
+See the [release notes](docs/RELEASE-0.4.15.md) for changes and validation limits.
 It also offers selectable diagnostic periods and literal event filtering, a local
 evidence overview, command activity, user-reported outcomes and private case
 report export. Repairs from changed input remain disabled until reanalysis.
@@ -25,7 +25,7 @@ from Settings keeps the current temporary chat, draft and attachments.
 
 [العربية](docs/README.ar.md) · [Français](docs/README.fr.md) · [Español](docs/README.es.md)
 
-[Download Windows app](https://github.com/yabs117/baseera/releases/download/v0.4.14-preview/Baseera.exe) · [Release notes](https://github.com/yabs117/baseera/releases/tag/v0.4.14-preview) · [Roadmap](docs/ROADMAP.md)
+[Download Windows app](https://github.com/yabs117/baseera/releases/download/v0.4.15-preview/Baseera.exe) · [Release notes](https://github.com/yabs117/baseera/releases/tag/v0.4.15-preview) · [Roadmap](docs/ROADMAP.md)
 
 ![Baseera overview — English, light appearance](docs/images/baseera-en.png)
 
@@ -37,7 +37,7 @@ from Settings keeps the current temporary chat, draft and attachments.
 
 </details>
 
-**Early preview, version 0.4.14.** This is a new project, not a certified antivirus
+**Early preview, version 0.4.15.** This is a new project, not a certified antivirus
 or a claim of 100% malware detection. Read the [capability status](docs/ROADMAP.md)
 and [security scope](SECURITY.md) before relying on it.
 
@@ -90,11 +90,11 @@ Settings are grouped by purpose; unsaved translation settings survive appearance
 The error assistant can be enabled or disabled with the other tools in Settings.
 When enabled, it also opens separately before the main window on a normal launch. If
 no AI service is configured, it opens the relevant main Settings card first in the
-development preview. Keys are protected by the local Windows account and shared with window
+0.4.15 preview. Keys are protected by the local Windows account and shared with window
 translation. Error text and the selected image are sent to the selected service only after you
 press **Analyze error**. Review a full-window screenshot before sending: it may
 contain private information. The response gives possible causes, checks and steps,
-not a guaranteed repair. In the 0.4.15 development preview, only reviewed catalog
+not a guaranteed repair. In the 0.4.15 preview, only reviewed catalog
 commands can run after separate explicit approval; generated free-form commands
 are never executed. The dialog does not open for Windows auto-start or file-conversion launches.
 
@@ -135,7 +135,7 @@ confirmation and a Manage usage link are included. See [ChatGPT sign-in](docs/CH
 
 The connection editor reopens without an empty form. From 0.4.13, ChatGPT sign-out
 removes the selected account’s saved profile (including its name/email and local
-credentials) from Baseera. In development 0.4.15 this action lives in main Settings;
+credentials) from Baseera. In 0.4.15 this action lives in main Settings;
 an open assistant keeps its input, clears that account's chat and disables Send
 until reconfigured, without forcing the whole app to close. Reopening Settings
 shows no signed-out account. Old tokenless signed-out profiles are cleaned up at
@@ -205,9 +205,9 @@ Requires **Windows 10/11, x64**. The runtime is included; no separate .NET insta
 
 | Download | How to use |
 | --- | --- |
-| [Windows app (.exe)](https://github.com/yabs117/baseera/releases/download/v0.4.14-preview/Baseera.exe) | Save to a permanent folder and open it. This is the desktop application. |
-| [Windows ZIP with instructions](https://github.com/yabs117/baseera/releases/download/v0.4.14-preview/Baseera.zip) | Extract the whole ZIP, then open `Baseera.exe`. |
-| [Optional browser extension](https://github.com/yabs117/baseera/releases/download/v0.4.14-preview/Baseera-Browser-Extension.zip) | Extract, read `START-HERE.html`, then load the inner `extension` folder in Chrome/Edge. |
+| [Windows app (.exe)](https://github.com/yabs117/baseera/releases/download/v0.4.15-preview/Baseera.exe) | Save to a permanent folder and open it. This is the desktop application. |
+| [Windows ZIP with instructions](https://github.com/yabs117/baseera/releases/download/v0.4.15-preview/Baseera.zip) | Extract the whole ZIP, then open `Baseera.exe`. |
+| [Optional browser extension](https://github.com/yabs117/baseera/releases/download/v0.4.15-preview/Baseera-Browser-Extension.zip) | Extract, read `START-HERE.html`, then load the inner `extension` folder in Chrome/Edge. |
 
 Source ZIP downloads from GitHub are source code, not compiled applications.
 The browser extension is installed **inside the browser**. Do not double-click its
@@ -270,7 +270,7 @@ Install the .NET 10 SDK on Windows. There are no third-party NuGet dependencies.
 node --test extension/test/protocol.test.js
 ```
 
-The self-contained executable is produced in `artifacts/Baseera-v0.4.14-Windows-x64/`.
+The self-contained executable is produced in `artifacts/Baseera-v0.4.15-Windows-x64/`.
 `-Smoke -Publish` also checks the packaged executable. `-Smoke` uses a separate local data directory and does not run updates or
 register Explorer hooks. It renders the actual WPF screens and tests conversion,
 PDF generation, translation-box validation, localization coverage and DPAPI storage.

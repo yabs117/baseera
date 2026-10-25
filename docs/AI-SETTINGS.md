@@ -1,9 +1,9 @@
-# AI setup in Settings — development 0.4.15
+# AI setup in Settings — preview 0.4.15
 
 The existing **Settings → AI service** card is the single place to configure the
 connection used by Smart Repair and window translation. The sidebar and other
-tools keep their current layout. The published 0.4.14 release does not yet include
-this change.
+tools keep their current layout. These changes are included in
+[0.4.15-preview](RELEASE-0.4.15.md).
 
 1. Choose one of the twenty direct services. For OpenAI, select an API key or the
    existing eligible ChatGPT sign-in flow. Other services retain their own keys.

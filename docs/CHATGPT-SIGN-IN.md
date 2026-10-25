@@ -1,7 +1,7 @@
 # Sign in with ChatGPT
 
 Baseera 0.4.9 adds the official **Continue with ChatGPT** flow to the Windows app.
-In development 0.4.15, select OpenAI in **Settings → AI service**, then choose
+In 0.4.15, select OpenAI in **Settings → AI service**, then choose
 ChatGPT account or click Continue with ChatGPT below the provider. No API key is
 needed for this connection method.
 
@@ -36,7 +36,7 @@ From 0.4.13, Sign out cancels requests and removes the selected registration fro
 Baseera’s local account store, including its saved name, email, subject, client ID
 and credentials. Every open picker and connection draft removes that profile, and
 the selected account/model are cleared before remote revocation is attempted.
-In development 0.4.15, sign-out is performed in main Settings. Baseera stays open;
+In 0.4.15, sign-out is performed in main Settings. Baseera stays open;
 an open assistant clears that account's conversation and disables Send. It offers
 a link back to Settings, and reopening cannot restore the removed account.
 

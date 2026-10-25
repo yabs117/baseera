@@ -1,9 +1,9 @@
-# Baseera Smart Repair — development preview 0.4.15
+# Baseera Smart Repair — preview 0.4.15
 
 Smart Repair extends the existing Windows error assistant. It keeps text-only and
 image analysis, the current AI provider/account integrations, progressive responses,
-the four interface languages, Arabic RTL, and the existing sidebar entry. This is
-an unreleased development change; the published 0.4.14 download does not include it.
+the four interface languages, Arabic RTL, and the existing sidebar entry. These features are
+included in [0.4.15-preview](RELEASE-0.4.15.md).
 The [conversation presentation](ADVICE-PRESENTATION.md) adds submitted-message
 context, selectable formatted replies, code copying and a quieter response layout.
 

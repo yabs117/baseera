@@ -1,4 +1,4 @@
-# Continuous Smart Repair conversations — development 0.4.15
+# Continuous Smart Repair conversations — preview 0.4.15
 
 The existing error assistant now keeps a conversation rather than replacing its
 last answer. The composer stays at the bottom; **Enter** sends, **Shift+Enter**
