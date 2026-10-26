@@ -1,41 +1,74 @@
 # Baseera
 
-A modular Windows companion with a compact desktop interface. Enable just the
-tools you need: local file inspection, window translation, selected app updates,
-image conversion, and an error assistant that explains copied Windows errors.
-
-**Preview 0.4.15:** [Baseera Smart Repair](docs/SMART-REPAIR.md)
-extends the existing error assistant with optional read-only diagnostics, a reviewed
-one-request sharing step, and three fixed native repair actions requiring explicit
-per-command approval. These changes are included in the 0.4.15 download below.
-See the [release notes](docs/RELEASE-0.4.15.md) for changes and validation limits.
-It also offers selectable diagnostic periods and literal event filtering, a local
-evidence overview, command activity, user-reported outcomes and private case
-report export. Repairs from changed input remain disabled until reanalysis.
-Its [conversation view](docs/ADVICE-PRESENTATION.md) shows the submitted message,
-service logo/model, selectable formatted replies and independently copied code.
-The [continuous conversation](docs/CONVERSATIONS.md) adds a bottom composer,
-bounded follow-up context, images/video, local voice recording
-and explicit transcription. A local checkpoint asks permission after each ten
-analysis/transcription attempts; it does not know the provider's account balance.
-AI provider, key/sign-in and model selection now live together in
-[Settings → AI service](docs/AI-SETTINGS.md), with an explicit text/image connection
-test and **Open error assistant**. The assistant is for conversation; returning
-from Settings keeps the current temporary chat, draft and attachments.
+A modular Windows companion for file inspection, translation, selected app updates,
+image conversion and evidence-aware Windows troubleshooting.
 
 [العربية](docs/README.ar.md) · [Français](docs/README.fr.md) · [Español](docs/README.es.md)
 
-[Download Windows app](https://github.com/yabs117/baseera/releases/download/v0.4.15-preview/Baseera.exe) · [Release notes](https://github.com/yabs117/baseera/releases/tag/v0.4.15-preview) · [Roadmap](docs/ROADMAP.md)
+**In development — قيد التطوير: 0.4.17-preview.** The screenshot below shows the
+development interface with synthetic demonstration readings. These new features
+are not yet included in the public download. Latest published preview: **0.4.15**.
 
-![Baseera overview — English, light appearance](docs/images/baseera-en.png)
+[Download the published Windows app](https://github.com/yabs117/baseera/releases/download/v0.4.15-preview/Baseera.exe) · [Published release notes](docs/RELEASE-0.4.15.md) · [Development work and code](https://github.com/yabs117/baseera/pull/2) · [Capability status](docs/ROADMAP.md)
+
+![Baseera 0.4.17 development control center — English, synthetic readings](docs/images/baseera-development-en.png)
+
+*Development preview, not a screenshot of the 0.4.15 download. Readings are fixtures,
+not measurements from a user's device or a claim that a problem has been fixed.*
 
 <details>
-<summary>Dark appearance and Arabic RTL</summary>
+<summary>Development preview: English dark appearance and Arabic RTL</summary>
 
-![Baseera overview — English, dark appearance](docs/images/baseera-en-dark.png)
-![Baseera overview — Arabic, right-to-left](docs/images/baseera-ar.png)
+![Baseera development control center — English, dark appearance](docs/images/baseera-development-en-dark.png)
+![Baseera development control center — Arabic RTL, synthetic readings](docs/images/baseera-development-ar.png)
 
 </details>
+
+## In development — 0.4.17
+
+The following features are implemented on the development branch and remain under
+review/testing. Publishing this page does not publish an application update.
+
+| Feature | Development scope |
+| --- | --- |
+| Device control center | Overview with sampled CPU, physical RAM, free system-drive space, timestamps, resource observations and quick access to tools. |
+| Device health | Dedicated readings with explicit unavailable, partial and stale states; optional automatic local refresh. No invented health score or hardware-health certificate. |
+| Performance center | Bounded process CPU/memory sampling, search/sort and startup registration review. No automatic process termination or startup changes. |
+| Combined diagnostic evidence | Review selected device readings together with Application/System errors and system information before one-request AI sharing approval. |
+| Smart Repair workflow | Discover → analyze evidence → review/approve a fixed action → retest. Uses the existing AI integrations, with causes, uncertainty and safe guidance. |
+| Selected service states | Optional read-only queries for six fixed Windows services. A stopped service alone is not treated as proof of a fault. |
+| Persistent case files | Locally protected case title, onset time, analysis, action/exit-code history and comparisons. Raw evidence storage is separately optional; archived actions cannot execute. |
+| Before/after verification | Compatible CPU/RAM/storage/service observations, preserved comparison history and explicit inconclusive results. A changed reading or exit zero does not establish a fix. |
+| Activity center | Shared bounded task history, supported cancellation and real download progress. Windows servicing is never force-stopped. |
+| Accessibility and localization | Four-language workflow, Arabic RTL, named controls, keyboard focus, live status and Windows high-contrast colors. A complete screen-reader audit remains outstanding. |
+| Maintainable workflow services | Gradual case MVVM and constructor-injected storage/diagnostic services, preserving existing tools. This is not a completed whole-app rewrite. |
+| Update channels | Stable/Preview selection without automatic downgrade; existing reviewed in-app update and recovery flow remain in use. |
+| Code-signing support | Explicit-certificate SHA-256/timestamp signing and a Stable packaging trust gate. No publisher certificate is available yet; current binaries remain unsigned. |
+| Automated security checks | Dependency updates, direct/transitive NuGet audit, CodeQL and malformed-input tests. Passing checks is not an assurance of security. |
+| Isolated native validation | Explicit opt-in SFC/DISM harness for disposable GitHub-hosted Windows Server guests. Windows 10/11 end-to-end VM coverage is still required. |
+
+Details: [Device center and privacy](docs/DEVICE-CENTER.md),
+[selected versus attached diagnostics](docs/DIAGNOSTIC-ATTACHMENTS.md),
+[Smart Repair cases, tests and limits](docs/SMART-REPAIR-WORKFLOW.md),
+[channels, signing and recovery](docs/RELEASE-CHANNELS.md).
+
+## Available in the published 0.4.15 preview
+
+The download already includes local file/folder/ZIP inspection, screenshot-based
+window translation, the optional browser translation extension, selected app
+updates, image/PDF conversion, configurable first-run tools and four interface
+languages. The existing Smart Repair assistant supports ongoing bounded chats,
+images/video, optional local voice recording with approved transcription, twenty
+direct AI services, model discovery, and supported ChatGPT account sign-in.
+AI setup and an explicit text/image connection test live in Settings.
+
+Its optional event/system diagnostics use an editable redacted preview and
+recipient-bound approval for one request. Only DNS cache clearing, SFC and DISM
+can be executed, after separate exact-command approval and Windows UAC when needed.
+There is no generated-script execution or automatic restart. User keys/accounts,
+provider support and usage limits still apply. See [Smart Repair](docs/SMART-REPAIR.md),
+[conversations](docs/CONVERSATIONS.md), [AI settings](docs/AI-SETTINGS.md) and
+[release notes](docs/RELEASE-0.4.15.md).
 
 **Early preview, version 0.4.15.** This is a new project, not a certified antivirus
 or a claim of 100% malware detection. Read the [capability status](docs/ROADMAP.md)

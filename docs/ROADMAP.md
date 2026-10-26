@@ -2,6 +2,16 @@
 
 ## Implemented preview
 
+- Development 0.4.17: protected local case history, selected read-only service states,
+  scoped before/after retests, gradual case MVVM/constructor DI, task activity and
+  cancellation, high-contrast palette, update-channel filtering, explicit-certificate
+  signing support and security workflows. [Scope](SMART-REPAIR-WORKFLOW.md).
+
+- Development 0.4.16: local device control/health/performance centers, sampled CPU,
+  physical memory and fixed-volume space, readable process and startup registration
+  review, and opt-in combined device/event diagnosis. [Scope](DEVICE-CENTER.md).
+  This development change is not yet in the public 0.4.15 release.
+
 - Preview 0.4.15: existing error assistant expanded into Smart Repair with
   selected read-only diagnostics, preview/redaction, single-analysis sharing consent,
   qualified evidence-aware guidance and explicitly approved fixed native repairs.

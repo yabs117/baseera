@@ -1,5 +1,7 @@
 # Baseera
 
+**En développement — 0.4.17-preview :** nouveau centre de contrôle, santé/performances, dossiers Smart Repair, comparaisons, activité et canaux de mise à jour. Ces fonctions ne sont pas encore dans le téléchargement public 0.4.15. [Liste complète et aperçu](../README.md#in-development--0417).
+
 **Version expérimentale 0.4.15 :** Smart Repair étend l’assistant existant avec des diagnostics locaux facultatifs, une prévisualisation modifiable et un consentement par analyse. Seuls trois outils Windows prédéfinis peuvent être lancés après confirmation distincte et UAC si nécessaire : cache DNS, SFC et DISM. Aucun script généré ni redémarrage automatique. [Détails et limites](SMART-REPAIR.md). [Notes de version et téléchargement](RELEASE-0.4.15.md).
 
 Application Windows expérimentale : analyse locale des fichiers, traduction de
