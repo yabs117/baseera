@@ -23,14 +23,16 @@ public sealed record SelfRelease(string Tag, Version Version, string Notes, Uri 
         return before && Counter(candidate) > Counter(current);
     }
 
-    public static SelfRelease? Select(string json, string current)
+    public static SelfRelease? Select(string json, string current, string channel = "preview")
     {
+        if (channel is not ("preview" or "stable")) throw new ArgumentException("Unknown release channel.");
         using var document = JsonDocument.Parse(json);
         SelfRelease? best = null;
         foreach (var release in document.RootElement.EnumerateArray())
         {
             if (release.GetProperty("draft").GetBoolean()) continue;
             string tag = release.GetProperty("tag_name").GetString() ?? "";
+            if (channel == "stable" && (tag.Contains("-preview") || release.TryGetProperty("prerelease", out var preview) && preview.GetBoolean())) continue;
             var version = ParseVersion(tag);
             if (version is null || !IsNewer(current, tag) || (best is not null && !IsNewer(best.Tag, tag))) continue;
             SelfRelease? selected = null;

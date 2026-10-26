@@ -18,6 +18,8 @@ public sealed class Preferences
     public bool UpdatesEnabled { get; set; }
     public bool ConvertEnabled { get; set; }
     public bool ErrorAssistantEnabled { get; set; } = true;
+    public bool AutoRefreshDevice { get; set; } = true;
+    public string ReleaseChannel { get; set; } = "preview";
     public bool StartWithWindows { get; set; }
     public bool ScanAtStartup { get; set; }
     public string ScanPath { get; set; } = "";
@@ -102,6 +104,8 @@ public static class Settings
         finally { Marshal.FreeHGlobal(input.Data); if (output.Data != IntPtr.Zero) LocalFree(output.Data); Array.Clear(bytes); }
     }
     internal static byte[] ReadProtected(string name) => Protect(File.ReadAllBytes(Path.Combine(Folder, name)), true);
+    internal static byte[] ProtectLocal(byte[] bytes, bool decrypt) => Protect(bytes, decrypt);
+    public static string UpdateChannel => Current.ReleaseChannel == "stable" ? "stable" : "preview";
     internal static void WriteProtected(string name, byte[] bytes)
     {
         Directory.CreateDirectory(Folder);

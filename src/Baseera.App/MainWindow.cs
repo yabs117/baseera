@@ -26,9 +26,13 @@ public sealed partial class MainWindow : Window
     private ExplorerShortcut? explorerShortcut;
     private ErrorAssistantWindow? errorAssistant;
     private readonly bool smokeMode;
+    internal ApplicationServices Services { get; }
     private readonly System.Windows.Threading.DispatcherTimer updateTimer = new() { Interval = TimeSpan.FromHours(6) };
     public MainWindow(string? conversionFile = null, bool smoke = false, bool launchErrorAssistant = true)
+        : this(conversionFile, smoke, launchErrorAssistant, new ApplicationServices()) { }
+    internal MainWindow(string? conversionFile, bool smoke, bool launchErrorAssistant, ApplicationServices services)
     {
+        Services = services;
         smokeMode = smoke;
         Title = "Baseera"; Width = 1160; Height = 820; MinWidth = 940; MinHeight = 680;
         WindowStyle = WindowStyle.SingleBorderWindow; ResizeMode = ResizeMode.CanResize;
@@ -39,13 +43,16 @@ public sealed partial class MainWindow : Window
         if (conversionFile is not null && File.Exists(conversionFile)) { images.Add(conversionFile); page = "convert"; }
         Content = frame;
         ApplyTheme(); Render();
+        Services.Tasks.Changed += OnTasksChanged;
         ChatGptAuth.SessionSignedOut += OnChatGptSignedOut;
         PreviewKeyDown += (_, e) =>
         {
             if (e.Key == System.Windows.Input.Key.E && System.Windows.Input.Keyboard.Modifiers == (System.Windows.Input.ModifierKeys.Control | System.Windows.Input.ModifierKeys.Shift))
             { e.Handled = true; ShowErrorAssistant(); }
         };
-        Closed += (_, _) => { ChatGptAuth.SessionSignedOut -= OnChatGptSignedOut; operation?.Cancel(); lifetime.Cancel(); updateTimer.Stop(); selfUpdateTimer.Stop(); overlay?.Close(); explorerShortcut?.Dispose(); };
+        deviceTimer.Tick += async (_, _) => { if (IsVisible && WindowState != WindowState.Minimized) await RefreshDevice(); };
+        Loaded += (_, _) => StartDeviceMonitor();
+        Closed += (_, _) => { Services.Tasks.Changed -= OnTasksChanged; StopDeviceMonitor(); ChatGptAuth.SessionSignedOut -= OnChatGptSignedOut; operation?.Cancel(); lifetime.Cancel(); updateTimer.Stop(); selfUpdateTimer.Stop(); overlay?.Close(); explorerShortcut?.Dispose(); };
         if (!smoke)
         {
             ApplyExplorerShortcut();
@@ -90,10 +97,11 @@ public sealed partial class MainWindow : Window
         if (!Settings.Current.ErrorAssistantEnabled) return;
         if (!AiCatalog.Configured()) { OpenAiSettings(); return; }
         if (errorAssistant is { } existing)
-        { existing.RefreshSavedConnection(true); if (!existing.IsVisible) existing.Show(); existing.Activate(); existing.FocusComposer(); return; }
+        { existing.RefreshSavedConnection(true); if (!existing.IsVisible) existing.Show(); existing.Activate(); existing.FocusComposer(); ApplyPendingDeviceReview(existing); return; }
         var created = new ErrorAssistantWindow(this); errorAssistant = created;
         created.Closed += (_, _) => { if (ReferenceEquals(errorAssistant, created)) errorAssistant = null; };
         created.Show();
+        ApplyPendingDeviceReview(created);
     }
     internal bool ShowStartupWelcome()
     {
@@ -116,10 +124,11 @@ public sealed partial class MainWindow : Window
     private async Task AutomaticUpdates()
     {
         if (automaticUpdate is not null || showingSelf || !Settings.Current.Onboarded || !Settings.Current.UpdatesEnabled || Settings.Current.AutoUpdateIds.Count == 0) return;
-        automaticUpdate = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
-        try { updateLog = await Updater.UpdateSelected(automaticUpdate.Token); if (page == "updates") Render(); }
-        catch (OperationCanceledException) { }
-        catch (Exception ex) { updateLog = ex.Message; SetOperationStatus("error"); }
+        using var tracked = Services.Tasks.Begin("updates", true, lifetime.Token);
+        automaticUpdate = CancellationTokenSource.CreateLinkedTokenSource(tracked.Token);
+        try { updateLog = await Updater.UpdateSelected(automaticUpdate.Token); tracked.Complete(); if (page == "updates") Render(); }
+        catch (OperationCanceledException) { tracked.Cancelled(); }
+        catch (Exception ex) { tracked.Failed(); updateLog = ex.Message; SetOperationStatus("error"); }
         finally { automaticUpdate.Dispose(); automaticUpdate = null; }
     }
 }

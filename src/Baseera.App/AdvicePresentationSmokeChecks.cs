@@ -96,9 +96,14 @@ internal static class AdvicePresentationSmokeChecks
                 if (language == "en")
                 {
                     var scroll = Find<ScrollViewer>(dialog, "ErrorAssistantScroll");
+                    // The case header and font metrics change available space.
+                    // First establish an actual upward scroll, not a no-op at offset zero.
+                    for (int n = 0; n < 120 && scroll.ScrollableHeight < 160; n++) await Task.Delay(50);
+                    scroll.ScrollToEnd(); await Settle(owner);
+                    if (scroll.VerticalOffset < 100) throw new Exception("No scrollable response was established for the reader-follow test.");
                     double earlier = Math.Max(0, scroll.VerticalOffset - 130); scroll.ScrollToVerticalOffset(earlier); await Settle(owner);
                     double paused = scroll.VerticalOffset; await Task.Delay(550);
-                    if (Math.Abs(scroll.VerticalOffset - paused) > 2) throw new Exception("Typing pulled the reader away after scrolling up.");
+                    if (Math.Abs(scroll.VerticalOffset - paused) > 2) throw new Exception($"Typing pulled the reader away after scrolling up: {paused:0.0} to {scroll.VerticalOffset:0.0}.");
                     scroll.ScrollToEnd(); await Settle(owner); await Task.Delay(250);
                     if (scroll.ScrollableHeight - scroll.VerticalOffset > 44) throw new Exception("Answer following did not resume at the bottom.");
                 }

@@ -5,7 +5,7 @@ namespace Baseera.App;
 
 internal sealed partial class ErrorAssistantWindow
 {
-    private readonly CheckBox diagnosticSystem = new(), diagnosticApplication = new(), diagnosticEvents = new(), diagnosticShare = new();
+    private readonly CheckBox diagnosticSystem = new(), diagnosticApplication = new(), diagnosticEvents = new(), diagnosticHealth = new(), diagnosticShare = new();
     private readonly TextBox diagnosticPreview = new() { AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MaxLength = DiagnosticPrivacy.MaxCharacters,
         Height = 160, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, FlowDirection = FlowDirection.LeftToRight };
     private readonly StackPanel repairActions = new();
@@ -51,6 +51,8 @@ internal sealed partial class ErrorAssistantWindow
             Add(body, check, 4);
         }
         Source(diagnosticSystem, "smartSystemInfo"); Source(diagnosticApplication, "smartApplicationEvents"); Source(diagnosticEvents, "smartSystemEvents");
+        Source(diagnosticHealth, "deviceDiagnosticSource");
+        Source(diagnosticServices, "smartServiceStatus");
         Add(body, Text(I18n.T("smartTimeRange"), 12, true), 4);
         foreach (int hours in new[] { 1, 6, 24, 72 }) diagnosticRange.Items.Add(new ComboBoxItem { Content = string.Format(I18n.T("smartHours"), hours), Tag = hours });
         System.Windows.Automation.AutomationProperties.SetAutomationId(diagnosticRange, "SmartDiagnosticRange");
@@ -66,23 +68,23 @@ internal sealed partial class ErrorAssistantWindow
         diagnosticPreview.TextChanged += (_, _) => { InvalidateDiagnosticConsent(); RenderEvidence(); }; Add(body, diagnosticPreview, 8);
         diagnosticShare.Content = Text(I18n.T("smartShareConsent") + "\n" + AiProviderBadge.Name(AiCatalog.Provider, ChatGptAuth.Selected));
         System.Windows.Automation.AutomationProperties.SetAutomationId(diagnosticShare, "SmartDiagnosticConsent");
-        diagnosticShare.Checked += (_, _) => diagnosticRecipient = DiagnosticRecipient;
-        diagnosticShare.Unchecked += (_, _) => diagnosticRecipient = "";
+        diagnosticShare.Checked += (_, _) => { diagnosticRecipient = DiagnosticRecipient; RefreshDiagnosticDelivery(); };
+        diagnosticShare.Unchecked += (_, _) => { diagnosticRecipient = ""; RefreshDiagnosticDelivery(); };
         Add(body, diagnosticShare, 8);
         var clear = Action("smartClear", ClearDiagnostics); Add(body, clear, 0);
         var expander = new Expander { Header = I18n.T("smartDiagnostics"), Content = body, IsExpanded = false,
             Padding = new Thickness(12), Background = Brush("Surface"), BorderBrush = Brush("Line"), BorderThickness = new Thickness(1) };
         System.Windows.Automation.AutomationProperties.SetAutomationId(expander, "SmartDiagnostics"); return expander;
     }
-    private void InvalidateDiagnosticConsent() { diagnosticShare.IsChecked = false; diagnosticRecipient = ""; }
-    private void ClearDiagnostics() { diagnosticRequest?.Cancel(); diagnosticPreview.Clear(); InvalidateDiagnosticConsent(); }
+    private void InvalidateDiagnosticConsent() { diagnosticShare.IsChecked = false; diagnosticRecipient = ""; RefreshDiagnosticDelivery(); }
+    private void ClearDiagnostics() { diagnosticRequest?.Cancel(); diagnosticGateActive = false; diagnosticPreview.Clear(); InvalidateDiagnosticConsent(); }
     private void RefreshSmartControls()
     {
         diagnosticShare.Content = Text(I18n.T("smartShareConsent") + "\n" + AiProviderBadge.Name(AiCatalog.Provider, ChatGptAuth.Selected));
         bool idle = !NetworkBusy && recorder?.Recording != true;
         analyzeButton.IsEnabled = idle && (!realAnalyzer || Configured());
         collectDiagnostics.IsEnabled = idle;
-        foreach (var check in new[] { diagnosticSystem, diagnosticApplication, diagnosticEvents }) check.IsEnabled = idle;
+        foreach (var check in new[] { diagnosticSystem, diagnosticApplication, diagnosticEvents, diagnosticHealth, diagnosticServices }) check.IsEnabled = idle;
         diagnosticRange.IsEnabled = idle;
         diagnosticMatch.IsEnabled = idle;
         reportButton.IsEnabled = idle && repairSession.Advice is not null && presentation?.IsTyping != true;
@@ -93,25 +95,29 @@ internal sealed partial class ErrorAssistantWindow
         sessionPanel.Visibility = repairSession.Advice is null || repairSession.Advice.Message is not null || presentation?.IsTyping == true ? Visibility.Collapsed : Visibility.Visible;
         cancelButton.IsEnabled = active is not null || diagnosticRequest is not null || mediaRequest is not null || voiceRequest is not null;
         RefreshConversationControls(idle);
+        RefreshDiagnosticDelivery();
+        RefreshCaseWorkflow();
     }
     private async Task CollectDiagnostics()
     {
         if (active is not null || diagnosticRequest is not null || repairRunning) return;
         int hours = diagnosticRange.SelectedItem is ComboBoxItem { Tag: int selected } ? selected : 24;
-        var options = new DiagnosticOptions(diagnosticSystem.IsChecked == true, diagnosticApplication.IsChecked == true, diagnosticEvents.IsChecked == true, hours, diagnosticMatch.Text);
-        if (!options.SystemInfo && !options.ApplicationEvents && !options.SystemEvents) { feedback.Text = I18n.T("smartChooseSource"); return; }
+        var options = new DiagnosticOptions(diagnosticSystem.IsChecked == true, diagnosticApplication.IsChecked == true, diagnosticEvents.IsChecked == true, hours, diagnosticMatch.Text, diagnosticHealth.IsChecked == true, diagnosticServices.IsChecked == true);
+        if (!options.SystemInfo && !options.ApplicationEvents && !options.SystemEvents && !options.DeviceHealth && !options.ServiceStatus) { feedback.Text = I18n.T("smartChooseSource"); return; }
         diagnosticPreview.Clear();
-        using var request = new CancellationTokenSource(); diagnosticRequest = request; InvalidateDiagnosticConsent(); RefreshSmartControls();
+        using var tracked = services.Tasks.Begin("caseDiscover", true);
+        using var request = CancellationTokenSource.CreateLinkedTokenSource(tracked.Token); diagnosticRequest = request; InvalidateDiagnosticConsent(); RefreshSmartControls();
         feedback.Text = I18n.T("smartCollecting");
         try
         {
-            var collected = await collectDiagnosticData(options, request.Token); request.Token.ThrowIfCancellationRequested();
+            var capture = await CaptureCaseEvidence(options, request.Token); request.Token.ThrowIfCancellationRequested();
             if (closed) return;
-            diagnosticPreview.Text = DiagnosticPrivacy.Sanitize(collected, Environment.UserName, Environment.MachineName);
+            displayedEvidence = capture; caseWorkflow.Capture(capture); diagnosticPreview.Text = capture.Text;
+            tracked.Complete();
             feedback.Text = I18n.T("smartReviewData");
         }
-        catch (OperationCanceledException) { if (!closed) feedback.Text = I18n.T("cancel"); }
-        catch (Exception ex) { if (!closed) feedback.Text = I18n.T("smartCollectFailed") + " " + ex.GetType().Name; }
+        catch (OperationCanceledException) { tracked.Cancelled(); if (!closed) feedback.Text = I18n.T("cancel"); }
+        catch (Exception ex) { tracked.Failed(); if (!closed) feedback.Text = I18n.T("smartCollectFailed") + " " + ex.GetType().Name; }
         finally { diagnosticRequest = null; if (!closed) RefreshSmartControls(); }
     }
     private string ApprovedDiagnostics()
@@ -123,6 +129,27 @@ internal sealed partial class ErrorAssistantWindow
         // Per-request approval. Editing, collecting, changing providers, or a new
         // analysis requires another explicit check. Only the displayed text is sent.
         InvalidateDiagnosticConsent(); return value;
+    }
+    internal bool ReviewDeviceSnapshot(DeviceSnapshot snapshot)
+    {
+        if (closed || NetworkBusy || recorder?.Recording == true) { feedback.Text = I18n.T("deviceBusy"); return false; }
+        diagnosticHealth.IsChecked = true;
+        diagnosticPreview.Text = DiagnosticPrivacy.Sanitize(DeviceMonitor.DiagnosticText(snapshot), Environment.UserName, Environment.MachineName);
+        displayedEvidence = new(Guid.NewGuid(), snapshot.CollectedUtc, services.Cases.HostScope, new DiagnosticOptions(DeviceHealth: true), diagnosticPreview.Text, snapshot, [], snapshot.Notices.Count == 0);
+        caseWorkflow.Capture(displayedEvidence);
+        if (string.IsNullOrWhiteSpace(problem.Text)) problem.Text = I18n.T("deviceDiagnosticQuestion");
+        InvalidateDiagnosticConsent(); assistantTools.IsExpanded = true;
+        if (System.Windows.LogicalTreeHelper.GetParent(diagnosticPreview) is not null)
+        {
+            foreach (var expander in FindDiagnosticExpanders(assistantTools)) expander.IsExpanded = true;
+        }
+        feedback.Text = I18n.T("deviceDiagnosticsNotice"); diagnosticPreview.BringIntoView(); return true;
+    }
+    private static IEnumerable<Expander> FindDiagnosticExpanders(DependencyObject root)
+    {
+        if (root is Expander expander) yield return expander;
+        foreach (var child in LogicalTreeHelper.GetChildren(root).OfType<DependencyObject>())
+            foreach (var nested in FindDiagnosticExpanders(child)) yield return nested;
     }
     private void ShowRepairActions(ErrorAdvice advice)
     {
@@ -148,11 +175,15 @@ internal sealed partial class ErrorAssistantWindow
         if (approveRepair is not null) approval = approveRepair(actionId);
         else { var dialog = new RepairApprovalWindow(this, actionId); approval = dialog.ShowDialog() == true ? dialog.Approval : null; }
         if (closed || !CurrentCase) return;
-        if (approval is null) { repairSession.Record(actionId, "declined"); RenderSession(); repairStatus.Text = feedback.Text = I18n.T("smartRepairDeclined"); return; }
+        if (approval is null) { var declined = caseWorkflow.BeginAction(actionId); caseWorkflow.FinishAction(declined, "declined", null); await caseWorkflow.SaveActionMetadata(CancellationToken.None); repairSession.Record(actionId, "declined"); RenderSession(); repairStatus.Text = feedback.Text = I18n.T("smartRepairDeclined"); return; }
         repairRunning = true; RefreshSmartControls(); repairStatus.Text = I18n.T("smartRepairRunning"); feedback.Text = I18n.T("working");
+        using var tracked = services.Tasks.Begin("caseRepair", false);
+        Guid caseAction = caseWorkflow.BeginAction(actionId); await caseWorkflow.SaveActionMetadata(CancellationToken.None);
         try
         {
             var execution = await repairRunner.Execute(approval, CancellationToken.None);
+            caseWorkflow.FinishAction(caseAction, execution.Started ? execution.ExitCode is 0 or 3010 ? "completed" : "failed" : "declined", execution.ExitCode); await caseWorkflow.SaveActionMetadata(CancellationToken.None);
+            if (!execution.Started) tracked.Cancelled(); else if (execution.ExitCode is 0 or 3010) tracked.Complete(); else tracked.Failed();
             repairSession.Record(actionId, execution.Started ? "completed" : "declined", execution.ExitCode);
             if (closed) return;
             RenderSession();
@@ -161,7 +192,7 @@ internal sealed partial class ErrorAssistantWindow
                 I18n.T(execution.ExitCode == 3010 ? "smartRestartNeeded" : execution.ExitCode == 0 ? "smartRepairCompleted" : "smartRepairFailed");
             feedback.Text = execution.Started ? I18n.T("smartExitCode") + ": " + execution.ExitCode : I18n.T("smartRepairDeclined");
         }
-        catch (Exception ex) { repairSession.Record(actionId, "execution-error"); if (!closed) { RenderSession(); repairStatus.Text = I18n.T("smartRepairFailed") + " " + ex.GetType().Name; feedback.Text = I18n.T("error"); } }
+        catch (Exception ex) { tracked.Failed(); caseWorkflow.FinishAction(caseAction, "execution-error", null); await caseWorkflow.SaveActionMetadata(CancellationToken.None); repairSession.Record(actionId, "execution-error"); if (!closed) { RenderSession(); repairStatus.Text = I18n.T("smartRepairFailed") + " " + ex.GetType().Name; feedback.Text = I18n.T("error"); } }
         finally { repairRunning = false; if (!closed) RefreshSmartControls(); }
     }
 

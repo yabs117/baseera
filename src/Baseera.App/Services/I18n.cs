@@ -2,6 +2,7 @@ namespace Baseera.App.Services;
 
 public static class I18n
 {
+    static I18n() { foreach (var pair in DeviceStrings.Words.Concat(WorkflowStrings.Words)) Words.Add(pair.Key, pair.Value); }
     public static string T(string key)
     {
         int i = Settings.Current.Language switch { "ar" => 0, "fr" => 2, "es" => 3, _ => 1 };

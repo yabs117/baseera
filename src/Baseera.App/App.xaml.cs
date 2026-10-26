@@ -30,6 +30,21 @@ public partial class App : Application
             {
                 string output = e.Args.SkipWhile(x => x != "--smoke").Skip(1).FirstOrDefault() ?? "artifacts";
                 Directory.CreateDirectory(output);
+                if (e.Args.Contains("--workflow-only"))
+                {
+                    Settings.Current.Onboarded = true; window.ApplyTheme(); window.Render();
+                    await WorkflowSmokeChecks.Run(window, output); Shutdown(0); return;
+                }
+                if (e.Args.Contains("--diagnostic-delivery-only"))
+                {
+                    Settings.Current.Onboarded = true; window.ApplyTheme(); window.Render();
+                    await DiagnosticDeliverySmokeChecks.Run(window, output); Shutdown(0); return;
+                }
+                if (e.Args.Contains("--device-only"))
+                {
+                    Settings.Current.Onboarded = true; window.ApplyTheme(); window.Render();
+                    await DeviceCenterSmokeChecks.Run(window, output); Shutdown(0); return;
+                }
                 if (e.Args.Contains("--ai-settings-only"))
                 {
                     Settings.Current.Onboarded = true; window.ApplyTheme(); window.Render();
@@ -111,6 +126,9 @@ public partial class App : Application
                 await window.CheckInteractionsAndInspection(output);
                 await SmartRepairSmokeChecks.Run(window, output);
                 await ConversationSmokeChecks.Run(window, output);
+                await DeviceCenterSmokeChecks.Run(window, output);
+                await DiagnosticDeliverySmokeChecks.Run(window, output);
+                await WorkflowSmokeChecks.Run(window, output);
                 foreach (string language in new[] { "en", "ar", "fr", "es" })
                 foreach (bool dark in new[] { false, true })
                 {
