@@ -2,6 +2,13 @@
 
 ## Implemented preview
 
+- Development 0.5.0: eight optional local investigation centers for selected
+  Windows evidence, temporal performance, security status/signatures, network
+  measurements, scoped storage and duplicate analysis, local document search,
+  chronological events and non-destructive USB file reads. Each has explicit
+  evidence limits and review gates. [Exact scope](INVESTIGATION-CENTERS.md).
+  This development change is not yet in the public 0.4.15 release.
+
 - Development 0.4.17: protected local case history, selected read-only service states,
   scoped before/after retests, gradual case MVVM/constructor DI, task activity and
   cancellation, high-contrast palette, update-channel filtering, explicit-certificate

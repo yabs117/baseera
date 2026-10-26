@@ -30,4 +30,16 @@ internal static class WindowsServiceStatus
         }
         return result;
     }
+    internal static IReadOnlyDictionary<int, string[]> ProcessMap(CancellationToken token)
+    {
+        using var manager = OpenSCManager(null, null, 1); var result = new Dictionary<int, List<string>>();
+        if (manager.IsInvalid) return new Dictionary<int, string[]>();
+        foreach (string name in WindowsServiceNames.All)
+        {
+            token.ThrowIfCancellationRequested(); using var service = OpenService(manager, name, 4);
+            if (!service.IsInvalid && QueryServiceStatusEx(service, 0, out var status, Marshal.SizeOf<Status>(), out _) && status.Process is > 0 and <= int.MaxValue)
+            { int id = (int)status.Process; if (!result.TryGetValue(id, out var list)) result[id] = list = []; list.Add(name); }
+        }
+        return result.ToDictionary(p => p.Key, p => p.Value.ToArray());
+    }
 }

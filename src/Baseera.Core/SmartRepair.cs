@@ -4,11 +4,11 @@ using System.Text.RegularExpressions;
 
 namespace Baseera.Core;
 
-public sealed record DiagnosticOptions(bool SystemInfo = false, bool ApplicationEvents = false, bool SystemEvents = false, int Hours = 24, string MatchText = "", bool DeviceHealth = false, bool ServiceStatus = false)
+public sealed record DiagnosticOptions(bool SystemInfo = false, bool ApplicationEvents = false, bool SystemEvents = false, int Hours = 24, string MatchText = "", bool DeviceHealth = false, bool ServiceStatus = false, bool Drivers = false, bool ExternalReport = false)
 {
     public void Validate()
     {
-        if ((!SystemInfo && !ApplicationEvents && !SystemEvents && !DeviceHealth && !ServiceStatus) || Hours is < 1 or > 72)
+        if ((!SystemInfo && !ApplicationEvents && !SystemEvents && !DeviceHealth && !ServiceStatus && !Drivers && !ExternalReport) || Hours is < 1 or > 72)
             throw new ArgumentException("Select a diagnostic source and a time range between 1 and 72 hours.");
         if (MatchText is null || MatchText.Length > 100 || MatchText.Any(char.IsControl)) throw new ArgumentException("Use a literal event filter of at most 100 characters without control characters.");
     }

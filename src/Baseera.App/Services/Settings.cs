@@ -19,6 +19,7 @@ public sealed class Preferences
     public bool ConvertEnabled { get; set; }
     public bool ErrorAssistantEnabled { get; set; } = true;
     public bool AutoRefreshDevice { get; set; } = true;
+    public List<string> DisabledCenters { get; set; } = [];
     public string ReleaseChannel { get; set; } = "preview";
     public bool StartWithWindows { get; set; }
     public bool ScanAtStartup { get; set; }
@@ -51,6 +52,7 @@ public static class Settings
         }
         if (!new[] { "ar", "en", "fr", "es" }.Contains(Current.Language)) Current.Language = "ar";
         Current.AiModels ??= [];
+        Current.DisabledCenters ??= [];
         if (Current.OpenAiAuth is not ("api" or "chatgpt")) Current.OpenAiAuth = "api";
         if (!AiProviders.Contains(Current.AiProvider)) Current.AiProvider = "gemini";
     }
@@ -104,6 +106,19 @@ public static class Settings
         finally { Marshal.FreeHGlobal(input.Data); if (output.Data != IntPtr.Zero) LocalFree(output.Data); Array.Clear(bytes); }
     }
     internal static byte[] ReadProtected(string name) => Protect(File.ReadAllBytes(Path.Combine(Folder, name)), true);
+    internal static void SetReputationKey(string key)
+    {
+        if (key.Length > 500) throw new InvalidDataException("Reputation key limit.");
+        const string name = "reputation-key.bin";
+        if (string.IsNullOrWhiteSpace(key)) { string path = Path.Combine(Folder, name); if (File.Exists(path)) File.Delete(path); return; }
+        WriteProtected(name, Encoding.UTF8.GetBytes(key.Trim()));
+    }
+    internal static string GetReputationKey()
+    {
+        string path = Path.Combine(Folder, "reputation-key.bin"); if (!File.Exists(path)) return ""; var file = new FileInfo(path);
+        if (file.Length > 4096 || (file.Attributes & FileAttributes.ReparsePoint) != 0) throw new InvalidDataException("Invalid reputation credential file.");
+        byte[] plain = ReadProtected("reputation-key.bin"); try { string value = Encoding.UTF8.GetString(plain); if (value.Length > 500) throw new InvalidDataException("Reputation key limit."); return value; } finally { Array.Clear(plain); }
+    }
     internal static byte[] ProtectLocal(byte[] bytes, bool decrypt) => Protect(bytes, decrypt);
     public static string UpdateChannel => Current.ReleaseChannel == "stable" ? "stable" : "preview";
     internal static void WriteProtected(string name, byte[] bytes)

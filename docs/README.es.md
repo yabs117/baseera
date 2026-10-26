@@ -1,6 +1,6 @@
 # Baseera
 
-**En desarrollo — 0.4.17-preview:** centro de control, salud/rendimiento, casos Smart Repair, comparaciones, actividad y canales de actualización. Estas funciones aún no están en la descarga pública 0.4.15. [Lista completa y vista previa](../README.md#in-development--0417).
+**En desarrollo — 0.5.0-preview:** ocho centros nuevos de diagnóstico y exploración, con lecturas locales bajo demanda y límites visibles, se suman al centro de control y a los casos Smart Repair. Aún no están en la descarga pública 0.4.15. [Alcance exacto](INVESTIGATION-CENTERS.md).
 
 **Versión preliminar 0.4.15:** Smart Repair amplía el asistente existente con diagnósticos locales opcionales, vista previa editable y consentimiento por análisis. Solo ejecuta tres herramientas predefinidas tras confirmación independiente y UAC si corresponde: caché DNS, SFC y DISM. Sin scripts generados ni reinicio automático. [Detalles y límites](SMART-REPAIR.md). [Notas de versión y descarga](RELEASE-0.4.15.md).
 

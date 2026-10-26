@@ -1,5 +1,17 @@
 # Third-party assets
 
+## PdfPig PDF text extraction
+
+The desktop app uses unmodified [PdfPig](https://github.com/UglyToad/PdfPig)
+version `0.1.16` to extract text from PDF documents for a local search index.
+The package is licensed under Apache License 2.0. The complete upstream license
+and notices, from its pinned source commit
+`a7bb35662bbbf405efddad50aedc9bcdcf515afc`, are at
+`src/Baseera.App/Assets/Licenses/PdfPig-APACHE-2.0.txt` and
+`src/Baseera.App/Assets/Licenses/PdfPig-NOTICES.txt`. Both files are embedded in
+the standalone executable and included in the Windows ZIP.
+
+
 The unmodified `Elgharib-Hayyakum-Allah-Taweel-Medium.ttf` supplied for Baseera is
 distributed under the SIL Open Font License (OFL), according to its embedded license metadata.
 

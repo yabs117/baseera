@@ -6,10 +6,11 @@
     <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>Baseera</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>0.4.17</Version>
-    <InformationalVersion>0.4.17-preview</InformationalVersion>
+    <Version>0.5.0</Version>
+    <InformationalVersion>0.5.0-preview</InformationalVersion>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="PdfPig" Version="0.1.16" />
     <ProjectReference Include="../Baseera.Core/Baseera.Core.csproj" />
     <Content Include="Locales/*.json" CopyToOutputDirectory="PreserveNewest" />
     <Resource Include="Assets/Fonts/*.ttf" />
@@ -18,5 +19,6 @@
     <Resource Include="Assets/Brand/*.svg" />
     <Resource Include="Assets/Brand/Providers/*.svg" />
     <Resource Include="Assets/Brand/Providers/LICENSE.txt" />
+    <Resource Include="Assets/Licenses/*.txt" />
   </ItemGroup>
 </Project>

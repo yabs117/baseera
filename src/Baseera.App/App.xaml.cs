@@ -8,6 +8,8 @@ public partial class App : Application
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        if (e.Args.Length == 2 && e.Args[0] == "--local-probe")
+        { ShutdownMode = ShutdownMode.OnExplicitShutdown; Shutdown(await LocalProbes.Dispatch(e.Args[1])); return; }
         if (e.Args.Length == 2 && e.Args[0] == "--apply-update")
         {
             ShutdownMode = ShutdownMode.OnExplicitShutdown;
@@ -30,6 +32,18 @@ public partial class App : Application
             {
                 string output = e.Args.SkipWhile(x => x != "--smoke").Skip(1).FirstOrDefault() ?? "artifacts";
                 Directory.CreateDirectory(output);
+                if (e.Args.Contains("--investigation-services-only"))
+                {
+                    Settings.Current.Onboarded = true; window.ApplyTheme(); window.Render();
+                    await InvestigationServiceSmokeChecks.Run(output); Shutdown(0); return;
+                }
+                if (e.Args.Contains("--investigations-only"))
+                {
+                    Settings.Current.Onboarded = true; window.ApplyTheme(); window.Render();
+                    await InvestigationServiceSmokeChecks.Run(output);
+                    await InvestigationSmokeChecks.Run(window, output);
+                    Shutdown(0); return;
+                }
                 if (e.Args.Contains("--workflow-only"))
                 {
                     Settings.Current.Onboarded = true; window.ApplyTheme(); window.Render();
@@ -129,6 +143,8 @@ public partial class App : Application
                 await DeviceCenterSmokeChecks.Run(window, output);
                 await DiagnosticDeliverySmokeChecks.Run(window, output);
                 await WorkflowSmokeChecks.Run(window, output);
+                await InvestigationServiceSmokeChecks.Run(output);
+                await InvestigationSmokeChecks.Run(window, output);
                 foreach (string language in new[] { "en", "ar", "fr", "es" })
                 foreach (bool dark in new[] { false, true })
                 {

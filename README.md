@@ -5,26 +5,42 @@ image conversion and evidence-aware Windows troubleshooting.
 
 [العربية](docs/README.ar.md) · [Français](docs/README.fr.md) · [Español](docs/README.es.md)
 
-**In development — قيد التطوير: 0.4.17-preview.** The screenshot below shows the
-development interface with synthetic demonstration readings. These new features
-are not yet included in the public download. Latest published preview: **0.4.15**.
+**In development — قيد التطوير: 0.5.0-preview.** Eight investigation centers
+have been added on the development branch alongside the 0.4.17 work below.
+The screenshot shows the Windows AI Doctor with synthetic diagnostic evidence.
+These changes are not yet in the public download. Latest published preview:
+**0.4.15**.
 
 [Download the published Windows app](https://github.com/yabs117/baseera/releases/download/v0.4.15-preview/Baseera.exe) · [Published release notes](docs/RELEASE-0.4.15.md) · [Development work and code](https://github.com/yabs117/baseera/pull/2) · [Capability status](docs/ROADMAP.md)
 
-![Baseera 0.4.17 development control center — English, synthetic readings](docs/images/baseera-development-en.png)
+![Baseera 0.5.0 development Windows AI Doctor — English, synthetic evidence](docs/images/investigation-doctor-en.png)
 
-*Development preview, not a screenshot of the 0.4.15 download. Readings are fixtures,
-not measurements from a user's device or a claim that a problem has been fixed.*
+*Development preview, not a screenshot of the 0.4.15 download. Evidence is a
+fixture, not a measurement from a user's device or a verified repair.*
 
 <details>
-<summary>Development preview: English dark appearance and Arabic RTL</summary>
+<summary>Arabic RTL investigation center and earlier control-center views</summary>
 
+![Network Doctor — Arabic RTL, synthetic measurements](docs/images/investigation-network-ar-dark.png)
+![Earlier development control center — English, synthetic readings](docs/images/baseera-development-en.png)
 ![Baseera development control center — English, dark appearance](docs/images/baseera-development-en-dark.png)
 ![Baseera development control center — Arabic RTL, synthetic readings](docs/images/baseera-development-ar.png)
 
 </details>
 
-## In development — 0.4.17
+## In development — 0.5.0 investigation centers
+
+Windows AI Doctor, Performance Detective, Security Center, Network Doctor,
+Storage Explorer, Universal Search, System Timeline and USB/external devices
+are now implemented on the development branch. Collection is opt-in and local;
+reports show evidence limits, can be reviewed before AI sharing, and do not
+claim that coincidence proves a cause. Search uses a protected local index;
+security reputation queries send only a selected file's SHA-256 after approval.
+Storage cleanup is restricted to reviewed eligible temporary files, and USB
+tests read a selected file without modifying it. [Exact capabilities, limits,
+privacy and validation](docs/INVESTIGATION-CENTERS.md).
+
+## Earlier development work — 0.4.17
 
 The following features are implemented on the development branch and remain under
 review/testing. Publishing this page does not publish an application update.

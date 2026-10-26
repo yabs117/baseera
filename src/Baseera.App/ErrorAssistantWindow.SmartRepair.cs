@@ -53,6 +53,7 @@ internal sealed partial class ErrorAssistantWindow
         Source(diagnosticSystem, "smartSystemInfo"); Source(diagnosticApplication, "smartApplicationEvents"); Source(diagnosticEvents, "smartSystemEvents");
         Source(diagnosticHealth, "deviceDiagnosticSource");
         Source(diagnosticServices, "smartServiceStatus");
+        Source(diagnosticDrivers, "hubDrivers");
         Add(body, Text(I18n.T("smartTimeRange"), 12, true), 4);
         foreach (int hours in new[] { 1, 6, 24, 72 }) diagnosticRange.Items.Add(new ComboBoxItem { Content = string.Format(I18n.T("smartHours"), hours), Tag = hours });
         System.Windows.Automation.AutomationProperties.SetAutomationId(diagnosticRange, "SmartDiagnosticRange");
@@ -84,7 +85,7 @@ internal sealed partial class ErrorAssistantWindow
         bool idle = !NetworkBusy && recorder?.Recording != true;
         analyzeButton.IsEnabled = idle && (!realAnalyzer || Configured());
         collectDiagnostics.IsEnabled = idle;
-        foreach (var check in new[] { diagnosticSystem, diagnosticApplication, diagnosticEvents, diagnosticHealth, diagnosticServices }) check.IsEnabled = idle;
+        foreach (var check in new[] { diagnosticSystem, diagnosticApplication, diagnosticEvents, diagnosticHealth, diagnosticServices, diagnosticDrivers }) check.IsEnabled = idle;
         diagnosticRange.IsEnabled = idle;
         diagnosticMatch.IsEnabled = idle;
         reportButton.IsEnabled = idle && repairSession.Advice is not null && presentation?.IsTyping != true;
@@ -102,8 +103,8 @@ internal sealed partial class ErrorAssistantWindow
     {
         if (active is not null || diagnosticRequest is not null || repairRunning) return;
         int hours = diagnosticRange.SelectedItem is ComboBoxItem { Tag: int selected } ? selected : 24;
-        var options = new DiagnosticOptions(diagnosticSystem.IsChecked == true, diagnosticApplication.IsChecked == true, diagnosticEvents.IsChecked == true, hours, diagnosticMatch.Text, diagnosticHealth.IsChecked == true, diagnosticServices.IsChecked == true);
-        if (!options.SystemInfo && !options.ApplicationEvents && !options.SystemEvents && !options.DeviceHealth && !options.ServiceStatus) { feedback.Text = I18n.T("smartChooseSource"); return; }
+        var options = new DiagnosticOptions(diagnosticSystem.IsChecked == true, diagnosticApplication.IsChecked == true, diagnosticEvents.IsChecked == true, hours, diagnosticMatch.Text, diagnosticHealth.IsChecked == true, diagnosticServices.IsChecked == true, diagnosticDrivers.IsChecked == true);
+        if (!options.SystemInfo && !options.ApplicationEvents && !options.SystemEvents && !options.DeviceHealth && !options.ServiceStatus && !options.Drivers) { feedback.Text = I18n.T("smartChooseSource"); return; }
         diagnosticPreview.Clear();
         using var tracked = services.Tasks.Begin("caseDiscover", true);
         using var request = CancellationTokenSource.CreateLinkedTokenSource(tracked.Token); diagnosticRequest = request; InvalidateDiagnosticConsent(); RefreshSmartControls();

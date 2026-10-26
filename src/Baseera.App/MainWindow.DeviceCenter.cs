@@ -114,6 +114,8 @@ public sealed partial class MainWindow
         quick.Children.Add(QuickAccess("performance", () => Navigate("performance")));
         foreach (string key in new[] { "scan", "translate", "updates", "convert" }) quick.Children.Add(QuickAccess(key, () => Navigate(key), key == "updates" ? I18n.T("deviceUpdatesOnRequest") : null));
         body.Children.Add(quick); Help(body, "deviceLocalOnly");
+        SectionHeading(body, "hubCenters"); var centers = new UniformGrid { Columns = 2, Margin = new Thickness(0, 0, -10, 4) };
+        foreach (string center in InvestigationCenters) centers.Children.Add(QuickAccess(center, () => Navigate(center), I18n.T(center + "Short"))); body.Children.Add(centers);
         drawDevice = () => { DrawMetrics(metrics); observations.Text = deviceSnapshot is null ? I18n.T("deviceNoData") : string.Format(I18n.T("deviceObservations"), deviceSnapshot.Findings.Count); }; drawDevice();
     }
     private void DeviceHealthPage(StackPanel body)
@@ -193,6 +195,7 @@ public sealed partial class MainWindow
     }
     private void ApplyPendingDeviceReview(ErrorAssistantWindow assistant)
     {
+        if (pendingInvestigation is { } report) { if (assistant.ReviewInvestigation(report, pendingInvestigationSample)) { pendingInvestigation = null; pendingInvestigationSample = null; } return; }
         if (pendingDeviceReview is not { } snapshot) return;
         if (assistant.ReviewDeviceSnapshot(snapshot)) pendingDeviceReview = null;
     }

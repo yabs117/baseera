@@ -61,6 +61,7 @@ public sealed partial class MainWindow
         button.Click += (_, _) => action(); return button;
     }
     private Button AsyncAction(string key, Func<CancellationToken, Task> action, bool primary = false) => Action(key, async () => await Run(action), primary);
+    internal Action<Exception>? OperationErrorForSmoke { get; set; }
     private async Task Run(Func<CancellationToken, Task> work)
     {
         if (operation is not null) return;
@@ -75,7 +76,8 @@ public sealed partial class MainWindow
         {
             tracked.Failed();
             SetOperationStatus("error");
-            if (ex is ChatGptException { Key: "chatGptUsageLimit" }) ChatGptUi.ShowUsageLimit(this);
+            if (smokeMode && OperationErrorForSmoke is { } observe) observe(ex);
+            else if (ex is ChatGptException { Key: "chatGptUsageLimit" }) ChatGptUi.ShowUsageLimit(this);
             else MessageBox.Show(this, ex.Message, I18n.T("error"), MessageBoxButton.OK, MessageBoxImage.Warning);
         }
         finally { operation.Dispose(); operation = null; if (cancelOperation is not null) cancelOperation.Visibility = Visibility.Collapsed; }
@@ -129,9 +131,12 @@ public sealed partial class MainWindow
     }
     private void Divider(StackPanel body) => body.Children.Add(new Border { Height = 1, Background = Resource("Line") });
     private Border? selectedNavigationIndicator;
+    private Button? selectedNavigationButton;
     private StackPanel? pageBody;
     public void Navigate(string destination)
     {
+        if (page == "detective" && destination != page && detectiveRunning) operation?.Cancel();
+        if (page == "network" && destination != page && networkRunning) operation?.Cancel();
         bool changed = page != destination;
         double? previous = selectedNavigationIndicator?.IsLoaded == true ? selectedNavigationIndicator.TranslatePoint(new System.Windows.Point(), sidebar).Y : null;
         page = destination; emphasizeTranslationSettings = pendingTranslationSettings = false; Render();
@@ -162,6 +167,7 @@ public sealed partial class MainWindow
     {
         StopDeviceMonitor();
         selectedNavigationIndicator = null;
+        selectedNavigationButton = null;
         translationProviderSection = null; translationKeyInput = null; translationModelInput = null;
         double offset = preserveScroll ? scroller.VerticalOffset : 0;
         frame.Children.Clear(); frame.RowDefinitions.Clear(); frame.Children.Add(shell);
@@ -198,7 +204,10 @@ public sealed partial class MainWindow
         if (expanded) { var label = Text(I18n.T("yourTools"), 11, true); label.Margin = new Thickness(16, 22, 0, 8); links.Children.Add(label); }
         else links.Children.Add(new Border { Height = 18 });
         foreach (string tool in Tools) links.Children.Add(NavigationButton(tool));
-        navigation.Children.Add(new ScrollViewer { Content = links, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled });
+        if (expanded) { var label = Text(I18n.T("hubCenters"), 11, true); label.Margin = new Thickness(16, 22, 0, 8); links.Children.Add(label); }
+        foreach (string center in InvestigationCenters) links.Children.Add(NavigationButton(center));
+        var linksScroller = new ScrollViewer { Content = links, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
+        navigation.Children.Add(linksScroller);
         sidebar.BeginAnimation(WidthProperty, null); sidebar.Width = expanded ? 224 : 68; sidebar.Background = Resource("Sidebar"); sidebar.ClipToBounds = true; sidebar.Child = navigation;
         sidebar.BorderBrush = Resource("Line"); sidebar.BorderThickness = Arabic ? new Thickness(1, 0, 0, 0) : new Thickness(0, 0, 1, 0); shell.Children.Add(sidebar);
 
@@ -223,9 +232,24 @@ public sealed partial class MainWindow
             case "health": DeviceHealthPage(body); break; case "performance": PerformancePage(body); break;
             case "cases": CasesPage(body); break; case "activity": TasksPage(body); break;
             case "feedback": FeedbackPage(body); break;
-            case "settings": SettingsPage(body); break; default: ControlHome(body); break;
+            case "settings": SettingsPage(body); break;
+            case "doctor": DoctorPage(body); break; case "detective": DetectivePage(body); break; case "security": SecurityPage(body); break; case "network": NetworkPage(body); break;
+            case "storage": StoragePage(body); break; case "search": SearchPage(body); break; case "timeline": TimelinePage(body); break; case "usb": UsbPage(body); break;
+            default: ControlHome(body); break;
         }
         StartDeviceMonitor();
+        if (selectedNavigationButton is { } activeNavigation)
+            _ = Dispatcher.InvokeAsync(() =>
+            {
+                if (!activeNavigation.IsLoaded) return;
+                if (InvestigationCenters.Contains(page))
+                {
+                    linksScroller.UpdateLayout();
+                    double top = activeNavigation.TranslatePoint(new System.Windows.Point(), linksScroller).Y + linksScroller.VerticalOffset;
+                    linksScroller.ScrollToVerticalOffset(Math.Max(0, top - 56));
+                }
+                else activeNavigation.BringIntoView();
+            }, System.Windows.Threading.DispatcherPriority.Loaded);
         if (offset > 0) _ = Dispatcher.InvokeAsync(() => scroller.ScrollToVerticalOffset(offset), System.Windows.Threading.DispatcherPriority.Loaded);
         if (pendingTranslationSettings && translationProviderSection is { } section)
         {
@@ -253,10 +277,12 @@ public sealed partial class MainWindow
             row.Children.Add(selectedNavigationIndicator);
         }
         var icon = Icons.Create(id, 18); icon.HorizontalAlignment = HorizontalAlignment.Center; Grid.SetColumn(icon, 1); row.Children.Add(icon);
-        if (expanded) { var name = new TextBlock { Text = I18n.T(id), FontSize = 13, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 6, 0), FontWeight = selected ? HeadingWeight : FontWeights.Normal, TextWrapping = TextWrapping.NoWrap }; Grid.SetColumn(name, 2); row.Children.Add(name); }
+        if (expanded) { var name = new TextBlock { Text = I18n.T(id), FontSize = 13, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 6, 0), FontWeight = selected ? HeadingWeight : FontWeights.Normal, TextWrapping = TextWrapping.NoWrap, TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 150 }; Grid.SetColumn(name, 2); row.Children.Add(name); }
         var button = new Button { Style = (Style)FindResource("NavigationButton"), Content = row, Background = selected ? Resource("Selected") : Brushes.Transparent, ToolTip = I18n.T(id) };
         System.Windows.Automation.AutomationProperties.SetAutomationId(button, "Navigate-" + id);
-        System.Windows.Automation.AutomationProperties.SetName(button, I18n.T(id)); button.Click += (_, _) => Navigate(id); return button;
+        System.Windows.Automation.AutomationProperties.SetName(button, I18n.T(id)); button.Click += (_, _) => Navigate(id);
+        if (selected) selectedNavigationButton = button;
+        return button;
     }
     private ComboBox LanguageCombo()
     {
@@ -265,7 +291,7 @@ public sealed partial class MainWindow
         System.Windows.Automation.AutomationProperties.SetName(combo, I18n.T("language"));
         combo.SelectionChanged += (_, _) => { if (combo.SelectedIndex < 0) return; Settings.Current.Language = new[] { "ar", "en", "fr", "es" }[combo.SelectedIndex]; Settings.Save(); ApplyTheme(); Render(); }; return combo;
     }
-    private bool IsEnabledFeature(string key) => key switch { "scan" => Settings.Current.ScanEnabled, "translate" => Settings.Current.TranslationEnabled, "updates" => Settings.Current.UpdatesEnabled, "convert" => Settings.Current.ConvertEnabled, "errors" => Settings.Current.ErrorAssistantEnabled, _ => true };
+    private bool IsEnabledFeature(string key) => InvestigationCenters.Contains(key) ? !Settings.Current.DisabledCenters.Contains(key) : key switch { "scan" => Settings.Current.ScanEnabled, "translate" => Settings.Current.TranslationEnabled, "updates" => Settings.Current.UpdatesEnabled, "convert" => Settings.Current.ConvertEnabled, "errors" => Settings.Current.ErrorAssistantEnabled, _ => true };
     private void SetFeature(string key, bool value)
     {
         switch (key)
@@ -380,6 +406,9 @@ public sealed partial class MainWindow
         appearance.Children.Add(SettingRow("welcomeRepeat", welcomeStartup)); Divider(appearance);
         var welcome = Action("welcomeReopen", ShowWelcome); welcome.Margin = new Thickness(0); appearance.Children.Add(SettingRow("welcomeGuide", welcome)); body.Children.Add(Card(appearance));
         SectionHeading(body, "yourTools"); FeatureChoices(body);
+        SectionHeading(body, "hubCenters"); var centers = Stack();
+        foreach (string center in InvestigationCenters) centers.Children.Add(Toggle(center, IsEnabledFeature(center), enabled => { Settings.Current.DisabledCenters.RemoveAll(x => x == center); if (!enabled) Settings.Current.DisabledCenters.Add(center); Settings.Save(); }));
+        centers.Children.Add(Text(I18n.T("hubLocalFirst"), 12, true)); body.Children.Add(Card(centers));
         var monitoring = Stack(); monitoring.Children.Add(Toggle("deviceAutoRefresh", Settings.Current.AutoRefreshDevice, value => { Settings.Current.AutoRefreshDevice = value; Settings.Save(); })); monitoring.Children.Add(Text(I18n.T("deviceLocalOnly"), 12, true)); body.Children.Add(Card(monitoring));
         SectionHeading(body, "windowsIntegration"); var windows = Stack();
         windows.Children.Add(Toggle("startup", startupDraft ?? Settings.Current.StartWithWindows, value => startupDraft = value));

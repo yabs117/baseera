@@ -19,6 +19,7 @@ ScanReport Scan(byte[] bytes, string name = "input.bin", ScanLimits? limits = nu
 }
 try
 {
+    if (args.Contains("--investigations-only")) { InvestigationChecks.Run(Check, root); Console.WriteLine($"{passed} investigation tests passed."); return; }
     var clean = Scan(Encoding.UTF8.GetBytes("A harmless mod configuration: speed=2"));
     Check(clean.Verdict == "no-indicators" && clean.Files.Count == 1, "Benign content has no rule matches");
     Check(clean.Files[0].Sha256.Length == 64, "SHA-256 available");
@@ -65,6 +66,7 @@ try
     SmartRepairChecks.Run(Check);
     RepairCaseChecks.Run(Check);
     DeviceHealthChecks.Run(Check);
+    InvestigationChecks.Run(Check, root);
     AdviceMarkupChecks.Run(Check);
     ConversationChecks.Run(Check);
     SelfUpdateChecks.Run(Check, root);

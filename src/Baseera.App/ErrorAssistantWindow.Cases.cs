@@ -12,7 +12,7 @@ internal sealed partial class ErrorAssistantWindow
     private readonly ApplicationServices services;
     private readonly RepairCaseViewModel caseWorkflow;
     private readonly bool customDiagnostics;
-    private readonly CheckBox diagnosticServices = new();
+    private readonly CheckBox diagnosticServices = new(), diagnosticDrivers = new();
     private readonly Border workflowPanel = new();
     private readonly Expander workflowDetails = new();
     private readonly TextBox caseTitle = new() { Height = double.NaN, MinHeight = 38, Padding = new Thickness(10, 6, 10, 6) },
@@ -57,7 +57,7 @@ internal sealed partial class ErrorAssistantWindow
         workflowPanel.Visibility = caseWorkflow.Current is null ? Visibility.Collapsed : Visibility.Visible;
         bool idle = !NetworkBusy && recorder?.Recording != true && !caseWorkflow.Saving;
         caseSave.IsEnabled = idle && caseWorkflow.Current is not null;
-        caseRetest.IsEnabled = idle && caseWorkflow.LatestEvidence is not null;
+        caseRetest.IsEnabled = idle && caseWorkflow.LatestEvidence is { Sources.ExternalReport: false };
         caseTitle.IsEnabled = caseObserved.IsEnabled = caseStoreEvidence.IsEnabled = idle;
         caseStages.Children.Clear();
         var row = new System.Windows.Controls.Primitives.UniformGrid { Columns = 4 };
@@ -74,7 +74,7 @@ internal sealed partial class ErrorAssistantWindow
     }
     private async Task RetestCase()
     {
-        if (NetworkBusy || recorder?.Recording == true || caseWorkflow.LatestEvidence is not { } baseline) return;
+        if (NetworkBusy || recorder?.Recording == true || caseWorkflow.LatestEvidence is not { Sources.ExternalReport: false } baseline) return;
         using var tracked = services.Tasks.Begin("caseRetest", true);
         using var request = CancellationTokenSource.CreateLinkedTokenSource(tracked.Token); diagnosticRequest = request; RefreshSmartControls();
         try
@@ -100,10 +100,23 @@ internal sealed partial class ErrorAssistantWindow
         {
             diagnosticSystem.IsChecked = sample.Sources.SystemInfo; diagnosticApplication.IsChecked = sample.Sources.ApplicationEvents; diagnosticEvents.IsChecked = sample.Sources.SystemEvents;
             diagnosticHealth.IsChecked = sample.Sources.DeviceHealth; diagnosticServices.IsChecked = sample.Sources.ServiceStatus;
+            diagnosticDrivers.IsChecked = sample.Sources.Drivers;
             diagnosticRange.SelectedIndex = Array.IndexOf(new[] { 1, 6, 24, 72 }, sample.Sources.Hours); diagnosticMatch.Text = sample.Sources.MatchText;
             displayedEvidence = sample; diagnosticPreview.Text = sample.Text;
         }
         problem.Text = value.Analyses.FirstOrDefault()?.Description ?? ""; InvalidateDiagnosticConsent(); workflowDetails.IsExpanded = true; RefreshSmartControls(); return true;
+    }
+    internal bool ReviewInvestigation(string report, CaseEvidence? sample = null)
+    {
+        if (closed || NetworkBusy || recorder?.Recording == true) { feedback.Text = I18n.T("deviceBusy"); return false; }
+        diagnosticSystem.IsChecked = sample?.Sources.SystemInfo == true; diagnosticApplication.IsChecked = sample?.Sources.ApplicationEvents == true; diagnosticEvents.IsChecked = sample?.Sources.SystemEvents == true;
+        diagnosticHealth.IsChecked = sample?.Sources.DeviceHealth == true; diagnosticServices.IsChecked = sample?.Sources.ServiceStatus == true; diagnosticDrivers.IsChecked = sample?.Sources.Drivers == true;
+        if (sample is not null) { diagnosticRange.SelectedIndex = Array.IndexOf(new[] { 1, 6, 24, 72 }, sample.Sources.Hours); diagnosticMatch.Text = sample.Sources.MatchText; }
+        diagnosticPreview.Text = DiagnosticPrivacy.Sanitize(report, Environment.UserName, Environment.MachineName);
+        displayedEvidence = sample ?? new(Guid.NewGuid(), DateTimeOffset.UtcNow, services.Cases.HostScope, new(ExternalReport: true), diagnosticPreview.Text, null, [], false);
+        caseWorkflow.Capture(displayedEvidence); InvalidateDiagnosticConsent(); assistantTools.IsExpanded = true;
+        if (string.IsNullOrWhiteSpace(problem.Text)) problem.Text = I18n.T("hubReviewQuestion");
+        feedback.Text = I18n.T("hubReviewBeforeSend"); RefreshSmartControls(); return true;
     }
     private async void SaveCaseOnClosing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
