@@ -22,9 +22,9 @@ fixture, not a measurement from a user's device or a verified repair.*
 <summary>Arabic RTL investigation center and earlier control-center views</summary>
 
 ![Network Doctor — Arabic RTL, synthetic measurements](docs/images/investigation-network-ar-dark.png)
-![Earlier development control center — English, synthetic readings](docs/images/baseera-development-en.png)
-![Baseera development control center — English, dark appearance](docs/images/baseera-development-en-dark.png)
-![Baseera development control center — Arabic RTL, synthetic readings](docs/images/baseera-development-ar.png)
+![Current Overview and navigation — English, no readings collected](docs/images/baseera-development-en.png)
+![Current Overview and navigation — English dark appearance, no readings collected](docs/images/baseera-development-en-dark.png)
+![Current Overview and navigation — Arabic RTL, no readings collected](docs/images/baseera-development-ar.png)
 
 </details>
 
@@ -137,15 +137,16 @@ the translation service and focuses the missing key or model field.
 Settings are grouped by purpose; unsaved translation settings survive appearance changes.
 
 The error assistant can be enabled or disabled with the other tools in Settings.
-When enabled, it also opens separately before the main window on a normal launch. If
-no AI service is configured, it opens the relevant main Settings card first in the
-0.4.15 preview. Keys are protected by the local Windows account and shared with window
+In this development version, it opens only when you choose the assistant, a review
+action, or Ctrl+Shift+E. A normal launch stays on Overview. If no AI service is
+configured, your explicit assistant action opens the relevant main Settings card.
+Keys are protected by the local Windows account and shared with window
 translation. Error text and the selected image are sent to the selected service only after you
 press **Analyze error**. Review a full-window screenshot before sending: it may
 contain private information. The response gives possible causes, checks and steps,
 not a guaranteed repair. In the 0.4.15 preview, only reviewed catalog
 commands can run after separate explicit approval; generated free-form commands
-are never executed. The dialog does not open for Windows auto-start or file-conversion launches.
+are never executed.
 
 ![Error assistant with provider identity and structured guidance](docs/images/advice-complete-en.png)
 

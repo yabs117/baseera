@@ -21,7 +21,8 @@ public sealed partial class MainWindow
     private string feedbackTitleDraft = "", feedbackBodyDraft = "";
     private int feedbackKindDraft;
     private bool Arabic => Settings.Current.Language == "ar";
-    private static readonly string[] Tools = ["scan", "translate", "updates", "convert", "errors"];
+    private static readonly string[] Tools = ["scan", "translate", "updates", "convert", "errors", "search"];
+    private static readonly string[] PrimaryPages = ["home", "health", "performance", "doctor", "detective", "security", "cases", "activity"];
     private static Brush Resource(string key) => (Brush)Application.Current.FindResource(key);
     private static StackPanel Stack() => new() { Orientation = Orientation.Vertical };
     private FontWeight HeadingWeight => Arabic ? FontWeights.Medium : FontWeights.SemiBold;
@@ -195,17 +196,20 @@ public sealed partial class MainWindow
             var label = Text(I18n.T("windowsTools"), 11, true); label.Margin = new Thickness(0); wordmark.Children.Add(label); Grid.SetColumn(wordmark, 1); header.Children.Add(wordmark);
         }
         DockPanel.SetDock(header, Dock.Top); navigation.Children.Add(header);
-        var bottom = Stack();
-        if (expanded) { var version = Text("Baseera " + SelfUpdater.CurrentVersion + " · " + I18n.T("preview"), 10, true); version.Margin = new Thickness(16, 0, 0, 10); bottom.Children.Add(version); }
+        var bottom = Stack(); DeviceId(bottom, "SidebarFooter");
         bottom.Children.Add(NavigationButton("feedback"));
         bottom.Children.Add(NavigationButton("settings"));
+        if (expanded) { var version = Text("Baseera " + SelfUpdater.CurrentVersion + " · " + I18n.T("preview"), 10, true); version.Margin = new Thickness(16, 10, 0, 0); DeviceId(version, "SidebarVersion"); bottom.Children.Add(version); }
         DockPanel.SetDock(bottom, Dock.Bottom); navigation.Children.Add(bottom);
-        var links = Stack(); links.Children.Add(NavigationButton("home")); links.Children.Add(NavigationButton("health")); links.Children.Add(NavigationButton("performance")); links.Children.Add(NavigationButton("cases")); links.Children.Add(NavigationButton("activity"));
+        var links = Stack(); var primary = Stack(); DeviceId(primary, "SidebarPrimary");
+        foreach (string destination in PrimaryPages) primary.Children.Add(NavigationButton(destination)); links.Children.Add(primary);
         if (expanded) { var label = Text(I18n.T("yourTools"), 11, true); label.Margin = new Thickness(16, 22, 0, 8); links.Children.Add(label); }
         else links.Children.Add(new Border { Height = 18 });
-        foreach (string tool in Tools) links.Children.Add(NavigationButton(tool));
+        var toolLinks = Stack(); DeviceId(toolLinks, "SidebarTools");
+        foreach (string tool in Tools) toolLinks.Children.Add(NavigationButton(tool)); links.Children.Add(toolLinks);
         if (expanded) { var label = Text(I18n.T("hubCenters"), 11, true); label.Margin = new Thickness(16, 22, 0, 8); links.Children.Add(label); }
-        foreach (string center in InvestigationCenters) links.Children.Add(NavigationButton(center));
+        var centerLinks = Stack(); DeviceId(centerLinks, "SidebarCenters");
+        foreach (string center in InvestigationCenters.Except(PrimaryPages).Except(Tools)) centerLinks.Children.Add(NavigationButton(center)); links.Children.Add(centerLinks);
         var linksScroller = new ScrollViewer { Content = links, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
         navigation.Children.Add(linksScroller);
         sidebar.BeginAnimation(WidthProperty, null); sidebar.Width = expanded ? 224 : 68; sidebar.Background = Resource("Sidebar"); sidebar.ClipToBounds = true; sidebar.Child = navigation;
@@ -242,7 +246,8 @@ public sealed partial class MainWindow
             _ = Dispatcher.InvokeAsync(() =>
             {
                 if (!activeNavigation.IsLoaded) return;
-                if (InvestigationCenters.Contains(page))
+                if (PrimaryPages.Contains(page)) linksScroller.ScrollToHome();
+                else if (InvestigationCenters.Contains(page))
                 {
                     linksScroller.UpdateLayout();
                     double top = activeNavigation.TranslatePoint(new System.Windows.Point(), linksScroller).Y + linksScroller.VerticalOffset;
@@ -294,6 +299,12 @@ public sealed partial class MainWindow
     private bool IsEnabledFeature(string key) => InvestigationCenters.Contains(key) ? !Settings.Current.DisabledCenters.Contains(key) : key switch { "scan" => Settings.Current.ScanEnabled, "translate" => Settings.Current.TranslationEnabled, "updates" => Settings.Current.UpdatesEnabled, "convert" => Settings.Current.ConvertEnabled, "errors" => Settings.Current.ErrorAssistantEnabled, _ => true };
     private void SetFeature(string key, bool value)
     {
+        if (InvestigationCenters.Contains(key))
+        {
+            Settings.Current.DisabledCenters.RemoveAll(x => x == key);
+            if (!value) { Settings.Current.DisabledCenters.Add(key); operation?.Cancel(); }
+            Settings.Save(); return;
+        }
         switch (key)
         {
             case "scan": Settings.Current.ScanEnabled = value; break;
@@ -407,7 +418,7 @@ public sealed partial class MainWindow
         var welcome = Action("welcomeReopen", ShowWelcome); welcome.Margin = new Thickness(0); appearance.Children.Add(SettingRow("welcomeGuide", welcome)); body.Children.Add(Card(appearance));
         SectionHeading(body, "yourTools"); FeatureChoices(body);
         SectionHeading(body, "hubCenters"); var centers = Stack();
-        foreach (string center in InvestigationCenters) centers.Children.Add(Toggle(center, IsEnabledFeature(center), enabled => { Settings.Current.DisabledCenters.RemoveAll(x => x == center); if (!enabled) Settings.Current.DisabledCenters.Add(center); Settings.Save(); }));
+        foreach (string center in InvestigationCenters.Except(Tools)) centers.Children.Add(Toggle(center, IsEnabledFeature(center), enabled => SetFeature(center, enabled)));
         centers.Children.Add(Text(I18n.T("hubLocalFirst"), 12, true)); body.Children.Add(Card(centers));
         var monitoring = Stack(); monitoring.Children.Add(Toggle("deviceAutoRefresh", Settings.Current.AutoRefreshDevice, value => { Settings.Current.AutoRefreshDevice = value; Settings.Save(); })); monitoring.Children.Add(Text(I18n.T("deviceLocalOnly"), 12, true)); body.Children.Add(Card(monitoring));
         SectionHeading(body, "windowsIntegration"); var windows = Stack();

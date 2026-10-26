@@ -72,7 +72,7 @@ internal static class WorkflowSmokeChecks
         try
         {
             Settings.Current.Onboarded = true;
-            owner = new MainWindow(null, true, false, services); owner.Show(); await Settle(owner);
+            owner = new MainWindow(null, true, services); owner.Show(); await Settle(owner);
             foreach (string language in new[] { "ar", "en", "fr", "es" })
             {
                 history = (await repository.List(CancellationToken.None)).Single();

@@ -16,7 +16,7 @@ Activa solo las herramientas que necesitas. Elige entre 20 servicios directos, c
 cuando lo solicitas. Esc cierra la capa de traducción. La extensión en `extension/`
 reemplaza el texto de la página y permite restaurar el original.
 
-El asistente de errores aparece en «Tus herramientas» de la página principal y la barra lateral. Su página abre la ventana de análisis; si está activado, también se abre al iniciar Baseera normalmente. Puedes desactivarlo en Configuración.
+El asistente de errores aparece en «Tus herramientas» de la página principal y la barra lateral. En esta versión de desarrollo se abre cuando lo eliges desde su página, una acción de revisión o Ctrl+Shift+E. El inicio normal permanece en la vista general. Puedes desactivarlo en Configuración.
 Pega el mensaje o una imagen, copia un archivo de imagen, elige un archivo o captura una ventana abierta; la vista previa aparece enseguida. Solicita un análisis con la clave elegida. Puedes cerrar la ventana sin configurar
 una clave y volver a abrirla con Ctrl+Shift+E desde Baseera. El texto y la imagen
 elegidos se envían al servicio elegido solo al pulsar Analizar directamente. Revisa la captura antes de

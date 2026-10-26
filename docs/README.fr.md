@@ -16,7 +16,7 @@ Activez uniquement les outils voulus lors du premier lancement. Pour la traducti
 choisissez parmi 20 services directs, dont Gemini, OpenAI (modèles ChatGPT), Claude et Grok. Ajoutez la clé propre au service, puis chargez les modèles avec vision. OpenRouter est supprimé ; le plantage lors du changement de service est corrigé. L’accès et le prix dépendent du compte. [Services et vérification](AI-SERVICES.md). La capture est envoyée sur demande. Échap ferme la couche.
 L’extension dans `extension/` traduit le texte de la page en place et restaure l’original.
 
-L’assistant d’erreurs figure dans « Vos outils », sur l’accueil et dans la barre latérale. Sa page ouvre la fenêtre d’analyse ; lorsqu’il est activé, elle s’ouvre aussi au démarrage normal. Vous pouvez désactiver cet outil dans les paramètres. Collez
+L’assistant d’erreurs figure dans « Vos outils », sur l’accueil et dans la barre latérale. Dans cette version de développement, il s’ouvre à votre demande depuis sa page, une action de revue ou Ctrl+Shift+E. Le lancement normal reste sur l’aperçu. Vous pouvez désactiver cet outil dans les paramètres. Collez
 un message ou une image, collez un fichier image copié, choisissez un fichier ou capturez une fenêtre ouverte ; l’aperçu apparaît aussitôt. Demandez ensuite une analyse avec la clé choisie. Vous pouvez fermer l’assistant sans
 configurer de clé et le rouvrir avec Ctrl+Shift+E depuis Baseera. Le texte et l’image
 choisis sont envoyés au service choisi seulement après votre clic directement. Vérifiez la capture avant

@@ -24,7 +24,7 @@ public partial class App : Application
         { /* Connection settings report an unreadable credential store; startup remains available. */ }
         bool smoke = e.Args.Contains("--smoke");
         string? input = e.Args.Length > 1 && e.Args[0] == "--convert" ? e.Args[1] : null;
-        var window = new MainWindow(input, smoke, e.Args.Length == 0); MainWindow = window;
+        var window = new MainWindow(input, smoke); MainWindow = window;
         if (!smoke && e.Args.Length == 2 && e.Args[0] == "--update-result") window.UpdateReceipt = e.Args[1];
         if (smoke) window.Loaded += async (_, _) =>
         {
@@ -32,6 +32,8 @@ public partial class App : Application
             {
                 string output = e.Args.SkipWhile(x => x != "--smoke").Skip(1).FirstOrDefault() ?? "artifacts";
                 Directory.CreateDirectory(output);
+                if (e.Args.Contains("--shell-only"))
+                { await ShellSmokeChecks.Run(window, output); Shutdown(0); return; }
                 if (e.Args.Contains("--read-only-system-only"))
                 {
                     Settings.Current.Onboarded = true; window.ApplyTheme(); window.Render();
@@ -133,6 +135,7 @@ public partial class App : Application
                 await window.CheckNavigation();
                 window.CheckAiServices();
                 await WelcomeSmokeChecks.Run(window);
+                await ShellSmokeChecks.Run(window, output);
                 await SelfUpdateSmokeChecks.Run(output);
                 await window.CheckSelfUpdateControls();
                 await window.CheckStatusLocalization(output);

@@ -112,10 +112,10 @@ public sealed partial class MainWindow
         SectionHeading(body, "deviceQuick"); var quick = new UniformGrid { Columns = 2, Margin = new Thickness(0, 0, -10, 4) };
         quick.Children.Add(QuickAccess("errors", ReviewDeviceWithAssistant, I18n.T("deviceAnalyze")));
         quick.Children.Add(QuickAccess("performance", () => Navigate("performance")));
-        foreach (string key in new[] { "scan", "translate", "updates", "convert" }) quick.Children.Add(QuickAccess(key, () => Navigate(key), key == "updates" ? I18n.T("deviceUpdatesOnRequest") : null));
+        foreach (string key in new[] { "scan", "translate", "updates", "convert", "search" }) quick.Children.Add(QuickAccess(key, () => Navigate(key), key == "updates" ? I18n.T("deviceUpdatesOnRequest") : null));
         body.Children.Add(quick); Help(body, "deviceLocalOnly");
         SectionHeading(body, "hubCenters"); var centers = new UniformGrid { Columns = 2, Margin = new Thickness(0, 0, -10, 4) };
-        foreach (string center in InvestigationCenters) centers.Children.Add(QuickAccess(center, () => Navigate(center), I18n.T(center + "Short"))); body.Children.Add(centers);
+        foreach (string center in InvestigationCenters.Except(Tools)) centers.Children.Add(QuickAccess(center, () => Navigate(center), I18n.T(center + "Short"))); body.Children.Add(centers);
         drawDevice = () => { DrawMetrics(metrics); observations.Text = deviceSnapshot is null ? I18n.T("deviceNoData") : string.Format(I18n.T("deviceObservations"), deviceSnapshot.Findings.Count); }; drawDevice();
     }
     private void DeviceHealthPage(StackPanel body)

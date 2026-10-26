@@ -49,7 +49,7 @@ internal static class InvestigationSmokeChecks
         try
         {
             Settings.Current.Onboarded = true; Settings.Current.ErrorAssistantEnabled = true; Settings.Current.DisabledCenters.Clear(); Settings.Current.AiProvider = "gemini"; Settings.Current.GeminiModel = "gemini-fixture"; Settings.SetKey("gemini", "fixture-only-not-live"); Settings.SetReputationKey("fixture-only-not-live");
-            owner = new MainWindow(null, true, false); owner.Width = 1160; owner.Height = 820; owner.Show(); await Settle(owner);
+            owner = new MainWindow(null, true); owner.Width = 1160; owner.Height = 820; owner.Show(); await Settle(owner);
             var capturedAt = DateTimeOffset.UtcNow.AddSeconds(-10);
             var device = new DeviceSnapshot(capturedAt, 1, 91, new(16 * GiB, 2 * GiB), [new("C:\\", 256 * GiB, 16 * GiB, true)], [], [], false, []);
             owner.DoctorCaptureOverride = (options, token) =>

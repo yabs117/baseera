@@ -28,9 +28,9 @@ public sealed partial class MainWindow : Window
     private readonly bool smokeMode;
     internal ApplicationServices Services { get; }
     private readonly System.Windows.Threading.DispatcherTimer updateTimer = new() { Interval = TimeSpan.FromHours(6) };
-    public MainWindow(string? conversionFile = null, bool smoke = false, bool launchErrorAssistant = true)
-        : this(conversionFile, smoke, launchErrorAssistant, new ApplicationServices()) { }
-    internal MainWindow(string? conversionFile, bool smoke, bool launchErrorAssistant, ApplicationServices services)
+    public MainWindow(string? conversionFile = null, bool smoke = false)
+        : this(conversionFile, smoke, new ApplicationServices()) { }
+    internal MainWindow(string? conversionFile, bool smoke, ApplicationServices services)
     {
         Services = services;
         smokeMode = smoke;
@@ -66,7 +66,6 @@ public sealed partial class MainWindow : Window
                     catch (Exception ex) { SetOperationStatus("selfFailed", ex.Message); }
                 }
                 ShowStartupWelcome();
-                if (launchErrorAssistant && Settings.Current.ErrorAssistantEnabled) ShowErrorAssistant();
                 await CheckSelfUpdate();
                 if (!Settings.Current.Onboarded) return;
                 if (Settings.Current.ScanEnabled && Settings.Current.ScanAtStartup && (File.Exists(Settings.Current.ScanPath) || Directory.Exists(Settings.Current.ScanPath)))
