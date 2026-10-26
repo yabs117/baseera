@@ -80,7 +80,16 @@ internal static class WorkflowSmokeChecks
                 Require(Find<Button>(owner, "Navigate-cases").IsVisible && Find<Button>(owner, "Navigate-activity").IsVisible, "Case/activity navigation unavailable.");
                 Click(owner, "CaseArchiveRefresh"); await Settle(owner); var list = Find<ComboBox>(owner, "CaseArchivePicker");
                 Require(list.Items.Count == 1, "Archive list failed."); list.SelectedIndex = 0; await Settle(owner);
+                Require(list.SelectedItem is ComboBoxItem { Content: "Fixture case", Tag: RepairCaseDocument }, "Archive selector exposes record data instead of its title.");
                 Require(Nodes(owner).OfType<TextBlock>().Any(t => t.Text.Contains("BITS:")), "Archived service comparison is missing.");
+                if (language == "en")
+                {
+                    Click(owner, "CasePrepare"); await Settle(owner); var opened = owner.CurrentErrorAssistant ?? throw new Exception("Archive open button did not select its case.");
+                    Require(Find<TextBox>(opened, "CaseTitle").Text == history.Title, "Archive picker opened a different case.");
+                    Find<TextBox>(opened, "CaseTitle").Text = "Unsaved current case"; opened.Hide(); owner.OpenCaseWorkspace(RepairCaseDocument.Create("Other case")); await Settle(owner);
+                    Require(opened.IsVisible && Find<TextBox>(opened, "CaseTitle").Text == "Unsaved current case", "Switching cases hid or replaced unsaved work.");
+                    opened.PrepareSavedCase(history); opened.Close();
+                }
                 var dialog = new ErrorAssistantWindow(owner, analyze: (_, _, _, _) => throw new Exception("No AI requests authorized in archive test"));
                 try
                 {

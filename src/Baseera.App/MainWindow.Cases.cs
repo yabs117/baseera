@@ -35,7 +35,7 @@ public sealed partial class MainWindow
     private void CasesPage(StackPanel body)
     {
         Heading(body, "cases", "caseArchiveHelp");
-        var actions = new WrapPanel(); var list = new ComboBox { DisplayMemberPath = "Title", MinWidth = 260, Margin = new Thickness(0, 8, 0, 12) };
+        var actions = new WrapPanel(); var list = new ComboBox { MinWidth = 260, Margin = new Thickness(0, 8, 0, 12) };
         var details = Stack(); var message = Text("", 12, true); body.Children.Add(actions); body.Children.Add(message); body.Children.Add(list); body.Children.Add(details);
         System.Windows.Automation.AutomationProperties.SetAutomationId(list, "CaseArchivePicker");
         var refresh = Action("refresh", async () =>
@@ -43,7 +43,7 @@ public sealed partial class MainWindow
             try
             {
                 using var job = Services.Tasks.Begin("cases", true, lifetime.Token);
-                var values = await Services.Cases.List(job.Token); job.Complete(); list.ItemsSource = values; message.Text = values.Count == 0 ? I18n.T("caseArchiveEmpty") : "";
+                var values = await Services.Cases.List(job.Token); job.Complete(); list.ItemsSource = values.Select(v => new ComboBoxItem { Content = v.Title, Tag = v }).ToArray(); message.Text = values.Count == 0 ? I18n.T("caseArchiveEmpty") : "";
                 if (Services.Cases.UnreadableCount > 0) message.Text += " " + I18n.T("caseUnreadable") + " " + Services.Cases.UnreadableCount;
                 if (Services.Cases.ListLimited) message.Text += " " + I18n.T("caseListLimited");
                 if (values.Count > 0) list.SelectedIndex = 0;
@@ -51,10 +51,10 @@ public sealed partial class MainWindow
             catch (Exception) { message.Text = I18n.T("caseReadFailed"); }
         }); AutomationProperties.SetAutomationId(refresh, "CaseArchiveRefresh"); actions.Children.Add(refresh);
         actions.Children.Add(Action("caseNew", () => OpenCaseWorkspace(RepairCaseDocument.Create(I18n.T("caseUntitled")))));
-        var prepare = Action("casePrepare", () => { if (list.SelectedItem is RepairCaseDocument value) OpenCaseWorkspace(value); }); AutomationProperties.SetAutomationId(prepare, "CasePrepare"); actions.Children.Add(prepare);
+        var prepare = Action("casePrepare", () => { if (list.SelectedItem is ComboBoxItem { Tag: RepairCaseDocument value }) OpenCaseWorkspace(value); }); AutomationProperties.SetAutomationId(prepare, "CasePrepare"); actions.Children.Add(prepare);
         list.SelectionChanged += (_, _) =>
         {
-            details.Children.Clear(); if (list.SelectedItem is not RepairCaseDocument value) return;
+            details.Children.Clear(); if (list.SelectedItem is not ComboBoxItem { Tag: RepairCaseDocument value }) return;
             details.Children.Add(Text(value.Title, 18)); details.Children.Add(Text($"{I18n.T("caseCreated")}: {value.CreatedUtc.ToLocalTime():g}\n{I18n.T("caseFirstObserved")}: {value.FirstObservedUtc?.ToLocalTime().ToString("g") ?? I18n.T("deviceUnknown")}", 12, true));
             details.Children.Add(Text(I18n.T("caseLoadedReadOnly"), 12, true));
             foreach (var analysis in value.Analyses.TakeLast(5)) details.Children.Add(Card(Text($"{analysis.Time.ToLocalTime():g}\n{analysis.Summary}\n{analysis.Cause}\n" + string.Join("\n", analysis.Steps.Select((s, i) => $"{i + 1}. {s}")) + "\n" + analysis.Confidence, 13), 14));
@@ -75,6 +75,7 @@ public sealed partial class MainWindow
         {
             var created = new ErrorAssistantWindow(this); errorAssistant = created; created.Closed += (_, _) => { if (ReferenceEquals(errorAssistant, created)) errorAssistant = null; }; created.Show();
         }
-        if (errorAssistant.PrepareSavedCase(value)) { if (!errorAssistant.IsVisible) errorAssistant.Show(); errorAssistant.Activate(); }
+        errorAssistant.PrepareSavedCase(value);
+        if (!errorAssistant.IsVisible) errorAssistant.Show(); errorAssistant.Activate();
     }
 }
