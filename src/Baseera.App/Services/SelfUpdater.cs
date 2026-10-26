@@ -30,7 +30,7 @@ internal static class SelfUpdater
             if (buffer.Length + count > 5 * 1024 * 1024) throw new InvalidDataException("Release response is too large.");
             buffer.Write(chunk, 0, count);
         }
-        return SelfRelease.Select(System.Text.Encoding.UTF8.GetString(buffer.ToArray()), CurrentVersion);
+        return SelfRelease.Select(System.Text.Encoding.UTF8.GetString(buffer.ToArray()), CurrentVersion, Settings.UpdateChannel);
     }
 
     internal static async Task Download(SelfRelease release, string file, IProgress<long> progress, CancellationToken token, HttpClient? transport = null)

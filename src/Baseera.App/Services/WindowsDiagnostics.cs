@@ -10,12 +10,17 @@ internal interface IWindowsDiagnosticSource
 {
     string SystemSummary();
     string DeviceHealth(CancellationToken token) => "[Device health source unavailable.]";
+    string Services(CancellationToken token) => "[Service status source unavailable.]";
     IEnumerable<string> Events(string channel, int hours, string matchText, CancellationToken token);
 }
 
 internal sealed class WindowsDiagnosticSource : IWindowsDiagnosticSource
 {
-    public string DeviceHealth(CancellationToken token) => DeviceMonitor.DiagnosticText(DeviceMonitor.Collect(true, token).GetAwaiter().GetResult());
+    internal DeviceSnapshot? LastDevice { get; private set; }
+    internal IReadOnlyList<ServiceReading> LastServices { get; private set; } = [];
+    public string DeviceHealth(CancellationToken token) { LastDevice = DeviceMonitor.Collect(true, token).GetAwaiter().GetResult(); return DeviceMonitor.DiagnosticText(LastDevice); }
+    public string Services(CancellationToken token)
+    { LastServices = WindowsServiceStatus.Read(token); return "Fixed service status sample; stopped/trigger-start is not proof of a fault.\n" + string.Join("\n", LastServices.Select(s => s.Name + ": " + s.State)); }
     public string SystemSummary()
     {
         long free = new DriveInfo(Path.GetPathRoot(Environment.SystemDirectory)!).AvailableFreeSpace / (1024 * 1024);
@@ -83,6 +88,7 @@ internal static class WindowsDiagnostics
             }
             if (options.SystemInfo) Read("System summary", () => new[] { source.SystemSummary() });
             if (options.DeviceHealth) Read("Device health and performance snapshot", () => new[] { source.DeviceHealth(timeout.Token) });
+            if (options.ServiceStatus) Read("Selected Windows service states", () => new[] { source.Services(timeout.Token) });
             if (options.ApplicationEvents) Read("Application critical/errors", () => source.Events("Application", options.Hours, options.MatchText, timeout.Token));
             if (options.SystemEvents) Read("System critical/errors", () => source.Events("System", options.Hours, options.MatchText, timeout.Token));
             token.ThrowIfCancellationRequested();

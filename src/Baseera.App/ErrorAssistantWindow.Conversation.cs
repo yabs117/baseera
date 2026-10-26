@@ -147,6 +147,7 @@ internal sealed partial class ErrorAssistantWindow
         foreach (var turn in turns) turn.Dispose(); turns.Clear(); result.Children.Clear(); presentation = null; conversation.Clear();
         repairActions.Children.Clear(); repairSession.Clear(); repairStatus.Text = ""; RenderSession(); ClearDiagnostics();
         if (!preserveDraft) { problem.Clear(); SetImage(null); video = null; DiscardRecording(); }
+        if (!preserveDraft) caseWorkflow.Reset();
         RefreshSmartControls(); problem.Focus();
     }
     private void RefreshConversationControls(bool idle)
@@ -217,7 +218,8 @@ internal sealed partial class ErrorAssistantWindow
         if (NetworkBusy || recorder?.Recording == true || recording is null || !VoiceTranscription.Supported(AiCatalog.Provider, ChatGptAuth.Selected)) return;
         bool consent = approveAudioUpload?.Invoke() ?? MessageBox.Show(this, I18n.T("chatAudioPrivacy") + "\n" + AiProviderBadge.Name(AiCatalog.Provider, false) + " · " + VoiceTranscription.Model(AiCatalog.Provider, AiCatalog.Model), I18n.T("chatTranscribe"), MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) == MessageBoxResult.Yes;
         if (!consent || !AllowRequest()) return;
-        using var request = new CancellationTokenSource(); voiceRequest = request;
+        using var tracked = services.Tasks.Begin("chatTranscribe", true);
+        using var request = CancellationTokenSource.CreateLinkedTokenSource(tracked.Token); voiceRequest = request;
         string recipient = DiagnosticRecipient, provider = AiCatalog.Provider, model = AiCatalog.Model;
         byte[] audio = recording; RefreshSmartControls();
         try
@@ -227,10 +229,10 @@ internal sealed partial class ErrorAssistantWindow
             string transcript = await transcribeAudio(audio, provider, key, model, request.Token);
             if (closed || request.IsCancellationRequested || recipient != DiagnosticRecipient) return;
             string merged = (problem.Text + "\n" + transcript).Trim(); if (merged.Length > 12000) throw new InvalidDataException(I18n.T("errorTextSize"));
-            problem.Text = merged; recordingTranscribed = true; feedback.Text = I18n.T("chatTranscriptReady");
+            problem.Text = merged; recordingTranscribed = true; feedback.Text = I18n.T("chatTranscriptReady"); tracked.Complete();
         }
-        catch (OperationCanceledException) { }
-        catch (Exception ex) { if (!closed) feedback.Text = I18n.T("chatAudioFailed") + " " + ex.Message; }
+        catch (OperationCanceledException) { tracked.Cancelled(); }
+        catch (Exception ex) { tracked.Failed(); if (!closed) feedback.Text = I18n.T("chatAudioFailed") + " " + ex.Message; }
         finally { voiceRequest = null; if (!closed) RefreshSmartControls(); }
     }
     private void StartDictation()

@@ -4,7 +4,13 @@ A modular Windows companion with a compact desktop interface. Enable just the
 tools you need: local file inspection, window translation, selected app updates,
 image conversion, and an error assistant that explains copied Windows errors.
 
-**Development 0.4.16:** the [device control center](docs/DEVICE-CENTER.md) adds local
+**Development 0.4.17:** [Smart Repair cases](docs/SMART-REPAIR-WORKFLOW.md) add an
+optional service-state source, protected local case files and before/after retests
+with explicit uncertainty. Activity exposes cancellation; [update channels and
+signing support](docs/RELEASE-CHANNELS.md) add release controls. These changes remain
+under development; the public download below is still 0.4.15.
+
+The [device control center](docs/DEVICE-CENTER.md) adds local
 CPU/RAM/storage readings, resource observations, process and startup review, and
 optional combined device/event evidence in Smart Repair. These changes are under
 development and are not in the published 0.4.15 download below.

@@ -77,6 +77,13 @@ on Send; other providers receive six normalized sampled images and no raw clip o
 audio. Media decoders remain outside a hardened sandbox. The ten-request checkpoint
 is a local usage reminder, not a verified financial limit or account balance.
 
+Development 0.4.17 adds [protected local case history](docs/SMART-REPAIR-WORKFLOW.md),
+read-only fixed service queries and scoped retests. Saved analyses/comparisons can
+contain private data; raw storage is separately opt-in. Files are bounded,
+DPAPI-protected and never uploaded automatically. Archived actions cannot execute.
+[Signing support](docs/RELEASE-CHANNELS.md) needs a maintainer certificate; the
+development binary remains unsigned. CI/input tests are not proof of security.
+
 AI recommendations cannot become arbitrary commands. Only three immutable catalog
 actions are executable: DNS cache clearing, SFC repair and DISM component-store
 repair with restart suppressed. Each needs an unchecked-by-default acknowledgement

@@ -26,6 +26,9 @@ jobs:
         run: ./build.ps1 -Test -Publish
       - name: Extension validation
         run: node --test extension/test/protocol.test.js
+      - name: Signing policy validation
+        shell: pwsh
+        run: ./tests/windows/Test-SigningPolicy.ps1
       - uses: actions/upload-artifact@v4
         with:
           name: Baseera-windows-preview

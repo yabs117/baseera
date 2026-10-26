@@ -1,4 +1,5 @@
 using System.Windows.Media.Animation;
+using SystemColors = System.Windows.SystemColors;
 using Baseera.App.Services;
 
 namespace Baseera.App;
@@ -25,6 +26,7 @@ public sealed partial class MainWindow
     private static StackPanel Stack() => new() { Orientation = Orientation.Vertical };
     private FontWeight HeadingWeight => Arabic ? FontWeights.Medium : FontWeights.SemiBold;
 
+    internal bool? HighContrastOverride { get; set; }
     public void ApplyTheme()
     {
         string[] keys = ["Bg", "Surface", "Ink", "Muted", "Line", "Accent", "Sidebar", "Selected", "Hover", "OnAccent", "Subtle"];
@@ -32,6 +34,12 @@ public sealed partial class MainWindow
         string[] dark = ["#272727", "#303030", "#F4F4F4", "#B1B1B1", "#414141", "#79B8E8", "#202020", "#383838", "#3A3A3A", "#172534", "#2B2B2B"];
         var palette = Settings.Current.Dark ? dark : light;
         for (int i = 0; i < keys.Length; i++) Application.Current.Resources[keys[i]] = new SolidColorBrush((Color)ColorConverter.ConvertFromString(palette[i]));
+        if (HighContrastOverride ?? SystemParameters.HighContrast)
+        {
+            var colors = new[] { SystemColors.WindowColor, SystemColors.WindowColor, SystemColors.WindowTextColor, SystemColors.GrayTextColor, SystemColors.WindowTextColor,
+                SystemColors.HighlightColor, SystemColors.ControlColor, SystemColors.ControlColor, SystemColors.ControlColor, SystemColors.HighlightTextColor, SystemColors.WindowColor };
+            for (int i = 0; i < keys.Length; i++) Application.Current.Resources[keys[i]] = new SolidColorBrush(colors[i]);
+        }
         SetResourceReference(BackgroundProperty, "Bg"); SetResourceReference(ForegroundProperty, "Ink");
         FlowDirection = FlowDirection.LeftToRight;
         shell.FlowDirection = Arabic ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
@@ -56,14 +64,16 @@ public sealed partial class MainWindow
     private async Task Run(Func<CancellationToken, Task> work)
     {
         if (operation is not null) return;
-        operation = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
+        using var tracked = Services.Tasks.Begin(page, true, lifetime.Token);
+        operation = CancellationTokenSource.CreateLinkedTokenSource(tracked.Token);
         if (cancelOperation is not null) cancelOperation.Visibility = Visibility.Visible;
         if (operationBar is not null) operationBar.Visibility = Visibility.Visible;
         SetOperationStatus("working");
-        try { await work(operation.Token); SetOperationStatus("done"); }
-        catch (OperationCanceledException) { SetOperationStatus("cancel"); }
+        try { await work(operation.Token); tracked.Complete(); SetOperationStatus("done"); }
+        catch (OperationCanceledException) { tracked.Cancelled(); SetOperationStatus("cancel"); }
         catch (Exception ex)
         {
+            tracked.Failed();
             SetOperationStatus("error");
             if (ex is ChatGptException { Key: "chatGptUsageLimit" }) ChatGptUi.ShowUsageLimit(this);
             else MessageBox.Show(this, ex.Message, I18n.T("error"), MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -158,6 +168,7 @@ public sealed partial class MainWindow
         scroller = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
         status = new TextBlock { Text = OperationStatusText, Foreground = Resource("Muted"), FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
         System.Windows.Automation.AutomationProperties.SetAutomationId(status, "OperationStatus");
+        System.Windows.Automation.AutomationProperties.SetLiveSetting(status, System.Windows.Automation.AutomationLiveSetting.Polite);
         shell.Children.Clear(); shell.ColumnDefinitions.Clear(); shell.RowDefinitions.Clear();
         shell.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); shell.ColumnDefinitions.Add(new ColumnDefinition());
         var navigation = new DockPanel { Margin = new Thickness(8, 10, 8, 14) };
@@ -183,11 +194,11 @@ public sealed partial class MainWindow
         bottom.Children.Add(NavigationButton("feedback"));
         bottom.Children.Add(NavigationButton("settings"));
         DockPanel.SetDock(bottom, Dock.Bottom); navigation.Children.Add(bottom);
-        var links = Stack(); links.Children.Add(NavigationButton("home")); links.Children.Add(NavigationButton("health")); links.Children.Add(NavigationButton("performance"));
+        var links = Stack(); links.Children.Add(NavigationButton("home")); links.Children.Add(NavigationButton("health")); links.Children.Add(NavigationButton("performance")); links.Children.Add(NavigationButton("cases")); links.Children.Add(NavigationButton("activity"));
         if (expanded) { var label = Text(I18n.T("yourTools"), 11, true); label.Margin = new Thickness(16, 22, 0, 8); links.Children.Add(label); }
         else links.Children.Add(new Border { Height = 18 });
         foreach (string tool in Tools) links.Children.Add(NavigationButton(tool));
-        navigation.Children.Add(links);
+        navigation.Children.Add(new ScrollViewer { Content = links, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled });
         sidebar.BeginAnimation(WidthProperty, null); sidebar.Width = expanded ? 224 : 68; sidebar.Background = Resource("Sidebar"); sidebar.ClipToBounds = true; sidebar.Child = navigation;
         sidebar.BorderBrush = Resource("Line"); sidebar.BorderThickness = Arabic ? new Thickness(1, 0, 0, 0) : new Thickness(0, 0, 1, 0); shell.Children.Add(sidebar);
 
@@ -210,6 +221,7 @@ public sealed partial class MainWindow
             case "updates": UpdatesPage(body); break; case "convert": ConvertPage(body); break;
             case "errors": ErrorAssistantPage(body); break;
             case "health": DeviceHealthPage(body); break; case "performance": PerformancePage(body); break;
+            case "cases": CasesPage(body); break; case "activity": TasksPage(body); break;
             case "feedback": FeedbackPage(body); break;
             case "settings": SettingsPage(body); break; default: ControlHome(body); break;
         }

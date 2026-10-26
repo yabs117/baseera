@@ -6,6 +6,8 @@ public static class Icons
 {
     private static readonly Dictionary<string, string> Paths = new()
     {
+        ["cases"] = "M3,4 L10,4 L12,7 L21,7 L21,21 L3,21 Z M7,11 L17,11 M7,15 L17,15 M7,18 L13,18",
+        ["activity"] = "M4,3 L20,3 L20,21 L4,21 Z M8,7 L10,9 L13,5 M8,14 L16,14 M8,18 L16,18",
         ["health"] = "M2,12 L6,12 L9,4 L14,20 L17,12 L22,12",
         ["performance"] = "M3,19 A10,10 0 1 1 21,19 M12,13 L18,7 M12,13 L12,14",
         ["cpu"] = "M6,6 L18,6 L18,18 L6,18 Z M9,9 L15,9 L15,15 L9,15 Z M9,2 L9,6 M15,2 L15,6 M9,18 L9,22 M15,18 L15,22 M2,9 L6,9 M2,15 L6,15 M18,9 L22,9 M18,15 L22,15",

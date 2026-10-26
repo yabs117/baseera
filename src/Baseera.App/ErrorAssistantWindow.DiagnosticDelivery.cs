@@ -8,7 +8,7 @@ internal sealed partial class ErrorAssistantWindow
     private readonly TextBlock diagnosticDeliveryStatus = new() { FontSize = 11, TextWrapping = TextWrapping.Wrap };
     private Button collectForMessage = null!, reviewForMessage = null!, sendWithoutDiagnostics = null!;
     private bool diagnosticGateActive, diagnosticRequestHasData, previousRequestHadDiagnostics;
-    private bool DiagnosticSourceSelected => diagnosticSystem.IsChecked == true || diagnosticApplication.IsChecked == true || diagnosticEvents.IsChecked == true || diagnosticHealth.IsChecked == true;
+    private bool DiagnosticSourceSelected => diagnosticSystem.IsChecked == true || diagnosticApplication.IsChecked == true || diagnosticEvents.IsChecked == true || diagnosticHealth.IsChecked == true || diagnosticServices.IsChecked == true;
     private bool HasDiagnosticPreview => !string.IsNullOrWhiteSpace(diagnosticPreview.Text);
     private bool DiagnosticsReady => HasDiagnosticPreview && diagnosticShare.IsChecked == true && diagnosticRecipient == DiagnosticRecipient;
     private bool NeedsDiagnosticReview => (DiagnosticSourceSelected || HasDiagnosticPreview || diagnosticShare.IsChecked == true) && !DiagnosticsReady;

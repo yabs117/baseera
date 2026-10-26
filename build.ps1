@@ -1,4 +1,4 @@
-param([switch]$Test, [switch]$Publish, [switch]$Smoke)
+param([switch]$Test, [switch]$Publish, [switch]$Smoke, [string]$SigningThumbprint)
 $ErrorActionPreference = 'Stop'
 Set-Location -LiteralPath $PSScriptRoot
 $env:DOTNET_CLI_HOME = Join-Path $PSScriptRoot '.local/dotnet'
@@ -25,6 +25,8 @@ if ($Publish) {
     $compatibilityExe = "artifacts/Baseera-v$version-Windows-x64.exe"
     & dotnet publish src/Baseera.App/Baseera.App.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=None -p:NuGetAudit=false -o $desktopStage --nologo
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    if ($SigningThumbprint) { & ./packaging/sign-release.ps1 -Path "$desktopStage/Baseera.exe" -CertificateThumbprint $SigningThumbprint }
+    if ($version -notmatch '-preview') { & ./packaging/sign-release.ps1 -Path "$desktopStage/Baseera.exe" -VerifyOnly -CertificateThumbprint $SigningThumbprint }
     Copy-Item -LiteralPath 'LICENSE', 'THIRD-PARTY-NOTICES.md', 'packaging/desktop/START-HERE.html', 'src/Baseera.App/Assets/Fonts/OFL.txt', 'src/Baseera.App/Assets/Fonts/Noto-OFL.txt' -Destination $desktopStage
     $browserStage = "artifacts/Baseera-v$version-Browser-Extension"
     New-Item -ItemType Directory -Force -Path "$browserStage/extension" | Out-Null

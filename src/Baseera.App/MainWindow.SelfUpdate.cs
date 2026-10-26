@@ -22,8 +22,13 @@ public sealed partial class MainWindow
             if (manual || DateTime.UtcNow >= nextSelfCheck)
             {
                 refreshed = true;
+                string channel = Settings.UpdateChannel;
                 selfStatusKey = "selfChecking"; if (manual) Render(true);
-                pendingSelf = await (check ?? SelfUpdater.Check)(lifetime.Token);
+                using var tracked = Services.Tasks.Begin("selfTitle", true, lifetime.Token);
+                try { pendingSelf = await (check ?? SelfUpdater.Check)(tracked.Token); tracked.Complete(); }
+                catch (OperationCanceledException) { tracked.Cancelled(); throw; }
+                catch { tracked.Failed(); throw; }
+                if (channel != Settings.UpdateChannel) pendingSelf = null;
                 nextSelfCheck = DateTime.UtcNow.AddHours(2);
                 selfStatusKey = pendingSelf is null ? "selfLatest" : "selfAvailable";
                 if (manual) Render(true);
@@ -38,7 +43,7 @@ public sealed partial class MainWindow
                 new UpdateWindow(this, pendingSelf).ShowDialog();
             }
         }
-        catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { }
+        catch (OperationCanceledException) { selfStatusKey = "selfCanceled"; }
         catch { nextSelfCheck = DateTime.UtcNow.AddMinutes(15); selfStatusKey = "selfCheckFailed"; if (manual) Render(true); }
         finally
         {
@@ -72,6 +77,11 @@ public sealed partial class MainWindow
         SectionHeading(body, "selfTitle"); var content = Stack();
         var version = Text("Baseera " + SelfUpdater.CurrentVersion, 14); version.FlowDirection = FlowDirection.LeftToRight; content.Children.Add(version);
         content.Children.Add(Text(I18n.T("selfSettingsNote"), 12, true));
+        content.Children.Add(Text(I18n.T("channelHelp"), 12, true));
+        var channel = new ComboBox { ItemsSource = new[] { I18n.T("channelStable"), I18n.T("channelPreview") }, SelectedIndex = Settings.UpdateChannel == "stable" ? 0 : 1, IsEnabled = !checkingSelf, Margin = new Thickness(0, 0, 0, 10) };
+        System.Windows.Automation.AutomationProperties.SetAutomationId(channel, "ReleaseChannel"); System.Windows.Automation.AutomationProperties.SetName(channel, I18n.T("channelTitle"));
+        channel.SelectionChanged += (_, _) => { Settings.Current.ReleaseChannel = channel.SelectedIndex == 0 ? "stable" : "preview"; Settings.Save(); pendingSelf = null; offeredSelf.Clear(); nextSelfCheck = DateTime.MinValue; selfStatusKey = ""; };
+        content.Children.Add(channel);
         content.Children.Add(Toggle("selfAuto", Settings.Current.CheckBaseeraUpdates, enabled => { Settings.Current.CheckBaseeraUpdates = enabled; Settings.Save(); }));
         var check = Action("selfCheck", async () => await CheckSelfUpdate(true)); check.IsEnabled = !checkingSelf; check.HorizontalAlignment = HorizontalAlignment.Left; content.Children.Add(check);
         if (selfStatusKey.Length > 0)
