@@ -16,6 +16,12 @@ internal static class InvestigationChecks
             if (old) File.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddDays(-10)); return path;
         }
         StorageFile Snapshot(string path) { var f = new FileInfo(path); return new(f.FullName, f.Length, f.LastWriteTimeUtc); }
+        check(Enumerable.Range(0, 16).All(n => LocalPathSafety.IsCloudTag(0x9000001Au | ((uint)n << 12))) &&
+            !LocalPathSafety.IsCloudTag(0xA0000003) && !LocalPathSafety.IsCloudTag(0xA000000C) && !LocalPathSafety.IsCloudTag(0x8000001A),
+            "Only the sixteen Cloud Files tags are distinguished from junctions, symbolic links and unknown reparse tags");
+        check(!LocalPathSafety.RequiresDownload((FileAttributes)0x80420) &&
+            new uint[] { 0x1000, 0x40000, 0x400000 }.All(flag => LocalPathSafety.RequiresDownload((FileAttributes)(flag | 0x400))),
+            "Locally available cloud files are readable while offline/recall states require a prior download");
         string a = Put("one/a.txt", "same contents"), b = Put("two/b.txt", "same contents"), c = Put("two/c.txt", "xxxx contents");
         var report = StorageExplorer.Inspect(root, true, CancellationToken.None).GetAwaiter().GetResult();
         check(report.Bytes == new[] { a, b, c }.Sum(p => new FileInfo(p).Length) && report.Entries == 3 && report.Folders.Count == 2, "Storage totals reflect bounded selected-folder files without double-counting nested folders");
@@ -116,6 +122,8 @@ internal static class InvestigationChecks
         check(NetworkEvidence.Loss(reading) == 50 && NetworkEvidence.Interpret(reading).Contains("hubPacketLoss") && NetworkEvidence.Interpret(reading).Contains("hubNetworkLimits"), "Network measurements preserve actual loss and retain diagnostic limits");
         var blocked = reading with { DnsMs = null, Replies = [] };
         check(NetworkEvidence.Interpret(blocked).Contains("hubDnsFailed") && NetworkEvidence.Interpret(blocked).Contains("hubIcmpUnknown"), "Missing DNS and blocked ICMP remain uncertain observations, not a dead-network claim");
+        var direct = blocked with { Host = "127.0.0.1" };
+        check(NetworkEvidence.Interpret(direct).Contains("hubDnsNotRequired") && !NetworkEvidence.Interpret(direct).Contains("hubDnsFailed"), "A direct IP measurement cannot be mislabeled as a failed or timed DNS lookup");
         check(NetworkEvidence.Loss(reading with { Sent = 0, Replies = [] }) is null && NetworkEvidence.Loss(reading with { Sent = 1 }) is null && Reject(() => NetworkEvidence.Validate(reading with { Sent = 1 })), "Inconsistent network history cannot yield fabricated negative loss");
         check(NetworkEvidence.Host("example.com") == "example.com" && NetworkEvidence.Host("127.0.0.1") == "127.0.0.1" && NetworkEvidence.Host("مثال.إختبار").StartsWith("xn--"), "Network target validation supports literal addresses and internationalized hostnames");
         check(new[] { "https://example.com", "user@example.com", "example.com/path", "example.com:443", "foo\nbar", new string('a', 254) }.All(s => Reject(() => NetworkEvidence.Host(s))), "Network targets reject URLs, credentials, ports, paths, controls and oversized hostnames");

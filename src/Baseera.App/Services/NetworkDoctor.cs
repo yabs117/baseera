@@ -12,8 +12,12 @@ internal static class NetworkDoctor
     {
         string host = NetworkEvidence.Host(input); var clock = Stopwatch.StartNew(); IPAddress[] addresses = []; double? dns = null; string notice = "";
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token); timeout.CancelAfter(TimeSpan.FromSeconds(18));
-        try { addresses = await (resolve?.Invoke(host, timeout.Token) ?? Dns.GetHostAddressesAsync(host, timeout.Token)); dns = clock.Elapsed.TotalMilliseconds; }
-        catch (Exception ex) when (ex is System.Net.Sockets.SocketException or TimeoutException) { notice = "hubDnsFailed"; }
+        if (IPAddress.TryParse(host, out var literal)) { addresses = [literal]; notice = "hubDnsNotRequired"; }
+        else
+        {
+            try { addresses = await (resolve?.Invoke(host, timeout.Token) ?? Dns.GetHostAddressesAsync(host, timeout.Token)); dns = clock.Elapsed.TotalMilliseconds; }
+            catch (Exception ex) when (ex is System.Net.Sockets.SocketException or TimeoutException) { notice = "hubDnsFailed"; }
+        }
         var replies = new List<long>(); int sent = 0;
         if (addresses.FirstOrDefault() is { } target)
             for (int n = 0; n < 6; n++)

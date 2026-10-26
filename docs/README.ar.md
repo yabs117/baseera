@@ -56,7 +56,7 @@
 ./build.ps1 -Test -Publish
 ```
 
-الملف التنفيذي لهذا الإصدار في `artifacts/Baseera-v0.4.15-Windows-x64/Baseera.exe`، وتوجد نسخة باسم مختصر في `artifacts/Baseera.exe`.
+الملف التنفيذي لنسخة التطوير في `artifacts/Baseera-v0.5.0-Windows-x64/Baseera.exe`، وتوجد نسخة باسم مختصر في `artifacts/Baseera.exe` وحزمة `artifacts/Baseera.zip`.
 
 حمّل [تطبيق ويندوز](https://github.com/yabs117/baseera/releases/download/v0.4.15-preview/Baseera.exe) مباشرة.
 إضافة المتصفح حزمة اختيارية منفصلة: اقرأ `START-HERE.html` وثبّتها من المتصفح، ولا تفتح ملفات الشيفرة بالنقر المزدوج.

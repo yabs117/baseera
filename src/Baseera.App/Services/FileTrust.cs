@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Net;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
+using System.Security.Cryptography;
 using System.Text.Json;
 using Baseera.Core;
 
@@ -18,15 +19,22 @@ internal static class FileTrust
     [StructLayout(LayoutKind.Sequential)] private struct Signer { public uint Size; public System.Runtime.InteropServices.ComTypes.FILETIME Time; public uint Count; public IntPtr Certificates; }
     [StructLayout(LayoutKind.Sequential)] private struct ProviderCertificate { public uint Size; public IntPtr Context; }
     [StructLayout(LayoutKind.Sequential)] private struct CertificateContext { public uint Encoding; public IntPtr Bytes; public uint Length; }
-    internal static async Task<InvestigationReport> Inspect(string path)
+    internal static async Task<InvestigationReport> Inspect(string path, Action? beforeVerification = null)
     {
         LocalFileScope.RequireFile(Path.GetDirectoryName(Path.GetFullPath(path))!, path); var file = new System.IO.FileInfo(path);
         if (file.Length > 1073741824) throw new InvalidDataException("Signature inspection file limit.");
-        var snapshot = new StorageFile(file.FullName, file.Length, file.LastWriteTimeUtc); string hash = await LocalFileScope.Hash(snapshot, CancellationToken.None);
+        var snapshot = new StorageFile(file.FullName, file.Length, file.LastWriteTimeUtc);
+        // Keep the same file open without write/delete sharing through both the
+        // digest and native trust check so the two results identify one file.
+        await using var locked = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 65536, FileOptions.Asynchronous | FileOptions.SequentialScan);
+        if (locked.Length > 1073741824) throw new InvalidDataException("Signature inspection file limit.");
+        string hash = Convert.ToHexString(await SHA256.HashDataAsync(locked)).ToLowerInvariant();
+        beforeVerification?.Invoke(); // Deterministic in-process mutation test; no CLI callback.
+        locked.Position = 0;
         IntPtr name = Marshal.StringToCoTaskMemUni(path), native = IntPtr.Zero; int code; string publisher = "";
         try
         {
-            var info = new FileInfoNative { Size = (uint)Marshal.SizeOf<FileInfoNative>(), Path = name }; native = Marshal.AllocCoTaskMem(Marshal.SizeOf<FileInfoNative>()); Marshal.StructureToPtr(info, native, false);
+            var info = new FileInfoNative { Size = (uint)Marshal.SizeOf<FileInfoNative>(), Path = name, Handle = locked.SafeFileHandle.DangerousGetHandle() }; native = Marshal.AllocCoTaskMem(Marshal.SizeOf<FileInfoNative>()); Marshal.StructureToPtr(info, native, false);
             var data = new TrustData { Size = (uint)Marshal.SizeOf<TrustData>(), Ui = 2, Choice = 1, File = native, State = 1, Flags = 0x1000 };
             var action = new Guid("00AAC56B-CD44-11d0-8CC2-00C04FC295EE");
             try

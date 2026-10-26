@@ -42,7 +42,10 @@ internal static class LocalProbes
         try
         {
             locator = Activator.CreateInstance(Type.GetTypeFromProgID("WbemScripting.SWbemLocator")!);
-            service = ((dynamic)locator!).ConnectServer(".", space); set = ((dynamic)service).ExecQuery(query, "WQL", 48);
+            // COM's managed IEnumerable adapter cannot enumerate this scripting
+            // provider's forward-only set reliably. Keep semisynchronous return
+            // without wbemFlagForwardOnly; the child still has hard limits.
+            service = ((dynamic)locator!).ConnectServer(".", space); set = ((dynamic)service).ExecQuery(query, "WQL", 16);
             foreach (object item in (IEnumerable)set)
             {
                 try

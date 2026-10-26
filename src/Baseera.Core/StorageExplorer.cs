@@ -19,9 +19,10 @@ public static class LocalFileScope
         string? volume = Path.GetPathRoot(full);
         if (volume is null || new DriveInfo(volume).DriveType is not (DriveType.Fixed or DriveType.Removable))
             throw new InvalidDataException("Only local fixed or removable volumes are supported.");
-        if ((File.GetAttributes(full) & FileAttributes.ReparsePoint) != 0) throw new InvalidDataException("Linked folders are excluded.");
+        if (LocalPathSafety.IsLink(full, File.GetAttributes(full))) throw new InvalidDataException("Linked folders are excluded.");
+        if (LocalPathSafety.RequiresDownload(File.GetAttributes(full))) throw new IOException("Cloud folder is not fully available locally. Download it first.");
         for (string? parent = Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(full)); parent is not null; parent = Path.GetDirectoryName(parent))
-            if ((File.GetAttributes(parent) & FileAttributes.ReparsePoint) != 0) throw new InvalidDataException("Linked ancestor folders are excluded.");
+            if (LocalPathSafety.IsLink(parent, File.GetAttributes(parent))) throw new InvalidDataException("Linked ancestor folders are excluded.");
         return Path.TrimEndingDirectorySeparator(full);
     }
     public static bool Contains(string root, string path) => Path.GetFullPath(path).StartsWith(Path.EndsInDirectorySeparator(root) ? root : root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
@@ -30,7 +31,8 @@ public static class LocalFileScope
         path = Path.GetFullPath(path); root = Root(root);
         if (!Contains(root, path) || !File.Exists(path) || Path.GetFileName(path).Contains(':')) throw new InvalidDataException("File is outside its allowed scope.");
         for (string? current = path; current is not null && !string.Equals(current, root, StringComparison.OrdinalIgnoreCase); current = Path.GetDirectoryName(current))
-            if ((File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0) throw new InvalidDataException("Linked paths are excluded.");
+            if (LocalPathSafety.IsLink(current, File.GetAttributes(current))) throw new InvalidDataException("Linked paths are excluded.");
+        if (LocalPathSafety.RequiresDownload(File.GetAttributes(path))) throw new IOException("Cloud file is not fully available locally. Download it first.");
     }
     public static IReadOnlyList<StorageFile> Walk(string folder, StorageLimits limits, List<string> notices, CancellationToken token)
     {
@@ -47,7 +49,8 @@ public static class LocalFileScope
                     try
                     {
                         var attributes = File.GetAttributes(path);
-                        if ((attributes & FileAttributes.ReparsePoint) != 0) { notices.Add("hubLinksSkipped"); continue; }
+                        if (LocalPathSafety.IsLink(path, attributes)) { notices.Add("hubLinksSkipped"); continue; }
+                        if (LocalPathSafety.RequiresDownload(attributes)) { notices.Add("hubCloudUnavailable"); continue; }
                         if ((attributes & FileAttributes.Directory) != 0) stack.Push(path);
                         else { var file = new FileInfo(path); if (file.Length >= 0) files.Add(new(path, file.Length, file.LastWriteTimeUtc)); }
                     }

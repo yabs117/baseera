@@ -307,7 +307,8 @@ and conversion do not use AI or send files.
 
 ## Build and verify
 
-Install the .NET 10 SDK on Windows. There are no third-party NuGet dependencies.
+Install the .NET 10 SDK on Windows. PDF text extraction uses PdfPig; its licenses
+are included in the source and desktop package.
 
 ```powershell
 ./build.ps1 -Test -Publish
@@ -317,15 +318,23 @@ Install the .NET 10 SDK on Windows. There are no third-party NuGet dependencies.
 ./tests/self-update.e2e.ps1
 # Browser extension protocol tests (Node 22+):
 node --test extension/test/protocol.test.js
+# Optional actual Windows source checks (read only, isolated app data):
+./tests/windows/Test-ReadOnlySystem.ps1
+# Also permit DNS/ICMP against the fixed test host:
+./tests/windows/Test-ReadOnlySystem.ps1 -AllowNetworkCheck
 ```
 
-The self-contained executable is produced in `artifacts/Baseera-v0.4.15-Windows-x64/`.
+The development executable is produced in `artifacts/Baseera-v0.5.0-Windows-x64/`,
+with the clean download names `artifacts/Baseera.exe` and `artifacts/Baseera.zip`.
 `-Smoke -Publish` also checks the packaged executable. `-Smoke` uses a separate local data directory and does not run updates or
 register Explorer hooks. It renders the actual WPF screens and tests conversion,
 PDF generation, translation-box validation, localization coverage and DPAPI storage.
 It also tests successful, corrupt, partial, canceled and redirected update downloads
 without contacting the network. The standalone end-to-end check uses temporary
 copies and isolated data, including a renamed executable and failed-start rollback.
+The explicit read-only system check exercises native sources and reports only
+counts/availability. It is separate from fixture smoke tests and never sends
+diagnostics to an AI provider or executes a repair.
 
 ## Browser extension
 

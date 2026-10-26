@@ -133,7 +133,7 @@ public sealed partial class MainWindow
             start.IsEnabled = !detectiveRunning; stop.IsEnabled = detectiveRunning; mark.IsEnabled = detectiveRunning;
             clearMarks.IsEnabled = detectiveMarks.Count > 0;
             save.IsEnabled = !detectiveRunning && detectivePoints.Count > 0; load.IsEnabled = !detectiveRunning;
-            state.Text = I18n.T(detectiveRunning ? "hubObserving" : "hubObservationStopped") + " · " + detectivePoints.Count + "/120";
+            state.Text = I18n.T(detectiveRunning ? "hubObserving" : "hubObservationStopped") + " · " + string.Format(I18n.T("hubCountOf"), detectivePoints.Count, 120);
             if (detectivePoints.Count > 0) state.Text += "\n" + HubTime(detectivePoints[0].Time) + " → " + HubTime(detectivePoints[^1].Time);
             table.Text = string.Join("\t", I18n.T("hubTime"), "CPU %", "RAM %", I18n.T("hubDiskRate"), I18n.T("hubDiskLatency")) + "\n" + string.Join("\n", detectivePoints.Select(p => string.Join("\t", HubTime(p.Time), HubPercent(p.Cpu), HubPercent(p.Memory), HubRate(p.DiskBytes), HubMilliseconds(p.DiskLatencyMs))));
             DrawDetectiveChart(cpu, p => p.Cpu, 100); DrawDetectiveChart(memory, p => p.Memory, 100); DrawDetectiveChart(disk, p => p.DiskLatencyMs, 200);
@@ -245,8 +245,8 @@ public sealed partial class MainWindow
     {
         NetworkEvidence.Validate(reading); var facts = new List<InvestigationFact>
         {
-            new("hubHost", reading.Host), new("hubDnsDuration", HubMilliseconds(reading.DnsMs)),
-            new("hubPingReplies", reading.Replies.Count + " / " + reading.Sent), new("hubPacketLossMetric", HubPercent(NetworkEvidence.Loss(reading))),
+            new("hubHost", reading.Host), new("hubDnsDuration", System.Net.IPAddress.TryParse(reading.Host, out _) ? I18n.T("hubDnsNotRequired") : HubMilliseconds(reading.DnsMs)),
+            new("hubPingReplies", string.Format(I18n.T("hubCountOf"), reading.Replies.Count, reading.Sent)), new("hubPacketLossMetric", HubPercent(NetworkEvidence.Loss(reading))),
             new("hubMeanLatency", reading.Replies.Count == 0 ? I18n.T("hubUnavailable") : HubMilliseconds(reading.Replies.Average())),
             new("hubLatencySpread", reading.Replies.Count < 2 ? I18n.T("hubUnavailable") : (reading.Replies.Max() - reading.Replies.Min()).ToString(CultureInfo.InvariantCulture) + " ms"),
             new("hubAdapters", reading.AdapterState), new("hubWifiQuality", HubPercent(reading.WifiQuality)),

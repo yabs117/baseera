@@ -101,13 +101,13 @@ internal static class InvestigationSmokeChecks
                             Click(owner, "Hub-security-hubInspectSignature"); await WorkFinished(owner);
                             Require(!Find<CheckBox>(owner, "HubReputationConsent").IsChecked!.Value, "Signature inspection silently granted reputation consent.");
                             Find<CheckBox>(owner, "HubReputationConsent").IsChecked = true; Click(owner, "Hub-security-hubCheckReputation"); await WorkFinished(owner);
-                            Require(!Find<CheckBox>(owner, "HubReputationConsent").IsChecked!.Value && HasText(owner, "0 / 70"), "Hash reputation consent was not one-request only or result was lost.");
+                            Require(!Find<CheckBox>(owner, "HubReputationConsent").IsChecked!.Value && HasText(owner, string.Format(I18n.T("hubFlaggedOf"), 0, 70)), "Hash reputation consent was not one-request only or its localized result was lost.");
                             break;
                         case "network":
                             var host = Find<TextBox>(owner, "HubNetworkHost"); Find<CheckBox>(owner, "HubNetworkConsent").IsChecked = true; host.Text = "example.net";
                             Require(Find<CheckBox>(owner, "HubNetworkConsent").IsChecked == false, "Network target edits retained consent.");
                             host.Text = "example.com"; Find<CheckBox>(owner, "HubNetworkConsent").IsChecked = true; Click(owner, "Hub-network-hubMeasureNetwork"); await WorkFinished(owner);
-                            Require(Find<CheckBox>(owner, "HubNetworkConsent").IsChecked == false && HasText(owner, "example.com"), "Network run lost its target or reused consent.");
+                            Require(Find<CheckBox>(owner, "HubNetworkConsent").IsChecked == false && HasText(owner, "example.com") && HasText(owner, string.Format(I18n.T("hubCountOf"), 3, 6)), "Network run lost its target, localized reply count or reused consent.");
                             Click(owner, "Hub-network-hubSaveHistory"); await WorkFinished(owner); Click(owner, "Hub-network-hubLoadHistory"); await WorkFinished(owner);
                             break;
                         case "storage":

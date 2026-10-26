@@ -9,7 +9,7 @@ ventanas con Gemini, actualizaciones WinGet elegidas y conversión de imágenes/
 Interfaz en árabe (RTL), inglés, francés y español.
 
 Requisitos: Windows 10/11 x64. El runtime .NET está incluido. Para compilar con SDK 10:
-`./build.ps1 -Test -Publish`. Abre `artifacts/Baseera-v0.4.15-Windows-x64/Baseera.exe`.
+`./build.ps1 -Test -Publish`. Abre `artifacts/Baseera-v0.5.0-Windows-x64/Baseera.exe` (compilación de desarrollo).
 La extensión del navegador se descarga por separado: sigue `START-HERE.html` y carga la carpeta `extension` en Chrome/Edge. No abras sus archivos fuente con doble clic.
 
 Activa solo las herramientas que necesitas. Elige entre 20 servicios directos, como Gemini, OpenAI (modelos ChatGPT), Claude y Grok. Introduce la clave del servicio y carga sus modelos con visión. Se eliminó OpenRouter y se corrigió el cierre al cambiar de servicio. El acceso y los precios dependen de la cuenta. [Servicios y pruebas](AI-SERVICES.md). Envía la captura al servicio seleccionado

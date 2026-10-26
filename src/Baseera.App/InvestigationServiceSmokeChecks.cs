@@ -63,6 +63,15 @@ internal static class InvestigationServiceSmokeChecks
         var signature = await ProbeRunner.Read<InvestigationReport>("signature", CancellationToken.None, plain, root);
         Require(signature.Facts.Any(f => f.Label == "hubSha256" && f.Value.Length == 64) &&
             signature.Facts.Any(f => f.Label == "hubAuthenticode"), "Offline Authenticode inspection failed.");
+        bool writeBlocked = false, replacementBlocked = false;
+        string replacement = Path.Combine(root, "replacement.txt"); await File.WriteAllTextAsync(replacement, "replacement");
+        var stableSignature = await FileTrust.Inspect(plain, () =>
+        {
+            try { File.WriteAllText(plain, "changed"); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { writeBlocked = true; }
+            try { File.Move(replacement, plain, true); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { replacementBlocked = true; }
+        });
+        Require(writeBlocked && replacementBlocked && stableSignature.Facts.Single(f => f.Label == "hubSha256").Value == signature.Facts.Single(f => f.Label == "hubSha256").Value,
+            "Signature and hash did not retain one file identity across verification.");
 
         var report = new InvestigationReport("network", DateTimeOffset.UtcNow,
             [new("hubFixture", "private fixture")], ["hubNetworkLimits"]);
@@ -76,6 +85,6 @@ internal static class InvestigationServiceSmokeChecks
         var reputation = await FileTrust.Reputation(new string('a', 64), "fixture-key", CancellationToken.None, transport);
         Require(handler.Calls == 1 && reputation.Facts.Any(f => f.Label == "hubReputation" && f.Value == "1 / 10"), "Opt-in hash reputation failed.");
         File.WriteAllText(Path.Combine(output, "investigation-services-result.txt"),
-            "PASS: bounded child handshake; text, Office and PDF extraction; corrupt PDF rejection; offline fixture signature; DPAPI history; fake hash-only reputation request. No live device/event/network reads or cleanup.");
+            "PASS: bounded child handshake; text, Office and PDF extraction; corrupt PDF rejection; offline fixture signature; concurrent write/replacement refused across hash and signature; DPAPI history; fake hash-only reputation request. No live device/event/network reads or cleanup.");
     }
 }

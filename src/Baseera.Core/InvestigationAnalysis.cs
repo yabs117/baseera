@@ -66,7 +66,9 @@ public static class NetworkEvidence
     public static IReadOnlyList<string> Interpret(NetworkReading r)
     {
         Validate(r);
-        var keys = new List<string>(); if (r.DnsMs is null) keys.Add("hubDnsFailed");
+        var keys = new List<string>();
+        if (IPAddress.TryParse(r.Host, out _)) keys.Add("hubDnsNotRequired");
+        else if (r.DnsMs is null) keys.Add("hubDnsFailed");
         if (r.Replies.Count == 0) keys.Add("hubIcmpUnknown"); else { if (Loss(r) > 0) keys.Add("hubPacketLoss"); if (r.Replies.Average() > 150) keys.Add("hubLatencyHigh"); }
         keys.Add("hubNetworkLimits"); return keys;
     }

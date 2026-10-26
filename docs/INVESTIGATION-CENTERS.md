@@ -26,6 +26,9 @@ starts only after an explicit action. Reports identify missing and partial sourc
 - File scanning and search accept local fixed/removable roots, reject linked
   directories and keep bounded entry, time and content limits. Partially read
   files are labelled as such.
+- Locally available OneDrive/Cloud Files items are distinguished from symbolic
+  links by their native reparse tag. Offline/recall items are skipped until the
+  user downloads them. Unknown tags and name-redirecting links remain excluded.
 - Search indexes and measurement histories are encrypted locally with Windows
   DPAPI for the current user. They are not uploaded to an AI provider on opening
   a center. A review action opens the existing assistant with an editable
@@ -48,3 +51,9 @@ fake reputation response. These checks avoid live WMI, event, Internet, repair
 and cleanup operations. Windows 10/11 device variety, accessibility audits and
 signed distribution still require additional validation; no publisher signing
 certificate is currently available.
+
+For explicit native source integration checks, run
+`./tests/windows/Test-ReadOnlySystem.ps1` from the repository. Add
+`-AllowNetworkCheck` to permit fixed-host DNS/ICMP measurements. Results contain
+counts and source availability, not raw event payloads or window titles. See
+[the review report](QA-REVIEW.md) for reproduced defects, fixes and coverage gaps.

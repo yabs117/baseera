@@ -32,6 +32,11 @@ public partial class App : Application
             {
                 string output = e.Args.SkipWhile(x => x != "--smoke").Skip(1).FirstOrDefault() ?? "artifacts";
                 Directory.CreateDirectory(output);
+                if (e.Args.Contains("--read-only-system-only"))
+                {
+                    Settings.Current.Onboarded = true; window.ApplyTheme(); window.Render();
+                    await ReadOnlySystemSmokeChecks.Run(output, e.Args.Contains("--allow-network-check")); Shutdown(0); return;
+                }
                 if (e.Args.Contains("--investigation-services-only"))
                 {
                     Settings.Current.Onboarded = true; window.ApplyTheme(); window.Render();

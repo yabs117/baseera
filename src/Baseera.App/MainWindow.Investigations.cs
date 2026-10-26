@@ -24,6 +24,17 @@ public sealed partial class MainWindow
         DeviceId(box, automationId); AutomationProperties.SetName(box, I18n.T(I18n.Words.ContainsKey(automationId) ? automationId : "hubInput")); return box;
     }
     private static string HubValue(string value) => value.StartsWith("state:", StringComparison.Ordinal) ? I18n.T(value[6..]) : string.IsNullOrWhiteSpace(value) ? I18n.T("hubUnavailable") : value;
+    private static string HubFactValue(InvestigationFact fact)
+    {
+        if (fact.Label == "hubReputation")
+        {
+            var counts = fact.Value.Split(" / ", StringSplitOptions.None);
+            if (counts.Length == 2 && int.TryParse(counts[0], NumberStyles.None, CultureInfo.InvariantCulture, out int flagged) &&
+                int.TryParse(counts[1], NumberStyles.None, CultureInfo.InvariantCulture, out int total) && flagged >= 0 && total >= flagged)
+                return string.Format(I18n.T("hubFlaggedOf"), flagged, total);
+        }
+        return HubValue(fact.Value);
+    }
     private static void ValidateHubReport(InvestigationReport report)
     {
         if (report is null || report.Facts is null || report.Limits is null || report.Facts.Count > 512 || report.Limits.Count > 40 || report.Kind is null || report.Kind.Length > 100 ||
@@ -33,7 +44,7 @@ public sealed partial class MainWindow
     private string HubReportText(InvestigationReport report)
     {
         ValidateHubReport(report); var text = new StringBuilder(I18n.T(report.Kind) + "\n" + report.Time.ToString("O") + "\n");
-        foreach (var fact in report.Facts.Take(150)) text.AppendLine(I18n.T(fact.Label) + ": " + HubValue(fact.Value) + " " + (I18n.Words.ContainsKey(fact.Detail) ? I18n.T(fact.Detail) : fact.Detail));
+        foreach (var fact in report.Facts.Take(150)) text.AppendLine(I18n.T(fact.Label) + ": " + HubFactValue(fact) + " " + (I18n.Words.ContainsKey(fact.Detail) ? I18n.T(fact.Detail) : fact.Detail));
         foreach (string limit in report.Limits) text.AppendLine(I18n.T(limit));
         return DiagnosticPrivacy.Sanitize(text.ToString(), Environment.UserName, Environment.MachineName);
     }
@@ -42,7 +53,7 @@ public sealed partial class MainWindow
         ValidateHubReport(report); var stamp = Text(HubTime(report.Time), 11, true); DeviceId(stamp, "HubReportTime"); body.Children.Add(stamp);
         foreach (var fact in report.Facts.Take(200))
         {
-            var row = Stack(); row.Children.Add(Text(I18n.T(fact.Label), 12, true)); row.Children.Add(Text(HubValue(fact.Value), 15));
+            var row = Stack(); row.Children.Add(Text(I18n.T(fact.Label), 12, true)); row.Children.Add(Text(HubFactValue(fact), 15));
             if (fact.Detail.Length > 0) row.Children.Add(Text(I18n.Words.ContainsKey(fact.Detail) ? I18n.T(fact.Detail) : fact.Detail, 12, true)); body.Children.Add(Card(row, 14));
         }
         foreach (string limit in report.Limits.Distinct()) body.Children.Add(Text(I18n.T(limit), 12, true));
