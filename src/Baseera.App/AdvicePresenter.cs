@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Windows.Automation;
+using System.Windows.Documents;
 using System.Windows.Threading;
 using System.Windows.Media.Imaging;
 using Baseera.App.Services;
@@ -72,7 +73,7 @@ internal sealed class AdvicePresenter : Border, IDisposable
         state.SetResourceReference(TextBlock.ForegroundProperty, "Muted");
         AutomationProperties.SetAutomationId(state, "AdviceState"); AutomationProperties.SetLiveSetting(state, AutomationLiveSetting.Polite);
         activity.Children.Add(state); response.Children.Add(activity);
-        content.Margin = Indent(16); content.Visibility = Visibility.Collapsed; response.Children.Add(content);
+        content.Margin = Indent(18); content.Visibility = Visibility.Collapsed; response.Children.Add(content);
 
         var copyLabel = new StackPanel { Orientation = Orientation.Horizontal };
         var copyIcon = new System.Windows.Shapes.Path { Data = Geometry.Parse("M7,3 L15,3 L15,13 L7,13 Z M4,6 L4,16 L12,16"), StrokeThickness = 1.2, Width = 14, Height = 16, Stretch = Stretch.Uniform, Margin = new Thickness(0, 0, 6, 0) };
@@ -136,22 +137,22 @@ internal sealed class AdvicePresenter : Border, IDisposable
         content.Language = System.Windows.Markup.XmlLanguage.GetLanguage(locale.Language);
         if (showGreeting)
         {
-            var greeting = Add(locale.Greeting, 14, muted: true, bottom: 14);
+            var greeting = Add(locale.Greeting, 14, muted: true, bottom: 16);
             AutomationProperties.SetAutomationId(greeting, "AdviceGreeting");
         }
         if (advice.Message is not null) Add(advice.Message, bottom: 0);
         else
         {
-        var summary = Add(advice.Summary, 19, bold: true, bottom: 20); AutomationProperties.SetAutomationId(summary, "AdviceSummary");
-        Add(locale.CauseTitle, 13, bold: true, bottom: 5); Add(advice.Cause, bottom: 20);
-        Add(locale.StepsTitle, 13, bold: true, bottom: 10);
-        for (int i = 0; i < advice.Steps.Count; i++) Add(advice.Steps[i], number: (i + 1).ToString(CultureInfo.InvariantCulture), bottom: 12);
+        var summary = Add(advice.Summary, 19, bold: true, bottom: 18); AutomationProperties.SetAutomationId(summary, "AdviceSummary");
+        Add(locale.CauseTitle, 13, bold: true, bottom: 6); Add(advice.Cause, bottom: 8);
+        Add(locale.StepsTitle, 13, bold: true, top: 14, bottom: 8);
+        for (int i = 0; i < advice.Steps.Count; i++) Add(advice.Steps[i], number: (i + 1).ToString(CultureInfo.InvariantCulture), bottom: 10);
         if (advice.Checks.Count > 0)
         {
-            Add(locale.ChecksTitle, 13, bold: true, bottom: 8);
-            foreach (string check in advice.Checks) Add(check, number: "·", bottom: 8);
+            Add(locale.ChecksTitle, 13, bold: true, top: 14, bottom: 8);
+            foreach (string check in advice.Checks) Add(check, number: "·", bottom: 10);
         }
-        Add(locale.ConfidenceTitle + ": " + advice.Confidence, 12, muted: true, bottom: 0);
+        Add(locale.ConfidenceTitle + ": " + advice.Confidence, 12, muted: true, top: 12, bottom: 0);
         }
         completeText = (showGreeting ? locale.Greeting + "\n\n" : "") + (advice.Message ?? (advice.Summary + "\n\n" + locale.CauseTitle + "\n" + advice.Cause + "\n\n" +
             locale.StepsTitle + "\n" + string.Join("\n", advice.Steps.Select((step, i) => $"{i + 1}. {step}")) +
@@ -164,16 +165,10 @@ internal sealed class AdvicePresenter : Border, IDisposable
         elapsed.Start(); timer.Start();
     }
 
-    private AdviceTextView Add(string value, int size = 14, bool bold = false, bool muted = false, string? number = null, double bottom = 8)
+    private AdviceTextView Add(string value, int size = 14, bool bold = false, bool muted = false, string? number = null, double bottom = 8, double top = 0)
     {
-        var section = new StackPanel(); FrameworkElement container = section;
-        if (number is not null)
-        {
-            var row = new Grid(); row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(28) }); row.ColumnDefinitions.Add(new ColumnDefinition());
-            var index = Text(number, 12, true); index.Margin = new Thickness(0, 3, 0, 0); index.HorizontalAlignment = HorizontalAlignment.Center;
-            row.Children.Add(index); Grid.SetColumn(section, 1); row.Children.Add(section); container = row;
-        }
-        container.Margin = new Thickness(0, 0, 0, bottom); container.Visibility = Visibility.Collapsed; content.Children.Add(container);
+        var section = new StackPanel(); FrameworkElement container = number is null ? section : ListRow(section, number, size);
+        container.Margin = new Thickness(0, top, 0, bottom); container.Visibility = Visibility.Collapsed; content.Children.Add(container);
         AdviceTextView? first = null;
         foreach (var block in AdviceMarkup.Parse(value))
         {
@@ -197,6 +192,29 @@ internal sealed class AdvicePresenter : Border, IDisposable
             parts.Add(new(container, blockHost, view, block.Text, elements, copyCode));
         }
         return first ?? throw new InvalidDataException("Empty response paragraph.");
+    }
+
+    private FrameworkElement ListRow(StackPanel section, string marker, double bodySize)
+    {
+        bool rtl = content.FlowDirection == FlowDirection.RightToLeft;
+        bool bullet = marker is "·" or "•" or "-" or "*";
+        var row = new Grid();
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        // The marker is list chrome. The step or check text itself is passed through unchanged.
+        var index = Text(marker, 14, true);
+        index.TextWrapping = TextWrapping.NoWrap;
+        index.FontSize = bodySize;
+        index.FontWeight = bullet ? FontWeights.Normal : FontWeights.SemiBold;
+        index.LineHeight = bodySize * 1.8;
+        index.FlowDirection = FlowDirection.LeftToRight; index.MinWidth = bullet ? 14 : 20;
+        index.TextAlignment = rtl ? TextAlignment.Left : TextAlignment.Right;
+        index.HorizontalAlignment = rtl ? HorizontalAlignment.Left : HorizontalAlignment.Right;
+        index.VerticalAlignment = VerticalAlignment.Top;
+        index.Margin = rtl ? new Thickness(12, 0, 0, 0) : new Thickness(0, 0, 12, 0);
+        Typography.SetNumeralAlignment(index, FontNumeralAlignment.Tabular);
+        Typography.SetNumeralStyle(index, FontNumeralStyle.Lining);
+        row.Children.Add(index); Grid.SetColumn(section, 1); row.Children.Add(section); return row;
     }
 
     private void CopyText(string text)
