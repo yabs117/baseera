@@ -34,8 +34,11 @@ Copying never runs a command. The separate Smart Repair catalog and per-command
 approval/UAC boundaries remain in force.
 
 The full-response copy action includes the greeting, summary, cause, steps, checks
-and qualified confidence, preserving source markup. Conversational replies use
-natural prose and omit diagnostic headings; only the first reply shows the welcome.
+and qualified confidence, preserving source markup. Inside a reply, paragraphs and
+lists are spaced apart without changing their words: existing list markers stay
+visible, wrapped lines hang under the text, and step numbers keep a fixed gap on
+the start side. Conversational replies use natural prose and omit diagnostic
+headings; only the first reply shows the welcome.
 Repair recommendations and case
 follow-up appear after reveal finishes; the follow-up section is collapsed until
 opened or a command attempt is recorded. The current sidebar, source selection,
