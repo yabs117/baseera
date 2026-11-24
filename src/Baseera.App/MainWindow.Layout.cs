@@ -1,4 +1,5 @@
 using System.Windows.Media.Animation;
+using Image = System.Windows.Controls.Image;
 using SystemColors = System.Windows.SystemColors;
 using Baseera.App.Services;
 
@@ -30,15 +31,19 @@ public sealed partial class MainWindow
     internal bool? HighContrastOverride { get; set; }
     public void ApplyTheme()
     {
-        string[] keys = ["Bg", "Surface", "Ink", "Muted", "Line", "Accent", "Sidebar", "Selected", "Hover", "OnAccent", "Subtle"];
-        string[] light = ["#FAFAFA", "#FFFFFF", "#1B1B1B", "#666666", "#E4E4E4", "#005FB8", "#F3F3F3", "#E5E5E5", "#EEEEEE", "#FFFFFF", "#F6F6F6"];
-        string[] dark = ["#272727", "#303030", "#F4F4F4", "#B1B1B1", "#414141", "#79B8E8", "#202020", "#383838", "#3A3A3A", "#172534", "#2B2B2B"];
+        string[] keys = ["Bg", "Surface", "Ink", "Muted", "Line", "Accent", "Sidebar", "Selected", "Hover", "OnAccent", "Subtle",
+            "Hero", "HeroInk", "HeroMuted", "HeroLine", "Tint", "AccentInk"];
+        string[] light = ["#F3F5F0", "#FDFEFB", "#172821", "#4F655C", "#CFDAD2", "#16644F", "#E8EEE7", "#D0E7DA", "#E2ECE4", "#FFFFFF", "#EDF1EB",
+            "#15352D", "#F0FBF4", "#B5D6C7", "#456C5E", "#E2F1E7", "#165744"];
+        string[] dark = ["#101916", "#192520", "#ECF5EE", "#ABC2B6", "#35483E", "#91DFC1", "#131F1A", "#28443A", "#263830", "#102720", "#15211B",
+            "#16392F", "#F0FBF4", "#B8D9CA", "#4B7566", "#243D32", "#A2E9CA"];
         var palette = Settings.Current.Dark ? dark : light;
         for (int i = 0; i < keys.Length; i++) Application.Current.Resources[keys[i]] = new SolidColorBrush((Color)ColorConverter.ConvertFromString(palette[i]));
         if (HighContrastOverride ?? SystemParameters.HighContrast)
         {
             var colors = new[] { SystemColors.WindowColor, SystemColors.WindowColor, SystemColors.WindowTextColor, SystemColors.GrayTextColor, SystemColors.WindowTextColor,
-                SystemColors.HighlightColor, SystemColors.ControlColor, SystemColors.ControlColor, SystemColors.ControlColor, SystemColors.HighlightTextColor, SystemColors.WindowColor };
+                SystemColors.HighlightColor, SystemColors.ControlColor, SystemColors.ControlColor, SystemColors.ControlColor, SystemColors.HighlightTextColor, SystemColors.WindowColor,
+                SystemColors.WindowColor, SystemColors.WindowTextColor, SystemColors.WindowTextColor, SystemColors.WindowTextColor, SystemColors.WindowColor, SystemColors.WindowTextColor };
             for (int i = 0; i < keys.Length; i++) Application.Current.Resources[keys[i]] = new SolidColorBrush(colors[i]);
         }
         SetResourceReference(BackgroundProperty, "Bg"); SetResourceReference(ForegroundProperty, "Ink");
@@ -87,12 +92,12 @@ public sealed partial class MainWindow
     private Border Card(UIElement child, double padding = 20) => new()
     {
         Background = Resource("Surface"), BorderBrush = Resource("Line"), BorderThickness = new Thickness(1),
-        CornerRadius = new CornerRadius(5), Padding = new Thickness(padding), Margin = new Thickness(0, 0, 0, 16), Child = child
+        CornerRadius = new CornerRadius(9), Padding = new Thickness(padding), Margin = new Thickness(0, 0, 0, 16), Child = child
     };
     private void Heading(StackPanel body, string title, string? subtitle = null)
     {
-        var name = Text(I18n.T(title), 27); name.FontWeight = HeadingWeight; name.Margin = new Thickness(0, 0, 0, 9); body.Children.Add(name);
-        if (subtitle is not null) { var description = Text(I18n.T(subtitle), 13, true); description.Margin = new Thickness(0, 0, 0, 22); body.Children.Add(description); }
+        var name = Text(I18n.T(title), 31); name.FontWeight = HeadingWeight; name.Margin = new Thickness(0, 0, 0, 7); body.Children.Add(name);
+        if (subtitle is not null) { var description = Text(I18n.T(subtitle), 14, true); description.Margin = new Thickness(0, 0, 0, 20); body.Children.Add(description); }
         else body.Children.Add(new Border { Height = 14 });
     }
     private void SectionHeading(StackPanel body, string key)
@@ -184,23 +189,30 @@ public sealed partial class MainWindow
         System.Windows.Automation.AutomationProperties.SetLiveSetting(status, System.Windows.Automation.AutomationLiveSetting.Polite);
         shell.Children.Clear(); shell.ColumnDefinitions.Clear(); shell.RowDefinitions.Clear();
         shell.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); shell.ColumnDefinitions.Add(new ColumnDefinition());
-        var navigation = new DockPanel { Margin = new Thickness(8, 10, 8, 14) };
-        var header = new Grid { Height = 68, Margin = new Thickness(4, 0, 0, 10) };
-        header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) }); header.ColumnDefinitions.Add(new ColumnDefinition());
+        var navigation = new DockPanel { Margin = new Thickness(10, 10, 10, 14) };
+        var header = new Grid { Height = 60, Margin = new Thickness(2, 0, 2, 10) };
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(expanded ? 42 : 28) });
+        header.ColumnDefinitions.Add(new ColumnDefinition());
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var menu = new Button { Style = (Style)FindResource("IconButton"), Content = Icons.Create("menu", 18), ToolTip = I18n.T("menu"), HorizontalAlignment = HorizontalAlignment.Left };
+        menu.VerticalAlignment = VerticalAlignment.Center;
         System.Windows.Automation.AutomationProperties.SetName(menu, I18n.T("menu"));
         menu.Click += (_, _) =>
         {
             double from = sidebar.ActualWidth; expanded = !expanded; Render(true);
-            if (FluentMotion.Allowed) sidebar.BeginAnimation(WidthProperty, new DoubleAnimation(from, expanded ? 224 : 68, TimeSpan.FromMilliseconds(180)) { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } });
+            if (FluentMotion.Allowed) sidebar.BeginAnimation(WidthProperty, new DoubleAnimation(from, expanded ? 236 : 68, TimeSpan.FromMilliseconds(180)) { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } });
         };
-        header.Children.Add(menu);
         if (expanded)
         {
-            var wordmark = Stack(); wordmark.VerticalAlignment = VerticalAlignment.Center; wordmark.Margin = new Thickness(8, 0, 4, 0);
-            var name = Text(Arabic ? "بصيرة" : "Baseera", 21); name.FontWeight = HeadingWeight; name.Margin = new Thickness(0, 0, 0, 2); wordmark.Children.Add(name);
+            var mark = new Image { Source = Brand.WindowIcon, Width = 33, Height = 33, FlowDirection = FlowDirection.LeftToRight };
+            mark.VerticalAlignment = VerticalAlignment.Center; header.Children.Add(mark);
+            var wordmark = Stack(); wordmark.VerticalAlignment = VerticalAlignment.Center; wordmark.Margin = new Thickness(4, 0, 4, 0);
+            var name = Text(Arabic ? "بصيرة" : "Baseera", 23); name.FontWeight = HeadingWeight; name.Margin = new Thickness(0, 0, 0, 1); wordmark.Children.Add(name);
             var label = Text(I18n.T("windowsTools"), 11, true); label.Margin = new Thickness(0); wordmark.Children.Add(label); Grid.SetColumn(wordmark, 1); header.Children.Add(wordmark);
+            Grid.SetColumn(menu, 2);
         }
+        else { Grid.SetColumnSpan(menu, 2); menu.HorizontalAlignment = HorizontalAlignment.Center; }
+        header.Children.Add(menu);
         DockPanel.SetDock(header, Dock.Top); navigation.Children.Add(header);
         var bottom = Stack(); DeviceId(bottom, "SidebarFooter");
         bottom.Children.Add(NavigationButton("feedback"));
@@ -211,17 +223,25 @@ public sealed partial class MainWindow
         var linksScroller = new ScrollViewer { Content = links, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
         sidebarScroll = linksScroller;
         navigation.Children.Add(linksScroller);
-        sidebar.BeginAnimation(WidthProperty, null); sidebar.Width = expanded ? 224 : 68; sidebar.Background = Resource("Sidebar"); sidebar.ClipToBounds = true; sidebar.Child = navigation;
+        sidebar.BeginAnimation(WidthProperty, null); sidebar.Width = expanded ? 236 : 68; sidebar.Background = Resource("Sidebar"); sidebar.ClipToBounds = true; sidebar.Child = navigation;
         sidebar.BorderBrush = Resource("Line"); sidebar.BorderThickness = Arabic ? new Thickness(1, 0, 0, 0) : new Thickness(0, 0, 1, 0); shell.Children.Add(sidebar);
 
         var main = new Grid(); Grid.SetColumn(main, 1); shell.Children.Add(main);
-        main.RowDefinitions.Add(new RowDefinition { Height = new GridLength(62) }); main.RowDefinitions.Add(new RowDefinition()); main.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        var toolbar = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(24, 0, 32, 0) };
+        main.RowDefinitions.Add(new RowDefinition { Height = new GridLength(58) }); main.RowDefinitions.Add(new RowDefinition()); main.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        var toolbar = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        if (Settings.Current.Onboarded) toolbar.Children.Add(ToolFinderButton());
         var languages = LanguageCombo(); languages.MinWidth = 134; languages.Margin = new Thickness(0, 0, 8, 0); languages.VerticalAlignment = VerticalAlignment.Center; toolbar.Children.Add(languages);
         var theme = new Button { Style = (Style)FindResource("IconButton"), Content = Icons.Create(Settings.Current.Dark ? "sun" : "moon", 18), ToolTip = I18n.T("dark") };
         System.Windows.Automation.AutomationProperties.SetName(theme, I18n.T("dark"));
-        theme.Click += (_, _) => { Settings.Current.Dark = !Settings.Current.Dark; Settings.Save(); ApplyTheme(); Render(true); }; toolbar.Children.Add(theme); main.Children.Add(toolbar);
-        var body = Stack(); pageBody = body; body.Margin = new Thickness(36, 4, 36, 28); scroller.Content = body; Grid.SetRow(scroller, 1); main.Children.Add(scroller);
+        theme.Click += (_, _) => { Settings.Current.Dark = !Settings.Current.Dark; Settings.Save(); ApplyTheme(); Render(true); }; toolbar.Children.Add(theme);
+        var topbar = new DockPanel { Margin = new Thickness(28, 0, 28, 0) };
+        DockPanel.SetDock(toolbar, Dock.Right); topbar.Children.Add(toolbar);
+        var currentPage = Text(I18n.T(Settings.Current.Onboarded ? page : "setupNew"), 13, true);
+        currentPage.VerticalAlignment = VerticalAlignment.Center; currentPage.Margin = new Thickness(0, 0, 16, 0);
+        currentPage.TextWrapping = TextWrapping.NoWrap; currentPage.TextTrimming = TextTrimming.CharacterEllipsis;
+        topbar.Children.Add(currentPage);
+        main.Children.Add(new Border { BorderBrush = Resource("Line"), BorderThickness = new Thickness(0, 0, 0, 1), Child = topbar });
+        var body = Stack(); pageBody = body; body.Margin = new Thickness(28, 20, 28, 28); scroller.Content = body; Grid.SetRow(scroller, 1); main.Children.Add(scroller);
         var progress = new DockPanel(); cancelOperation = Action("cancel", () => operation?.Cancel()); cancelOperation.Margin = new Thickness(12, 0, 0, 0); cancelOperation.Padding = new Thickness(12, 5, 12, 5);
         cancelOperation.Visibility = operation is null ? Visibility.Collapsed : Visibility.Visible; DockPanel.SetDock(cancelOperation, Dock.Right); progress.Children.Add(cancelOperation); progress.Children.Add(status);
         operationBar = new Border { Child = progress, Background = Resource("Surface"), BorderBrush = Resource("Line"), BorderThickness = new Thickness(0, 1, 0, 0), Padding = new Thickness(36, 10, 36, 10), Visibility = status.Text.Length == 0 && operation is null ? Visibility.Collapsed : Visibility.Visible };
@@ -281,7 +301,7 @@ public sealed partial class MainWindow
             selectedNavigationIndicator = new Border { Background = Resource("Accent"), Width = 3, Height = 18, CornerRadius = new CornerRadius(2), VerticalAlignment = VerticalAlignment.Center };
             row.Children.Add(selectedNavigationIndicator);
         }
-        var icon = Icons.Create(id, 18); icon.HorizontalAlignment = HorizontalAlignment.Center; Grid.SetColumn(icon, 1); row.Children.Add(icon);
+        var icon = Icons.Create(id, 18, selected ? "AccentInk" : "Muted"); icon.HorizontalAlignment = HorizontalAlignment.Center; Grid.SetColumn(icon, 1); row.Children.Add(icon);
         if (expanded) { var name = new TextBlock { Text = I18n.T(id), FontSize = 13, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 6, 0), FontWeight = selected ? HeadingWeight : FontWeights.Normal, TextWrapping = TextWrapping.NoWrap, TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 150 }; Grid.SetColumn(name, 2); row.Children.Add(name); }
         var button = new Button { Style = (Style)FindResource("NavigationButton"), Content = row, Background = selected ? Resource("Selected") : Brushes.Transparent, ToolTip = I18n.T(id) };
         System.Windows.Automation.AutomationProperties.SetAutomationId(button, "Navigate-" + id);
@@ -484,8 +504,11 @@ public sealed partial class MainWindow
             System.Windows.Automation.AutomationProperties.GetAutomationId(e) is "SidebarToolsSection" or "OverviewTools"))
             group.IsExpanded = true;
         UpdateLayout();
-        if (Descendants(frame).OfType<Button>().Count(b => System.Windows.Automation.AutomationProperties.GetName(b) == I18n.T("errors")) != 2)
-            throw new InvalidOperationException("Error assistant is missing from Overview or Your tools navigation.");
+        string[] assistantEntries = Descendants(frame).OfType<Button>()
+            .Where(b => b.IsVisible && System.Windows.Automation.AutomationProperties.GetName(b) == I18n.T("errors"))
+            .Select(System.Windows.Automation.AutomationProperties.GetAutomationId).ToArray();
+        if (!new[] { "Navigate-errors", "Quick-errors", "HomeFavorite-errors" }.All(id => assistantEntries.Count(entry => entry == id) == 1))
+            throw new InvalidOperationException("Error assistant is missing from the sidebar, tool group or quick access.");
         Navigate("errors"); UpdateLayout();
         if (!Descendants(frame).OfType<Button>().Any(b => System.Windows.Automation.AutomationProperties.GetName(b) == I18n.T("errorsOpen")))
             throw new InvalidOperationException("Error assistant page has no open action.");

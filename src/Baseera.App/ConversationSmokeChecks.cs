@@ -88,6 +88,27 @@ internal static class ConversationSmokeChecks
                     confirmRequests: _ => { confirmations++; return continueAllowed; });
                 dialog.Show(); await Settle(dialog);
                 var composer = Find<TextBox>(dialog, "ErrorDescription");
+                double fullWidth = dialog.Width, fullHeight = dialog.Height;
+                dialog.Width = dialog.MinWidth; dialog.Height = dialog.MinHeight;
+                await Settle(dialog);
+                var thread = Find<ScrollViewer>(dialog, "ErrorAssistantScroll");
+                var dock = Find<Border>(dialog, "AssistantComposer");
+                var send = Find<Button>(dialog, "errorAnalyze");
+                var sendBounds = send.TransformToAncestor(dock).TransformBounds(new Rect(new System.Windows.Point(), send.RenderSize));
+                Require(!Find<Expander>(dialog, "ConversationTools").IsExpanded &&
+                    !Find<Border>(dialog, "DiagnosticDelivery").IsVisible &&
+                    Find<StackPanel>(dialog, "AssistantEmpty").IsVisible && thread.ViewportHeight >= 120 &&
+                    composer.IsVisible && sendBounds.Left >= 0 && sendBounds.Right <= dock.ActualWidth + 1 &&
+                    sendBounds.Bottom <= dock.ActualHeight + 1, "Compact initial assistant crowded the thread or hid the composer.");
+                Click(dialog, "chatTools"); await Settle(dialog);
+                Require(Find<Expander>(dialog, "ConversationTools").IsExpanded && !Find<StackPanel>(dialog, "AssistantEmpty").IsVisible &&
+                    Find<ComboBox>(dialog, "ErrorWindowPicker").IsVisible && composer.IsVisible, "Tools did not open independently of the composer.");
+                Click(dialog, "chatTools"); await Settle(dialog);
+                Require(!Find<Expander>(dialog, "ConversationTools").IsExpanded && Find<StackPanel>(dialog, "AssistantEmpty").IsVisible,
+                    "Closing tools did not restore the empty conversation.");
+                if (locale is "en" or "ar") App.Snapshot(dialog, Path.Combine(output, "smart-repair-compact-" + locale + ".png"));
+                dialog.Width = fullWidth; dialog.Height = fullHeight; await Settle(dialog);
+                if (locale is "en" or "ar") App.Snapshot(dialog, Path.Combine(output, "smart-repair-start-" + locale + ".png"));
                 for (int i = 0; i < 10; i++)
                 {
                     composer.Text = "Question " + i; Click(dialog, "errorAnalyze"); await Settle(dialog); Nodes(dialog).OfType<AdvicePresenter>().Last().Finish(); await Settle(dialog);

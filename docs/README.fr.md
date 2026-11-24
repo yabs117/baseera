@@ -1,6 +1,6 @@
 # Baseera
 
-**Baseera 0.5.0 Preview** ajoute huit centres de diagnostic et d’exploration, des collectes locales sur demande et des dossiers Smart Repair. [Télécharger Baseera.exe](https://github.com/yabs117/baseera/releases/download/v0.5.0-preview/Baseera.exe) · [Version et fichiers](https://github.com/yabs117/baseera/releases/tag/v0.5.0-preview) · [Périmètre et limites](INVESTIGATION-CENTERS.md).
+**Baseera 0.6.0 Preview** remanie le tableau de bord et l’assistant Smart Repair. Appuyez sur `Ctrl+K` pour rechercher un outil, ou ouvrez Diagnostic dans l’assistant selon vos besoins. [Télécharger Baseera.exe](https://github.com/yabs117/baseera/releases/download/v0.6.0-preview/Baseera.exe) · [Version et fichiers](https://github.com/yabs117/baseera/releases/tag/v0.6.0-preview) · [Périmètre et limites](INVESTIGATION-CENTERS.md).
 
 **Version expérimentale 0.4.15 :** Smart Repair étend l’assistant existant avec des diagnostics locaux facultatifs, une prévisualisation modifiable et un consentement par analyse. Seuls trois outils Windows prédéfinis peuvent être lancés après confirmation distincte et UAC si nécessaire : cache DNS, SFC et DISM. Aucun script généré ni redémarrage automatique. [Détails et limites](SMART-REPAIR.md). [Notes de version et téléchargement](RELEASE-0.4.15.md).
 
@@ -9,7 +9,7 @@ fenêtres avec le modèle visuel choisi, mises à jour WinGet choisies et conver
 L’interface est disponible en arabe (RTL), anglais, français et espagnol.
 
 Prérequis : Windows 10/11 x64. Le runtime .NET est inclus. Pour compiler avec le SDK 10 :
-`./build.ps1 -Test -Publish`. Lancez `artifacts/Baseera-v0.5.0-Windows-x64/Baseera.exe`.
+`./build.ps1 -Test -Publish`. Lancez `artifacts/Baseera-v0.6.0-Windows-x64/Baseera.exe`.
 L’extension de navigateur est un téléchargement séparé : suivez `START-HERE.html` et chargez le dossier `extension` dans Chrome/Edge. Ne lancez pas ses fichiers source par double-clic.
 
 Activez uniquement les outils voulus lors du premier lancement. Pour la traduction,

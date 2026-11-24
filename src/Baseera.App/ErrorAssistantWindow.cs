@@ -1,4 +1,5 @@
 using System.Windows.Media.Imaging;
+using System.Windows.Automation;
 using Baseera.App.Services;
 using Clipboard = System.Windows.Clipboard;
 using DataFormats = System.Windows.DataFormats;
@@ -57,7 +58,7 @@ internal sealed partial class ErrorAssistantWindow : Window
         FontFamily = Brand.InterfaceFont; FontSize = 13; Icon = Brand.WindowIcon;
         UseLayoutRounding = true; SnapsToDevicePixels = true;
         FlowDirection = FlowDirection.LeftToRight;
-        Title = I18n.T("errorAssistantTitle");
+        Title = I18n.T("smartWorkspaceTitle");
         SetResourceReference(BackgroundProperty, "Bg"); SetResourceReference(ForegroundProperty, "Ink");
         Content = frame;
         SourceInitialized += (_, _) => WindowAppearance.Apply(this, Settings.Current.Dark);
@@ -115,35 +116,47 @@ internal sealed partial class ErrorAssistantWindow : Window
         frame.RowDefinitions.Add(new RowDefinition());
         frame.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-        var header = new StackPanel { Margin = new Thickness(22, 16, 22, 12) };
-        var title = Text(I18n.T("errorAssistantTitle"), 22); title.FontWeight = arabic ? FontWeights.Medium : FontWeights.SemiBold; Add(header, title, 4);
-        Add(header, Text(I18n.T("assistantConversationIntro"), 13, true), 0);
-        var shortcut = Text(I18n.T("errorShortcut"), 12, true); shortcut.Margin = new Thickness(0, 8, 0, 0); header.Children.Add(shortcut);
-        frame.Children.Add(header);
+        frame.Children.Add(BuildAssistantHeader());
 
-        var body = new StackPanel { Margin = new Thickness(0, 8, 0, 12) };
-        Add(body, Text(I18n.T("errorCaptureWindow"), 13), 5);
+        var body = new StackPanel { Margin = new Thickness(12, 10, 12, 12) };
+        var captureTitle = Text(I18n.T("smartWorkspaceCapture"), 13);
+        captureTitle.FontWeight = FontWeights.SemiBold;
+        Add(body, captureTitle, 5);
         var captureRow = new Grid(); captureRow.ColumnDefinitions.Add(new ColumnDefinition()); captureRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         RefreshWindows(); windows.DisplayMemberPath = "Title"; windows.Tag = I18n.T("errorChooseWindow"); windows.Margin = new Thickness(0, 0, 10, 0);
         windows.DropDownOpened += (_, _) => RefreshWindows();
         System.Windows.Automation.AutomationProperties.SetAutomationId(windows, "ErrorWindowPicker"); captureRow.Children.Add(windows);
         var capture = Action("errorCapture", async () => await CaptureSelected()); capture.Margin = new Thickness(0); Grid.SetColumn(capture, 1); captureRow.Children.Add(capture); Add(body, captureRow, 8);
         windowCount.Foreground = Brush("Muted"); Add(body, windowCount, 5);
-        var refresh = Action("refresh", RefreshWindows); refresh.HorizontalAlignment = HorizontalAlignment.Left; Add(body, refresh, 12);
-        Add(body, Text(I18n.T("errorPrivacy"), 12, true), 16);
-        Add(body, BuildDiagnostics(), 16);
+        var refresh = CompactAction("refresh", RefreshWindows, "updates");
+        refresh.HorizontalAlignment = HorizontalAlignment.Left;
+        Add(body, refresh, 10);
+        Add(body, BuildDiagnostics(), 0);
 
         result.Children.Clear();
         System.Windows.Automation.AutomationProperties.SetAutomationId(result, "ErrorAdviceResult");
-        var thread = new StackPanel { Margin = new Thickness(22, 0, 22, 12) };
-        assistantTools.Header = I18n.T("chatTools"); assistantTools.Content = body; assistantTools.IsExpanded = false;
-        System.Windows.Automation.AutomationProperties.SetAutomationId(assistantTools, "ConversationTools"); Add(thread, assistantTools, 10);
-        Add(thread, BuildCaseWorkflow(), 10);
-        emptyChat.Children.Add(new System.Windows.Controls.Image { Source = Brand.WindowIcon, Width = 36, Height = 36, Margin = new Thickness(0, 0, 0, 14) });
-        emptyChat.Children.Add(Text(I18n.T("chatEmptyTitle"), 20));
-        var emptyHint = Text(I18n.T("chatEmptyHelp"), 13, true); emptyHint.Margin = new Thickness(0, 8, 0, 0); emptyHint.MaxWidth = 480; emptyChat.Children.Add(emptyHint);
-        Add(thread, emptyChat, 0);
-        Add(thread, result, 0); Add(thread, repairActions, 8); Add(thread, repairStatus, 12); Add(thread, BuildSession(), 0);
+        var thread = new StackPanel { Margin = new Thickness(24, 12, 24, 14), MaxWidth = AssistantContentWidth };
+        ConfigureDisclosure(assistantTools, "chatTools", body, "ConversationTools");
+        assistantTools.Expanded += (_, e) => { if (e.Source == assistantTools) RefreshConversationControls(!NetworkBusy && recorder?.Recording != true); };
+        assistantTools.Collapsed += (_, e) =>
+        {
+            if (e.Source != assistantTools) return;
+            bool hadFocus = assistantTools.IsKeyboardFocusWithin;
+            RefreshConversationControls(!NetworkBusy && recorder?.Recording != true);
+            if (hadFocus) problem.Focus();
+        };
+        Add(thread, assistantTools, 10);
+        var emptyTitle = Text(I18n.T("chatEmptyTitle"), 24);
+        emptyTitle.FontWeight = FontWeights.SemiBold; emptyTitle.TextAlignment = TextAlignment.Center;
+        Add(emptyChat, emptyTitle, 8);
+        var emptyHint = Text(I18n.T("smartWorkspacePrompt"), 13, true);
+        emptyHint.TextAlignment = TextAlignment.Center;
+        emptyChat.Children.Add(emptyHint);
+        AutomationProperties.SetAutomationId(emptyChat, "AssistantEmpty");
+        thread.Children.Add(emptyChat);
+        Add(thread, result, 0);
+        Add(thread, repairActions, 8); Add(thread, repairStatus, 8);
+        Add(thread, BuildCaseWorkflow(), 8); Add(thread, BuildSession(), 0);
         bodyScroll = new ScrollViewer { Content = thread, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
         System.Windows.Automation.AutomationProperties.SetAutomationId(bodyScroll, "ErrorAssistantScroll");
         bodyScroll.ScrollChanged += (_, e) =>

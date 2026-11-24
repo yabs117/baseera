@@ -7,7 +7,7 @@ internal sealed partial class ErrorAssistantWindow
 {
     private readonly CheckBox diagnosticSystem = new(), diagnosticApplication = new(), diagnosticEvents = new(), diagnosticHealth = new(), diagnosticShare = new();
     private readonly TextBox diagnosticPreview = new() { AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MaxLength = DiagnosticPrivacy.MaxCharacters,
-        Height = 160, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, FlowDirection = FlowDirection.LeftToRight };
+        Height = 128, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, FlowDirection = FlowDirection.LeftToRight };
     private readonly StackPanel repairActions = new();
     private readonly TextBlock repairStatus = new() { TextWrapping = TextWrapping.Wrap };
     private readonly ComboBox diagnosticRange = new() { MinWidth = 160, SelectedIndex = 2 };
@@ -42,26 +42,39 @@ internal sealed partial class ErrorAssistantWindow
     }
     private Expander BuildDiagnostics()
     {
-        var body = new StackPanel();
-        Add(body, Text(I18n.T("smartDiagnosticsHelp"), 12, true));
+        var body = new StackPanel { Margin = new Thickness(9, 10, 9, 3) };
+        var sourcesLabel = Text(I18n.T("smartWorkspaceSources"), 12, true);
+        sourcesLabel.ToolTip = I18n.T("smartDiagnosticsHelp");
+        System.Windows.Automation.AutomationProperties.SetHelpText(sourcesLabel, I18n.T("smartDiagnosticsHelp"));
+        Add(body, sourcesLabel, 6);
+        var sources = new System.Windows.Controls.Primitives.UniformGrid { Columns = 2 };
         void Source(CheckBox check, string key)
         {
-            check.Content = I18n.T(key); System.Windows.Automation.AutomationProperties.SetAutomationId(check, key);
+            check.Content = Text(I18n.T(key), 12);
+            System.Windows.Automation.AutomationProperties.SetName(check, I18n.T(key));
+            System.Windows.Automation.AutomationProperties.SetAutomationId(check, key);
             check.Checked += (_, _) => ClearDiagnostics(); check.Unchecked += (_, _) => ClearDiagnostics();
-            Add(body, check, 4);
+            check.Margin = new Thickness(0, 3, 7, 6);
+            sources.Children.Add(check);
         }
         Source(diagnosticSystem, "smartSystemInfo"); Source(diagnosticApplication, "smartApplicationEvents"); Source(diagnosticEvents, "smartSystemEvents");
         Source(diagnosticHealth, "deviceDiagnosticSource");
         Source(diagnosticServices, "smartServiceStatus");
         Source(diagnosticDrivers, "hubDrivers");
+        Add(body, sources, 8);
         Add(body, Text(I18n.T("smartTimeRange"), 12, true), 4);
         foreach (int hours in new[] { 1, 6, 24, 72 }) diagnosticRange.Items.Add(new ComboBoxItem { Content = string.Format(I18n.T("smartHours"), hours), Tag = hours });
         System.Windows.Automation.AutomationProperties.SetAutomationId(diagnosticRange, "SmartDiagnosticRange");
         diagnosticRange.SelectionChanged += (_, _) => ClearDiagnostics(); Add(body, diagnosticRange, 8);
-        Add(body, Text(I18n.T("smartMatchHelp"), 12, true), 4);
+        var match = Text(I18n.T("smartWorkspaceFilter"), 12, true);
+        match.ToolTip = I18n.T("smartMatchHelp");
+        Add(body, match, 4);
         System.Windows.Automation.AutomationProperties.SetAutomationId(diagnosticMatch, "SmartDiagnosticMatch");
+        System.Windows.Automation.AutomationProperties.SetName(diagnosticMatch, I18n.T("smartWorkspaceFilter"));
+        System.Windows.Automation.AutomationProperties.SetHelpText(diagnosticMatch, I18n.T("smartMatchHelp"));
         diagnosticMatch.TextChanged += (_, _) => ClearDiagnostics(); Add(body, diagnosticMatch, 8);
-        collectDiagnostics = Action("smartCollect", async () => await CollectDiagnostics());
+        collectDiagnostics = CompactAction("smartCollect", async () => await CollectDiagnostics());
+        collectDiagnostics.HorizontalAlignment = HorizontalAlignment.Left;
         Add(body, collectDiagnostics, 8);
         System.Windows.Automation.AutomationProperties.SetAutomationId(evidenceSummary, "SmartEvidenceSummary");
         Add(body, evidenceSummary, 8);
@@ -72,10 +85,11 @@ internal sealed partial class ErrorAssistantWindow
         diagnosticShare.Checked += (_, _) => { diagnosticRecipient = DiagnosticRecipient; RefreshDiagnosticDelivery(); };
         diagnosticShare.Unchecked += (_, _) => { diagnosticRecipient = ""; RefreshDiagnosticDelivery(); };
         Add(body, diagnosticShare, 8);
-        var clear = Action("smartClear", ClearDiagnostics); Add(body, clear, 0);
-        var expander = new Expander { Header = I18n.T("smartDiagnostics"), Content = body, IsExpanded = false,
-            Padding = new Thickness(12), Background = Brush("Surface"), BorderBrush = Brush("Line"), BorderThickness = new Thickness(1) };
-        System.Windows.Automation.AutomationProperties.SetAutomationId(expander, "SmartDiagnostics"); return expander;
+        var clear = CompactAction("smartClear", ClearDiagnostics); clear.HorizontalAlignment = HorizontalAlignment.Left;
+        Add(body, clear, 0);
+        var expander = new Expander();
+        ConfigureDisclosure(expander, "smartDiagnostics", body, "SmartDiagnostics");
+        return expander;
     }
     private void InvalidateDiagnosticConsent() { diagnosticShare.IsChecked = false; diagnosticRecipient = ""; RefreshDiagnosticDelivery(); }
     private void ClearDiagnostics() { diagnosticRequest?.Cancel(); diagnosticGateActive = false; diagnosticPreview.Clear(); InvalidateDiagnosticConsent(); }
@@ -220,8 +234,7 @@ internal sealed partial class ErrorAssistantWindow
 
     private Border BuildSession()
     {
-        var body = new StackPanel(); var title = Text(I18n.T("smartSessionTitle"), 15); title.FontWeight = FontWeights.SemiBold;
-        Add(body, Text(I18n.T("smartSessionHelp"), 12, true), 12);
+        var body = new StackPanel { Margin = new Thickness(10, 9, 10, 4) };
         caseNotice.Text = I18n.T("smartCaseChanged"); caseNotice.Foreground = Brush("Muted"); Add(body, caseNotice, 8);
         Add(body, sessionActivity, 8);
         var outcomes = new WrapPanel();
@@ -234,10 +247,9 @@ internal sealed partial class ErrorAssistantWindow
         Add(body, reportDiagnostics, 8);
         reportButton = Action("smartSaveReport", SaveSessionReport); reportButton.HorizontalAlignment = HorizontalAlignment.Left; Add(body, reportButton, 6);
         Add(body, Text(I18n.T("smartReportPrivacy"), 12, true), 0);
-        body.Margin = new Thickness(0, 12, 0, 0); sessionDetails.Header = title; sessionDetails.Content = body;
-        System.Windows.Automation.AutomationProperties.SetAutomationId(sessionDetails, "SmartSessionDetails");
-        sessionPanel.Child = sessionDetails; sessionPanel.Padding = new Thickness(16); sessionPanel.CornerRadius = new CornerRadius(5);
-        sessionPanel.BorderBrush = Brush("Line"); sessionPanel.BorderThickness = new Thickness(1); sessionPanel.Background = Brush("Surface");
+        ConfigureDisclosure(sessionDetails, "smartSessionTitle", body, "SmartSessionDetails");
+        sessionDetails.ToolTip = I18n.T("smartSessionHelp");
+        sessionPanel.Child = sessionDetails;
         sessionPanel.Visibility = Visibility.Collapsed;
         System.Windows.Automation.AutomationProperties.SetAutomationId(sessionPanel, "SmartRepairSession"); return sessionPanel;
     }

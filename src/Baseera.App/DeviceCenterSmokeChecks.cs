@@ -41,7 +41,9 @@ internal static class DeviceCenterSmokeChecks
     }
     private static IEnumerable<DependencyObject> Nodes(DependencyObject root)
     { for (int i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++) { var child = VisualTreeHelper.GetChild(root, i); yield return child; foreach (var nested in Nodes(child)) yield return nested; } }
-    private static T Find<T>(DependencyObject root, string id) where T : DependencyObject => Nodes(root).OfType<T>().Single(x => AutomationProperties.GetAutomationId(x) == id);
+    private static T Find<T>(DependencyObject root, string id) where T : DependencyObject =>
+        Nodes(root).OfType<T>().SingleOrDefault(x => AutomationProperties.GetAutomationId(x) == id)
+        ?? throw new InvalidOperationException($"Device center control '{id}' is missing.");
     private static void Click(DependencyObject root, string id) => Find<Button>(root, id).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
     private static void Require(bool condition, string message) { if (!condition) throw new Exception(message); }
     private static async Task Settle(Window owner) { await owner.Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle); await Task.Delay(50); owner.UpdateLayout(); }
@@ -67,6 +69,18 @@ internal static class DeviceCenterSmokeChecks
         try
         {
             Settings.Current.Onboarded = true; Settings.Current.ErrorAssistantEnabled = true;
+            owner.Navigate("home");
+            await Settle(owner);
+            Require(AutomationProperties.GetName(Find<FrameworkElement>(owner, "OverviewCpuPlot")).Contains(I18n.T("workspaceCpuTrendEmpty")),
+                "Overview displays a trend before collecting real readings.");
+            owner.DeviceSourceOverride = (_, _) => Task.FromResult(Fixture with { CpuPercent = 34 });
+            await owner.RefreshDevice();
+            Require(AutomationProperties.GetName(Find<FrameworkElement>(owner, "OverviewCpuPlot")).Contains(I18n.T("workspaceCpuTrendEmpty")),
+                "Overview invents a trend from one reading.");
+            owner.DeviceSourceOverride = (_, _) => Task.FromResult(Fixture with { CpuPercent = 55 });
+            await owner.RefreshDevice();
+            Require(AutomationProperties.GetName(Find<FrameworkElement>(owner, "OverviewCpuPlot")).Contains(I18n.T("workspaceCpuTrendScale")),
+                "Two real readings did not produce an Overview trend.");
             owner.DeviceSourceOverride = (_, ct) => { ct.ThrowIfCancellationRequested(); return Task.FromResult(Fixture); };
             foreach (string language in new[] { "ar", "en", "fr", "es" })
             foreach (bool dark in new[] { false, true })
@@ -101,7 +115,8 @@ internal static class DeviceCenterSmokeChecks
             owner.DeviceSourceOverride = (_, _) => throw new IOException("No private path may be echoed"); owner.Navigate("home"); await owner.RefreshDevice();
             Require(Find<TextBlock>(owner, "DeviceTimestamp").Text == I18n.T("deviceReadFailed"), "Failed refresh disguised old readings as current.");
             owner.DeviceSourceOverride = (_, _) => Task.FromResult(Fixture with { CpuPercent = null, Memory = null, Volumes = [], Notices = ["deviceCpuUnavailable"] });
-            await owner.RefreshDevice(); Require(AutomationProperties.GetName(Find<Button>(owner, "DeviceHealthCard")).Contains(I18n.T("devicePartial")), "Missing readings falsely labeled healthy.");
+            await owner.RefreshDevice(); owner.UpdateLayout();
+            Require(AutomationProperties.GetName(Find<Button>(owner, "DeviceHealthCard")).Contains(I18n.T("devicePartial")), "Missing readings falsely labeled healthy.");
             owner.DeviceSourceOverride = (_, _) => Task.FromResult(Fixture with { PerformanceIncluded = false, Processes = [], Startup = [] });
             owner.Navigate("performance"); await owner.RefreshDevice(); await Settle(owner);
             Require(Nodes(Find<StackPanel>(owner, "DeviceProcesses")).OfType<TextBlock>().Single().Text == I18n.T("deviceNoData"), "An uncollected process source was shown as an empty measured result.");
