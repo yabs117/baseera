@@ -1,8 +1,8 @@
 # بصيرة
 
-**بصيرة 0.5.0 التجريبي** يضيف مراكز تشخيص واستكشاف، وملفات قضايا محلية في Smart Repair. افتح أقسام الأدوات والتشخيص من النظرة العامة أو القائمة الجانبية عند الحاجة. [تنزيل Baseera.exe](https://github.com/yabs117/baseera/releases/download/v0.5.0-preview/Baseera.exe) · [صفحة الإصدار والملفات](https://github.com/yabs117/baseera/releases/tag/v0.5.0-preview).
+**بصيرة 0.6.0 التجريبي** يحدّث مركز التحكم ونافذة مساعد الإصلاح. ابحث عن الأدوات بـ `Ctrl+K`، أو افتح «التشخيص» داخل المساعد عند الحاجة مع بقاء حقل الرسالة في الأسفل. [تنزيل Baseera.exe](https://github.com/yabs117/baseera/releases/download/v0.6.0-preview/Baseera.exe) · [صفحة الإصدار والملفات](https://github.com/yabs117/baseera/releases/tag/v0.6.0-preview).
 
-![النظرة العامة في بصيرة 0.5.0 باللغة العربية](images/baseera-development-ar.png)
+![مساعد الإصلاح في بصيرة 0.6.0 بالعربية مع نموذج تجريبي](images/baseera-0.6.0-smart-repair-ar.png)
 
 أضيف طبيب ويندوز الذكي، ومحلل بطء الجهاز، ومركز الأمان، وطبيب الإنترنت، ومستكشف التخزين، والبحث المحلي، وسجل النظام، ومركز USB. تبدأ القراءات بعد اختيار المستخدم، وتُعرض حدود الأدلة بوضوح؛ ولا تُرسل إلى الذكاء الاصطناعي إلا بعد معاينة وموافقة مستقلة لطلب واحد. [النطاق الفعلي والخصوصية والقيود](INVESTIGATION-CENTERS.md).
 
@@ -54,7 +54,7 @@
 ./build.ps1 -Test -Publish
 ```
 
-الملف التنفيذي في `artifacts/Baseera-v0.5.0-Windows-x64/Baseera.exe`، وتوجد نسخة باسم مختصر في `artifacts/Baseera.exe` وحزمة `artifacts/Baseera.zip`.
+الملف التنفيذي في `artifacts/Baseera-v0.6.0-Windows-x64/Baseera.exe`، وتوجد نسخة باسم مختصر في `artifacts/Baseera.exe` وحزمة `artifacts/Baseera.zip`.
 
 اختر نسختك من [إصدارات GitHub](https://github.com/yabs117/baseera/releases) وحمّل `Baseera.exe` من ملفات الإصدار. النسخة التجريبية غير موقّعة.
 إضافة المتصفح حزمة اختيارية منفصلة: اقرأ `START-HERE.html` وثبّتها من المتصفح، ولا تفتح ملفات الشيفرة بالنقر المزدوج.

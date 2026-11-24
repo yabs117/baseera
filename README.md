@@ -5,20 +5,20 @@ image conversion and evidence-aware Windows troubleshooting.
 
 [العربية](docs/README.ar.md) · [Français](docs/README.fr.md) · [Español](docs/README.es.md)
 
-**0.5.0 Preview** brings device diagnostics, local search and Smart Repair cases
-to Baseera. Overview groups tools and diagnostics into sections that expand on
-demand. The executable includes the .NET runtime for Windows 10/11 x64.
+**0.6.0 Preview** refreshes the device dashboard and the Smart Repair assistant.
+Use `Ctrl+K` to find a tool, check recent CPU readings on Overview, or open
+diagnostic controls from the assistant while keeping the message composer in view.
+The executable includes the .NET runtime for Windows 10/11 x64.
 
-[Download Baseera.exe](https://github.com/yabs117/baseera/releases/download/v0.5.0-preview/Baseera.exe) · [0.5.0 Preview and all assets](https://github.com/yabs117/baseera/releases/tag/v0.5.0-preview) · [Capability status](docs/ROADMAP.md)
+[Download Baseera.exe](https://github.com/yabs117/baseera/releases/download/v0.6.0-preview/Baseera.exe) · [All release files](https://github.com/yabs117/baseera/releases/tag/v0.6.0-preview) · [Release notes](docs/RELEASE-0.6.0.md) · [Capability status](docs/ROADMAP.md)
 
-![Baseera 0.5.0 Overview in English](docs/images/baseera-development-en.png)
+![Baseera 0.6.0 dashboard in English with sample readings](docs/images/baseera-0.6.0-overview-en.png)
 
 <details>
 <summary>Arabic RTL, dark appearance and diagnostic examples</summary>
 
 ![Network Doctor — Arabic RTL, synthetic measurements](docs/images/investigation-network-ar-dark.png)
-![Current Overview and navigation — English dark appearance, no readings collected](docs/images/baseera-development-en-dark.png)
-![Current Overview and navigation — Arabic RTL, no readings collected](docs/images/baseera-development-ar.png)
+![Smart Repair assistant in Arabic with dark appearance and a demo model](docs/images/baseera-0.6.0-smart-repair-ar.png)
 ![Windows AI Doctor — English, synthetic diagnostic evidence](docs/images/investigation-doctor-en.png)
 
 </details>
@@ -320,7 +320,7 @@ node --test extension/test/protocol.test.js
 ./tests/windows/Test-ReadOnlySystem.ps1 -AllowNetworkCheck
 ```
 
-The executable is produced in `artifacts/Baseera-v0.5.0-Windows-x64/`,
+The executable is produced in `artifacts/Baseera-v0.6.0-Windows-x64/`,
 with the clean download names `artifacts/Baseera.exe` and `artifacts/Baseera.zip`.
 `-Smoke -Publish` also checks the packaged executable. `-Smoke` uses a separate local data directory and does not run updates or
 register Explorer hooks. It renders the actual WPF screens and tests conversion,

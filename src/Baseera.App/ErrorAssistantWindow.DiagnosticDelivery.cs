@@ -6,6 +6,7 @@ namespace Baseera.App;
 internal sealed partial class ErrorAssistantWindow
 {
     private readonly TextBlock diagnosticDeliveryStatus = new() { FontSize = 11, TextWrapping = TextWrapping.Wrap };
+    private readonly Border diagnosticDelivery = new();
     private Button collectForMessage = null!, reviewForMessage = null!, sendWithoutDiagnostics = null!;
     private bool diagnosticGateActive, diagnosticRequestHasData, previousRequestHadDiagnostics;
     private bool DiagnosticSourceSelected => diagnosticSystem.IsChecked == true || diagnosticApplication.IsChecked == true || diagnosticEvents.IsChecked == true || diagnosticHealth.IsChecked == true || diagnosticServices.IsChecked == true || diagnosticDrivers.IsChecked == true;
@@ -35,9 +36,13 @@ internal sealed partial class ErrorAssistantWindow
         AutomationProperties.SetAutomationId(sendWithoutDiagnostics, "DiagnosticSendWithout"); actions.Children.Add(sendWithoutDiagnostics);
         foreach (var button in actions.Children.OfType<Button>()) { button.MinWidth = 0; button.FontSize = 11; button.Padding = new Thickness(9, 4, 9, 4); }
         body.Children.Add(actions);
-        var box = new Border { Child = body, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(5), Padding = new Thickness(9, 7, 9, 7) };
-        box.SetResourceReference(Border.BorderBrushProperty, "Line"); AutomationProperties.SetAutomationId(box, "DiagnosticDelivery");
-        RefreshDiagnosticDelivery(); return box;
+        diagnosticDelivery.Child = body;
+        diagnosticDelivery.BorderThickness = new Thickness(1);
+        diagnosticDelivery.CornerRadius = new CornerRadius(6);
+        diagnosticDelivery.Padding = new Thickness(9, 7, 9, 7);
+        diagnosticDelivery.SetResourceReference(Border.BorderBrushProperty, "Line");
+        AutomationProperties.SetAutomationId(diagnosticDelivery, "DiagnosticDelivery");
+        RefreshDiagnosticDelivery(); return diagnosticDelivery;
     }
     private void ShowDiagnosticPreview(bool focusConsent)
     {
@@ -62,6 +67,7 @@ internal sealed partial class ErrorAssistantWindow
             hasPreview ? previousRequestHadDiagnostics ? "diagnosticApprovalConsumed" : "diagnosticPreviewNotAttached" :
             selected ? "diagnosticSourcesNotCollected" : "diagnosticNoneAttached";
         diagnosticDeliveryStatus.Text = string.Format(I18n.T(key), AiProviderBadge.Name(AiCatalog.Provider, ChatGptAuth.Selected));
+        diagnosticDelivery.Visibility = key == "diagnosticNoneAttached" ? Visibility.Collapsed : Visibility.Visible;
         diagnosticDeliveryStatus.SetResourceReference(TextBlock.ForegroundProperty, DiagnosticsReady ? "Accent" : "Muted");
         collectForMessage.Visibility = selected && !hasPreview ? Visibility.Visible : Visibility.Collapsed;
         reviewForMessage.Visibility = hasPreview ? Visibility.Visible : Visibility.Collapsed;

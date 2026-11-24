@@ -41,7 +41,7 @@ internal sealed class AdvicePresenter : Border, IDisposable
         if (description.Length > 0 || image is not null || sharedDiagnostics)
             layout.Children.Add(UserMessage(description, image, sharedDiagnostics));
 
-        var response = new StackPanel { Margin = new Thickness(0, 24, 0, 0) }; layout.Children.Add(response);
+        var response = new StackPanel { Margin = new Thickness(0, 18, 0, 0) }; layout.Children.Add(response);
         var header = new Grid(); header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         header.ColumnDefinitions.Add(new ColumnDefinition()); header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var mark = new Border { Width = 32, Height = 32, CornerRadius = new CornerRadius(8), Child = AiProviderBadge.Mark(provider, 23), VerticalAlignment = VerticalAlignment.Top };
@@ -72,7 +72,8 @@ internal sealed class AdvicePresenter : Border, IDisposable
         state.SetResourceReference(TextBlock.ForegroundProperty, "Muted");
         AutomationProperties.SetAutomationId(state, "AdviceState"); AutomationProperties.SetLiveSetting(state, AutomationLiveSetting.Polite);
         activity.Children.Add(state); response.Children.Add(activity);
-        content.Margin = Indent(16); content.Visibility = Visibility.Collapsed; response.Children.Add(content);
+        header.SetBinding(ToolTipProperty, new System.Windows.Data.Binding(nameof(TextBlock.Text)) { Source = state });
+        content.Margin = Indent(12); content.Visibility = Visibility.Collapsed; response.Children.Add(content);
 
         var copyLabel = new StackPanel { Orientation = Orientation.Horizontal };
         var copyIcon = new System.Windows.Shapes.Path { Data = Geometry.Parse("M7,3 L15,3 L15,13 L7,13 Z M4,6 L4,16 L12,16"), StrokeThickness = 1.2, Width = 14, Height = 16, Stretch = Stretch.Uniform, Margin = new Thickness(0, 0, 6, 0) };
@@ -143,8 +144,8 @@ internal sealed class AdvicePresenter : Border, IDisposable
         if (advice.Message is not null) Add(advice.Message, bottom: 0);
         else
         {
-        var summary = Add(advice.Summary, 19, bold: true, bottom: 20); AutomationProperties.SetAutomationId(summary, "AdviceSummary");
-        Add(locale.CauseTitle, 13, bold: true, bottom: 5); Add(advice.Cause, bottom: 20);
+        var summary = Add(advice.Summary, 17, bold: true, bottom: 16); AutomationProperties.SetAutomationId(summary, "AdviceSummary");
+        Add(locale.CauseTitle, 13, bold: true, bottom: 5); Add(advice.Cause, bottom: 16);
         Add(locale.StepsTitle, 13, bold: true, bottom: 10);
         for (int i = 0; i < advice.Steps.Count; i++) Add(advice.Steps[i], number: (i + 1).ToString(CultureInfo.InvariantCulture), bottom: 12);
         if (advice.Checks.Count > 0)
@@ -240,8 +241,9 @@ internal sealed class AdvicePresenter : Border, IDisposable
         foreach (var part in parts)
         { part.Container.Visibility = Visibility.Visible; part.Block.Visibility = Visibility.Visible; part.Text.RevealTo(part.Value.Length); if (part.CopyCode is not null) part.CopyCode.IsEnabled = true; }
         IsTyping = false; revealAll.Visibility = Visibility.Collapsed; copy.Visibility = Visibility.Visible;
-        foreach (var dot in dots) dot.Visibility = Visibility.Collapsed;
         state.Text = I18n.T("adviceComplete") + " · " + string.Format(I18n.T("adviceResponseTime"), requestClock.Elapsed.TotalSeconds.ToString("0.0", CultureInfo.CurrentCulture));
+        AutomationProperties.SetItemStatus(this, state.Text);
+        activity.Visibility = Visibility.Collapsed;
         Changed?.Invoke(); Completed?.Invoke();
     }
 

@@ -3,6 +3,7 @@ using System.Windows.Automation;
 using System.Windows.Automation.Peers;
 using System.Windows.Automation.Provider;
 using System.Windows.Controls.Primitives;
+using System.Windows.Input;
 using Baseera.App.Services;
 
 namespace Baseera.App;
@@ -69,6 +70,37 @@ internal static class ShellSmokeChecks
             "Version overlaps Settings instead of appearing below it.");
         CheckIconDirections(owner);
     }
+    private static async Task CheckToolFinder(MainWindow owner, string output)
+    {
+        var inspect = owner.Dispatcher.InvokeAsync(() =>
+        {
+            var finder = Application.Current.Windows.OfType<ToolFinder>().Single();
+            try
+            {
+                finder.UpdateLayout();
+                var query = Find<TextBox>(finder, "ToolFinderQuery");
+                var results = Find<ListBox>(finder, "ToolFinderResults");
+                Require(results.Items.Count == 20 && query.FlowDirection == FlowDirection.RightToLeft,
+                    "The finder lost a destination, showed duplicates, or ignored Arabic layout.");
+                query.Text = "z9-no-tool-7q";
+                Require(results.Items.Count == 0 && Nodes(finder).OfType<TextBlock>().Any(t => t.IsVisible && t.Text == I18n.T("workspaceFinderEmpty")),
+                    "The finder did not explain an empty result.");
+                query.Text = I18n.T("search");
+                results.SelectedItem = results.Items.OfType<ListBoxItem>().Single(r => Equals(r.Tag, "search"));
+                finder.UpdateLayout();
+                App.Snapshot(finder, Path.Combine(output, "workspace-finder-ar-dark.png"));
+                query.RaiseEvent(new System.Windows.Input.KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(query), Environment.TickCount, Key.Enter)
+                    { RoutedEvent = Keyboard.PreviewKeyDownEvent });
+            }
+            finally { if (finder.IsVisible) finder.Close(); }
+        }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+        Find<Button>(owner, "OpenToolFinder").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        await inspect;
+        await Settle(owner);
+        Require(Find<TextBox>(owner, "HubSearchQuery").IsVisible, "Enter did not open the chosen tool.");
+        owner.Navigate("home");
+        await Settle(owner);
+    }
     internal static async Task Run(MainWindow originalOwner, string output)
     {
         string preferences = JsonSerializer.Serialize(Settings.Current), key = Settings.GetKey("gemini"); MainWindow? owner = null;
@@ -105,6 +137,12 @@ internal static class ShellSmokeChecks
             }
             owner!.Height = owner.MinHeight;
             Settings.Current.Language = "ar"; Settings.Current.Dark = true; owner.ApplyTheme(); owner.Navigate("home"); await Settle(owner);
+            double normalWidth = owner.Width;
+            Require(Find<UniformGrid>(owner, "DeviceMetrics").Columns == 4, "A wide workspace does not use the four-column metric layout.");
+            owner.Width = owner.MinWidth; await Settle(owner);
+            Require(Find<UniformGrid>(owner, "DeviceMetrics").Columns == 2, "Metrics do not reflow at the minimum window width.");
+            App.Snapshot(owner, Path.Combine(output, "workspace-min-width-ar-dark.png"));
+            owner.Width = normalWidth; await Settle(owner);
             var overviewTools = Find<Expander>(owner, "OverviewTools"); ToggleSection(overviewTools); await Settle(owner);
             CheckDisclosure(owner, overviewTools, I18n.T("yourTools"), true);
             Find<Button>(owner, "Quick-search").RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); await Settle(owner);
@@ -145,9 +183,10 @@ internal static class ShellSmokeChecks
             var search = Nodes(owner).OfType<CheckBox>().Single(c => AutomationProperties.GetName(c) == I18n.T("search")); search.IsChecked = false;
             Require(Settings.Current.DisabledCenters.Contains("search"), "Search tool toggle did not disable search."); search.IsChecked = true;
             Require(!Settings.Current.DisabledCenters.Contains("search"), "Search tool toggle did not enable search.");
+            await CheckToolFinder(owner, output);
             owner.ShowErrorAssistant(); await Settle(owner);
             Require(owner.CurrentErrorAssistant?.IsVisible == true, "Explicit manual assistant launch stopped working.");
-            File.WriteAllText(Path.Combine(output, "shell-result.txt"), "PASS: startup stays on Overview, assistant opens on request, disclosures start collapsed, tool/center groups toggle independently through the actual headers, labels and arrow directions work in four languages and both themes, section state survives render/navigation, direct navigation reveals the destination group, selected page survives manual collapse, compact sidebar retains tool access, Settings preserves sidebar scroll, and the version/footer and original icon directions are intact.");
+            File.WriteAllText(Path.Combine(output, "shell-result.txt"), "PASS: Overview startup, responsive metric columns, Arabic tool finder and Enter navigation, manual assistant opening, persistent disclosures, accessible layout in four languages and both themes, RTL arrow and icon directions, compact tool access, sidebar scroll preservation and footer positioning.");
         }
         finally
         {
