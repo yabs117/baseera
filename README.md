@@ -9,10 +9,7 @@ image conversion and evidence-aware Windows troubleshooting.
 to Baseera. Overview groups tools and diagnostics into sections that expand on
 demand. The executable includes the .NET runtime for Windows 10/11 x64.
 
-This page describes the 0.5.0 source build. The most recent downloadable
-preview at the time of this update is [0.4.15](https://github.com/yabs117/baseera/releases/tag/v0.4.15-preview).
-
-[Published downloads](https://github.com/yabs117/baseera/releases) · [0.5.0 preview notes](docs/RELEASE-0.5.0.md) · [Capability status](docs/ROADMAP.md)
+[Download Baseera.exe](https://github.com/yabs117/baseera/releases/download/v0.5.0-preview/Baseera.exe) · [0.5.0 Preview and all assets](https://github.com/yabs117/baseera/releases/tag/v0.5.0-preview) · [Capability status](docs/ROADMAP.md)
 
 ![Baseera 0.5.0 Overview in English](docs/images/baseera-development-en.png)
 

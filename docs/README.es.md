@@ -1,8 +1,6 @@
 # Baseera
 
-Esta página describe el código de la versión 0.5.0. Al actualizarla, la última descarga publicada era la [0.4.15 Preview](https://github.com/yabs117/baseera/releases/tag/v0.4.15-preview).
-
-**Baseera 0.5.0 Preview** incorpora ocho centros de diagnóstico y exploración, lecturas locales bajo demanda y casos Smart Repair. [Descargas publicadas](https://github.com/yabs117/baseera/releases) · [Notas de la versión 0.5.0](RELEASE-0.5.0.md) · [Alcance y límites](INVESTIGATION-CENTERS.md).
+**Baseera 0.5.0 Preview** incorpora ocho centros de diagnóstico y exploración, lecturas locales bajo demanda y casos Smart Repair. [Descargar Baseera.exe](https://github.com/yabs117/baseera/releases/download/v0.5.0-preview/Baseera.exe) · [Versión y archivos](https://github.com/yabs117/baseera/releases/tag/v0.5.0-preview) · [Alcance y límites](INVESTIGATION-CENTERS.md).
 
 **Versión preliminar 0.4.15:** Smart Repair amplía el asistente existente con diagnósticos locales opcionales, vista previa editable y consentimiento por análisis. Solo ejecuta tres herramientas predefinidas tras confirmación independiente y UAC si corresponde: caché DNS, SFC y DISM. Sin scripts generados ni reinicio automático. [Detalles y límites](SMART-REPAIR.md). [Notas de versión y descarga](RELEASE-0.4.15.md).
 
