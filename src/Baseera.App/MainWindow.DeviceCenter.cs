@@ -17,6 +17,7 @@ public sealed partial class MainWindow
     private TextBlock? deviceStatus;
     private string deviceError = "", processFilter = "";
     private bool processByMemory;
+    private bool overviewToolsOpen, overviewCentersOpen;
     internal Func<bool, CancellationToken, Task<DeviceSnapshot>>? DeviceSourceOverride { get; set; }
     private static void DeviceId(DependencyObject element, string id) => AutomationProperties.SetAutomationId(element, id);
     private bool DevicePage => page is "home" or "health" or "performance";
@@ -109,14 +110,32 @@ public sealed partial class MainWindow
         DeviceHeading(body, "deviceCenter", "deviceOverviewDesc");
         var metrics = new UniformGrid { Columns = 2, Margin = new Thickness(0, 0, -10, 2) }; DeviceId(metrics, "DeviceMetrics"); body.Children.Add(metrics);
         var observations = Text("", 12, true); DeviceId(observations, "DeviceObservationCount"); body.Children.Add(observations);
-        SectionHeading(body, "deviceQuick"); var quick = new UniformGrid { Columns = 2, Margin = new Thickness(0, 0, -10, 4) };
-        quick.Children.Add(QuickAccess("errors", ReviewDeviceWithAssistant, I18n.T("deviceAnalyze")));
-        quick.Children.Add(QuickAccess("performance", () => Navigate("performance")));
-        foreach (string key in new[] { "scan", "translate", "updates", "convert", "search" }) quick.Children.Add(QuickAccess(key, () => Navigate(key), key == "updates" ? I18n.T("deviceUpdatesOnRequest") : null));
-        body.Children.Add(quick); Help(body, "deviceLocalOnly");
-        SectionHeading(body, "hubCenters"); var centers = new UniformGrid { Columns = 2, Margin = new Thickness(0, 0, -10, 4) };
-        foreach (string center in InvestigationCenters.Except(Tools)) centers.Children.Add(QuickAccess(center, () => Navigate(center), I18n.T(center + "Short"))); body.Children.Add(centers);
+        var tools = new UniformGrid { Columns = 2, Margin = new Thickness(0, 8, -10, 0) };
+        foreach (string key in Tools)
+        {
+            var shortcut = key == "errors"
+                ? QuickAccess(key, ReviewDeviceWithAssistant, I18n.T("deviceAnalyze"))
+                : QuickAccess(key, () => Navigate(key), key == "updates" ? I18n.T("deviceUpdatesOnRequest") : null);
+            tools.Children.Add(shortcut);
+        }
+        var centers = new UniformGrid { Columns = 2, Margin = new Thickness(0, 8, -10, 0) };
+        centers.Children.Add(QuickAccess("performance", () => Navigate("performance")));
+        foreach (string center in InvestigationCenters.Except(Tools))
+            centers.Children.Add(QuickAccess(center, () => Navigate(center), I18n.T(center + "Short")));
+        body.Children.Add(OverviewSection("OverviewTools", "yourTools", "toolbox", tools, overviewToolsOpen, open => overviewToolsOpen = open));
+        body.Children.Add(OverviewSection("OverviewCenters", "hubCenters", "centers", centers, overviewCentersOpen, open => overviewCentersOpen = open));
+        Help(body, "deviceLocalOnly");
         drawDevice = () => { DrawMetrics(metrics); observations.Text = deviceSnapshot is null ? I18n.T("deviceNoData") : string.Format(I18n.T("deviceObservations"), deviceSnapshot.Findings.Count); }; drawDevice();
+    }
+    private Expander OverviewSection(string id, string label, string icon, FrameworkElement content, bool isOpen, Action<bool> setOpen)
+    {
+        var section = DisclosureSection(id, label, icon, content, isOpen);
+        section.Margin = new Thickness(0, 4, 0, 8);
+        section.SetResourceReference(BackgroundProperty, "Surface");
+        section.SetResourceReference(BorderBrushProperty, "Line");
+        section.Expanded += (_, args) => { if (ReferenceEquals(args.OriginalSource, section)) setOpen(true); };
+        section.Collapsed += (_, args) => { if (ReferenceEquals(args.OriginalSource, section)) setOpen(false); };
+        return section;
     }
     private void DeviceHealthPage(StackPanel body)
     {

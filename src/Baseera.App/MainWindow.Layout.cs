@@ -133,13 +133,16 @@ public sealed partial class MainWindow
     private void Divider(StackPanel body) => body.Children.Add(new Border { Height = 1, Background = Resource("Line") });
     private Border? selectedNavigationIndicator;
     private Button? selectedNavigationButton;
+    private ScrollViewer? sidebarScroll;
+    private string? lastNavigationPage;
     private StackPanel? pageBody;
     public void Navigate(string destination)
     {
         if (page == "detective" && destination != page && detectiveRunning) operation?.Cancel();
         if (page == "network" && destination != page && networkRunning) operation?.Cancel();
         bool changed = page != destination;
-        double? previous = selectedNavigationIndicator?.IsLoaded == true ? selectedNavigationIndicator.TranslatePoint(new System.Windows.Point(), sidebar).Y : null;
+        double? previous = selectedNavigationIndicator is { IsLoaded: true, IsVisible: true } visibleIndicator
+            ? visibleIndicator.TranslatePoint(new System.Windows.Point(), sidebar).Y : null;
         page = destination; emphasizeTranslationSettings = pendingTranslationSettings = false; Render();
         if (!changed || !FluentMotion.Allowed) return;
         UpdateLayout();
@@ -171,6 +174,9 @@ public sealed partial class MainWindow
         selectedNavigationButton = null;
         translationProviderSection = null; translationKeyInput = null; translationModelInput = null;
         double offset = preserveScroll ? scroller.VerticalOffset : 0;
+        double sidebarOffset = sidebarScroll?.VerticalOffset ?? 0;
+        bool navigationChanged = page != lastNavigationPage;
+        lastNavigationPage = page;
         frame.Children.Clear(); frame.RowDefinitions.Clear(); frame.Children.Add(shell);
         scroller = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
         status = new TextBlock { Text = OperationStatusText, Foreground = Resource("Muted"), FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
@@ -201,16 +207,9 @@ public sealed partial class MainWindow
         bottom.Children.Add(NavigationButton("settings"));
         if (expanded) { var version = Text("Baseera " + SelfUpdater.CurrentVersion + " · " + I18n.T("preview"), 10, true); version.Margin = new Thickness(16, 10, 0, 0); DeviceId(version, "SidebarVersion"); bottom.Children.Add(version); }
         DockPanel.SetDock(bottom, Dock.Bottom); navigation.Children.Add(bottom);
-        var links = Stack(); var primary = Stack(); DeviceId(primary, "SidebarPrimary");
-        foreach (string destination in PrimaryPages) primary.Children.Add(NavigationButton(destination)); links.Children.Add(primary);
-        if (expanded) { var label = Text(I18n.T("yourTools"), 11, true); label.Margin = new Thickness(16, 22, 0, 8); links.Children.Add(label); }
-        else links.Children.Add(new Border { Height = 18 });
-        var toolLinks = Stack(); DeviceId(toolLinks, "SidebarTools");
-        foreach (string tool in Tools) toolLinks.Children.Add(NavigationButton(tool)); links.Children.Add(toolLinks);
-        if (expanded) { var label = Text(I18n.T("hubCenters"), 11, true); label.Margin = new Thickness(16, 22, 0, 8); links.Children.Add(label); }
-        var centerLinks = Stack(); DeviceId(centerLinks, "SidebarCenters");
-        foreach (string center in InvestigationCenters.Except(PrimaryPages).Except(Tools)) centerLinks.Children.Add(NavigationButton(center)); links.Children.Add(centerLinks);
+        var links = SidebarLinks(navigationChanged);
         var linksScroller = new ScrollViewer { Content = links, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
+        sidebarScroll = linksScroller;
         navigation.Children.Add(linksScroller);
         sidebar.BeginAnimation(WidthProperty, null); sidebar.Width = expanded ? 224 : 68; sidebar.Background = Resource("Sidebar"); sidebar.ClipToBounds = true; sidebar.Child = navigation;
         sidebar.BorderBrush = Resource("Line"); sidebar.BorderThickness = Arabic ? new Thickness(1, 0, 0, 0) : new Thickness(0, 0, 1, 0); shell.Children.Add(sidebar);
@@ -242,18 +241,15 @@ public sealed partial class MainWindow
             default: ControlHome(body); break;
         }
         StartDeviceMonitor();
-        if (selectedNavigationButton is { } activeNavigation)
+        var activeNavigation = selectedNavigationButton;
+        if (sidebarOffset > 0 || navigationChanged && activeNavigation is not null)
             _ = Dispatcher.InvokeAsync(() =>
             {
-                if (!activeNavigation.IsLoaded) return;
-                if (PrimaryPages.Contains(page)) linksScroller.ScrollToHome();
-                else if (InvestigationCenters.Contains(page))
-                {
-                    linksScroller.UpdateLayout();
-                    double top = activeNavigation.TranslatePoint(new System.Windows.Point(), linksScroller).Y + linksScroller.VerticalOffset;
-                    linksScroller.ScrollToVerticalOffset(Math.Max(0, top - 56));
-                }
-                else activeNavigation.BringIntoView();
+                if (!ReferenceEquals(sidebarScroll, linksScroller)) return;
+                linksScroller.ScrollToVerticalOffset(sidebarOffset);
+                linksScroller.UpdateLayout();
+                if (navigationChanged && activeNavigation is { IsVisible: true } && linksScroller.IsAncestorOf(activeNavigation))
+                    activeNavigation.BringIntoView();
             }, System.Windows.Threading.DispatcherPriority.Loaded);
         if (offset > 0) _ = Dispatcher.InvokeAsync(() => scroller.ScrollToVerticalOffset(offset), System.Windows.Threading.DispatcherPriority.Loaded);
         if (pendingTranslationSettings && translationProviderSection is { } section)
@@ -267,7 +263,11 @@ public sealed partial class MainWindow
                 UpdateLayout();
                 double top = section.TransformToAncestor(scroll).Transform(new System.Windows.Point()).Y + scroll.VerticalOffset;
                 scroll.ScrollToVerticalOffset(Math.Max(0, top - 12)); scroll.UpdateLayout();
-                input?.Focus(); if (input is not null) { System.Windows.Input.Keyboard.Focus(input); input.BringIntoView(); }
+                if (input is not { IsVisible: true, IsEnabled: true }) return;
+                input.BringIntoView();
+                var scope = System.Windows.Input.FocusManager.GetFocusScope(input);
+                System.Windows.Input.FocusManager.SetFocusedElement(scope, input);
+                if (IsActive) System.Windows.Input.Keyboard.Focus(input);
             }, System.Windows.Threading.DispatcherPriority.Loaded);
         }
     }
@@ -285,7 +285,17 @@ public sealed partial class MainWindow
         if (expanded) { var name = new TextBlock { Text = I18n.T(id), FontSize = 13, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 6, 0), FontWeight = selected ? HeadingWeight : FontWeights.Normal, TextWrapping = TextWrapping.NoWrap, TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 150 }; Grid.SetColumn(name, 2); row.Children.Add(name); }
         var button = new Button { Style = (Style)FindResource("NavigationButton"), Content = row, Background = selected ? Resource("Selected") : Brushes.Transparent, ToolTip = I18n.T(id) };
         System.Windows.Automation.AutomationProperties.SetAutomationId(button, "Navigate-" + id);
-        System.Windows.Automation.AutomationProperties.SetName(button, I18n.T(id)); button.Click += (_, _) => Navigate(id);
+        System.Windows.Automation.AutomationProperties.SetName(button, I18n.T(id));
+        button.Click += (_, _) =>
+        {
+            bool hadFocus = button.IsKeyboardFocusWithin;
+            Navigate(id);
+            if (hadFocus && selectedNavigationButton is { } current)
+                _ = Dispatcher.InvokeAsync(() =>
+                {
+                    if (ReferenceEquals(current, selectedNavigationButton) && current.IsVisible) current.Focus();
+                }, System.Windows.Threading.DispatcherPriority.Loaded);
+        };
         if (selected) selectedNavigationButton = button;
         return button;
     }
@@ -470,6 +480,10 @@ public sealed partial class MainWindow
         if (!bottomLinks.SequenceEqual(new[] { I18n.T("feedback"), I18n.T("settings") }))
             throw new InvalidOperationException("Feedback must appear directly above Settings at the end of navigation.");
         Navigate("home"); UpdateLayout();
+        foreach (var group in Descendants(frame).OfType<Expander>().Where(e =>
+            System.Windows.Automation.AutomationProperties.GetAutomationId(e) is "SidebarToolsSection" or "OverviewTools"))
+            group.IsExpanded = true;
+        UpdateLayout();
         if (Descendants(frame).OfType<Button>().Count(b => System.Windows.Automation.AutomationProperties.GetName(b) == I18n.T("errors")) != 2)
             throw new InvalidOperationException("Error assistant is missing from Overview or Your tools navigation.");
         Navigate("errors"); UpdateLayout();

@@ -239,9 +239,10 @@ public sealed partial class MainWindow
             aiConnectionDraft.ChatGpt = new() { Models = models, Model = models[0].Id, Fingerprint = ChatGptAuth.Fingerprint(account) };
             foreach (string locale in new[] { "en", "ar" })
             {
-                Settings.Current.Language = locale; ApplyTheme(); OpenTranslationSettings();
+                Settings.Current.Language = locale; ApplyTheme(); OpenAiSettings();
                 await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle); UpdateLayout();
-                if (translationModelInput is null || !translationModelInput.IsKeyboardFocusWithin) throw new InvalidOperationException("OAuth model shortcut did not receive focus.");
+                if (translationModelInput is null || !translationModelInput.IsKeyboardFocusWithin)
+                    throw new InvalidOperationException($"OAuth model shortcut did not receive keyboard focus. Active window: {IsActive}. Locale: {locale}.");
                 var bounds = translationModelInput.TransformToAncestor(scroller).TransformBounds(new Rect(0, 0, translationModelInput.ActualWidth, translationModelInput.ActualHeight));
                 if (bounds.Top < 0 || bounds.Bottom > scroller.ActualHeight) throw new InvalidOperationException("OAuth model shortcut is outside the visible settings viewport.");
                 await Task.Delay(100); WindowAppearance.SavePreview(this, Path.Combine(output, "chatgpt-settings-" + locale + ".png"));

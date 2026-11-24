@@ -12,6 +12,8 @@ public static class Icons
         ["network"] = "M3,8 Q12,0 21,8 M6,12 Q12,6 18,12 M9,16 Q12,13 15,16 M12,20 L12.1,20",
         ["storage"] = "M3,4 L21,4 L21,20 L3,20 Z M3,10 L21,10 M6,7 L6.1,7 M6,15 L6.1,15 M10,15 L18,15",
         ["search"] = "M16,10 A6,6 0 1 1 4,10 A6,6 0 1 1 16,10 M15,15 L22,22",
+        ["toolbox"] = "M3,8 L21,8 L21,20 L3,20 Z M8,8 L8,4 L16,4 L16,8 M3,13 L21,13 M10,12 L10,15 L14,15 L14,12",
+        ["centers"] = "M3,3 L10,3 L10,10 L3,10 Z M14,3 L21,3 L21,10 L14,10 Z M3,14 L10,14 L10,21 L3,21 Z M14,14 L21,14 L21,21 L14,21 Z",
         ["timeline"] = "M12,2 L12,22 M6,5 L18,5 M6,12 L18,12 M6,19 L18,19 M4,5 L4.1,5 M20,12 L20.1,12",
         ["usb"] = "M12,2 L9,6 L15,6 Z M12,6 L12,20 M12,12 Q6,12 6,8 L6,6 M6,5 L6.1,5 M12,16 Q18,16 18,12 L18,9 M16,7 L20,7 L20,10 L16,10 Z M14,21 A2,2 0 1 1 10,21 A2,2 0 1 1 14,21",
         ["cases"] = "M3,4 L10,4 L12,7 L21,7 L21,21 L3,21 Z M7,11 L17,11 M7,15 L17,15 M7,18 L13,18",
@@ -25,6 +27,7 @@ public static class Icons
         ["info"] = "M12,8 L12,8.1 M12,11 L12,17 M22,12 A10,10 0 1 1 2,12 A10,10 0 1 1 22,12",
         ["chevronLeft"] = "M15,5 L8,12 L15,19",
         ["chevronRight"] = "M9,5 L16,12 L9,19",
+        ["chevronDown"] = "M5,9 L12,16 L19,9",
         ["folder"] = "M3,7 L3,20 L21,20 L21,7 L12,7 L10,4 L3,4 Z",
         ["minimize"] = "M2,12 L22,12",
         ["maximize"] = "M3,3 L21,3 L21,21 L3,21 Z",
@@ -49,6 +52,15 @@ public static class Icons
             Stretch = Stretch.None };
         path.SetResourceReference(Shape.StrokeProperty, color);
         var canvas = new Canvas { Width = 24, Height = 24 }; canvas.Children.Add(path);
-        return new Viewbox { Width = size, Height = size, Child = canvas, Stretch = Stretch.Uniform };
+        // Keep the artwork as drawn while allowing the surrounding layout to mirror.
+        // Callers choose the appropriate glyph for directional navigation.
+        return new Viewbox
+        {
+            Width = size,
+            Height = size,
+            Child = canvas,
+            Stretch = Stretch.Uniform,
+            FlowDirection = FlowDirection.LeftToRight
+        };
     }
 }

@@ -25,6 +25,49 @@
  <Style x:Key="IconButton" TargetType="Button" BasedOn="{StaticResource NavigationButton}"><Setter Property="Width" Value="36"/><Setter Property="Height" Value="34"/><Setter Property="Margin" Value="0"/><Setter Property="Background" Value="Transparent"/></Style>
  <Style x:Key="ToolRowButton" TargetType="Button" BasedOn="{StaticResource NavigationButton}"><Setter Property="Height" Value="Auto"/><Setter Property="MinHeight" Value="94"/><Setter Property="Margin" Value="0"/><Setter Property="Background" Value="Transparent"/><Setter Property="Padding" Value="20,16"/></Style>
 
+ <Style x:Key="DisclosureHeader" TargetType="ToggleButton">
+  <Setter Property="MinHeight" Value="40"/>
+  <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ToggleButton">
+   <Border x:Name="Box" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="4">
+    <Grid>
+     <Border x:Name="Hover" Background="{DynamicResource Ink}" Opacity="0" CornerRadius="4" IsHitTestVisible="False"/>
+     <DockPanel Margin="{TemplateBinding Padding}">
+      <Canvas DockPanel.Dock="Right" Width="12" Height="12" VerticalAlignment="Center" IsHitTestVisible="False">
+       <!-- Logical forward participates in RTL. The expanded path points down in both directions. -->
+       <Path x:Name="Chevron" Data="M4,2 L8,6 L4,10" Stroke="{DynamicResource Muted}" StrokeThickness="1.4"
+             StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+      </Canvas>
+      <ContentPresenter VerticalAlignment="Center"/>
+     </DockPanel>
+    </Grid>
+   </Border>
+   <ControlTemplate.Triggers>
+    <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Hover" Property="Opacity" Value="0.055"/></Trigger>
+    <Trigger Property="IsPressed" Value="True"><Setter TargetName="Hover" Property="Opacity" Value="0.10"/></Trigger>
+    <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource Accent}"/></Trigger>
+    <Trigger Property="IsChecked" Value="True"><Setter TargetName="Chevron" Property="Data" Value="M2,4 L6,8 L10,4"/></Trigger>
+   </ControlTemplate.Triggers>
+  </ControlTemplate></Setter.Value></Setter>
+ </Style>
+ <Style x:Key="DisclosureSection" TargetType="Expander">
+  <Setter Property="Focusable" Value="False"/>
+  <Setter Property="Padding" Value="0,6,8,6"/>
+  <Setter Property="Background" Value="Transparent"/>
+  <Setter Property="BorderBrush" Value="Transparent"/>
+  <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Expander">
+   <StackPanel>
+    <ToggleButton x:Name="HeaderSite" Style="{StaticResource DisclosureHeader}" Content="{TemplateBinding Header}"
+                  Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" Padding="{TemplateBinding Padding}"
+                  AutomationProperties.Name="{TemplateBinding AutomationProperties.Name}"
+                  IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}"/>
+    <ContentPresenter x:Name="ContentSite" ContentSource="Content" Visibility="Collapsed"/>
+   </StackPanel>
+   <ControlTemplate.Triggers>
+    <Trigger Property="IsExpanded" Value="True"><Setter TargetName="ContentSite" Property="Visibility" Value="Visible"/></Trigger>
+   </ControlTemplate.Triggers>
+  </ControlTemplate></Setter.Value></Setter>
+ </Style>
+
  <Style TargetType="TextBox">
   <Setter Property="Padding" Value="10,7"/><Setter Property="Height" Value="36"/><Setter Property="Margin" Value="0,5,0,16"/>
   <Setter Property="Background" Value="{DynamicResource Surface}"/><Setter Property="Foreground" Value="{DynamicResource Ink}"/>

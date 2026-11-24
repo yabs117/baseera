@@ -5,34 +5,32 @@ image conversion and evidence-aware Windows troubleshooting.
 
 [العربية](docs/README.ar.md) · [Français](docs/README.fr.md) · [Español](docs/README.es.md)
 
-**In development — قيد التطوير: 0.5.0-preview.** Eight investigation centers
-have been added on the development branch alongside the 0.4.17 work below.
-The screenshot shows the Windows AI Doctor with synthetic diagnostic evidence.
-These changes are not yet in the public download. Latest published preview:
-**0.4.15**.
+**0.5.0 Preview** brings device diagnostics, local search and Smart Repair cases
+to Baseera. Overview groups tools and diagnostics into sections that expand on
+demand. The executable includes the .NET runtime for Windows 10/11 x64.
 
-[Download the published Windows app](https://github.com/yabs117/baseera/releases/download/v0.4.15-preview/Baseera.exe) · [Published release notes](docs/RELEASE-0.4.15.md) · [Development work and code](https://github.com/yabs117/baseera/pull/2) · [Capability status](docs/ROADMAP.md)
+This page describes the 0.5.0 source build. The most recent downloadable
+preview at the time of this update is [0.4.15](https://github.com/yabs117/baseera/releases/tag/v0.4.15-preview).
 
-![Baseera 0.5.0 development Windows AI Doctor — English, synthetic evidence](docs/images/investigation-doctor-en.png)
+[Published downloads](https://github.com/yabs117/baseera/releases) · [0.5.0 preview notes](docs/RELEASE-0.5.0.md) · [Capability status](docs/ROADMAP.md)
 
-*Development preview, not a screenshot of the 0.4.15 download. Evidence is a
-fixture, not a measurement from a user's device or a verified repair.*
+![Baseera 0.5.0 Overview in English](docs/images/baseera-development-en.png)
 
 <details>
-<summary>Arabic RTL investigation center and earlier control-center views</summary>
+<summary>Arabic RTL, dark appearance and diagnostic examples</summary>
 
 ![Network Doctor — Arabic RTL, synthetic measurements](docs/images/investigation-network-ar-dark.png)
-![Current Overview and navigation — English, no readings collected](docs/images/baseera-development-en.png)
 ![Current Overview and navigation — English dark appearance, no readings collected](docs/images/baseera-development-en-dark.png)
 ![Current Overview and navigation — Arabic RTL, no readings collected](docs/images/baseera-development-ar.png)
+![Windows AI Doctor — English, synthetic diagnostic evidence](docs/images/investigation-doctor-en.png)
 
 </details>
 
-## In development — 0.5.0 investigation centers
+## Investigation centers in 0.5.0 Preview
 
 Windows AI Doctor, Performance Detective, Security Center, Network Doctor,
 Storage Explorer, Universal Search, System Timeline and USB/external devices
-are now implemented on the development branch. Collection is opt-in and local;
+are included in 0.5.0 Preview. Collection is opt-in and local;
 reports show evidence limits, can be reviewed before AI sharing, and do not
 claim that coincidence proves a cause. Search uses a protected local index;
 security reputation queries send only a selected file's SHA-256 after approval.
@@ -40,12 +38,9 @@ Storage cleanup is restricted to reviewed eligible temporary files, and USB
 tests read a selected file without modifying it. [Exact capabilities, limits,
 privacy and validation](docs/INVESTIGATION-CENTERS.md).
 
-## Earlier development work — 0.4.17
+## Device health and Smart Repair
 
-The following features are implemented on the development branch and remain under
-review/testing. Publishing this page does not publish an application update.
-
-| Feature | Development scope |
+| Feature | Preview scope |
 | --- | --- |
 | Device control center | Overview with sampled CPU, physical RAM, free system-drive space, timestamps, resource observations and quick access to tools. |
 | Device health | Dedicated readings with explicit unavailable, partial and stale states; optional automatic local refresh. No invented health score or hardware-health certificate. |
@@ -68,7 +63,7 @@ Details: [Device center and privacy](docs/DEVICE-CENTER.md),
 [Smart Repair cases, tests and limits](docs/SMART-REPAIR-WORKFLOW.md),
 [channels, signing and recovery](docs/RELEASE-CHANNELS.md).
 
-## Available in the published 0.4.15 preview
+## Existing tools from 0.4.15 Preview
 
 The download already includes local file/folder/ZIP inspection, screenshot-based
 window translation, the optional browser translation extension, selected app
@@ -86,9 +81,8 @@ provider support and usage limits still apply. See [Smart Repair](docs/SMART-REP
 [conversations](docs/CONVERSATIONS.md), [AI settings](docs/AI-SETTINGS.md) and
 [release notes](docs/RELEASE-0.4.15.md).
 
-**Early preview, version 0.4.15.** This is a new project, not a certified antivirus
-or a claim of 100% malware detection. Read the [capability status](docs/ROADMAP.md)
-and [security scope](SECURITY.md) before relying on it.
+File inspection reports static indicators for review. See the
+[capability status](docs/ROADMAP.md) and [security scope](SECURITY.md).
 
 ## File inspection and interaction update
 
@@ -137,7 +131,7 @@ the translation service and focuses the missing key or model field.
 Settings are grouped by purpose; unsaved translation settings survive appearance changes.
 
 The error assistant can be enabled or disabled with the other tools in Settings.
-In this development version, it opens only when you choose the assistant, a review
+In 0.5.0 Preview, it opens when you choose the assistant, a review
 action, or Ctrl+Shift+E. A normal launch stays on Overview. If no AI service is
 configured, your explicit assistant action opens the relevant main Settings card.
 Keys are protected by the local Windows account and shared with window
@@ -255,9 +249,13 @@ Requires **Windows 10/11, x64**. The runtime is included; no separate .NET insta
 
 | Download | How to use |
 | --- | --- |
-| [Windows app (.exe)](https://github.com/yabs117/baseera/releases/download/v0.4.15-preview/Baseera.exe) | Save to a permanent folder and open it. This is the desktop application. |
-| [Windows ZIP with instructions](https://github.com/yabs117/baseera/releases/download/v0.4.15-preview/Baseera.zip) | Extract the whole ZIP, then open `Baseera.exe`. |
-| [Optional browser extension](https://github.com/yabs117/baseera/releases/download/v0.4.15-preview/Baseera-Browser-Extension.zip) | Extract, read `START-HERE.html`, then load the inner `extension` folder in Chrome/Edge. |
+| `Baseera.exe` | Save to a permanent, writable folder and open it. |
+| `Baseera.zip` | Extract the whole ZIP, then open `Baseera.exe`. |
+| `Baseera-Browser-Extension.zip` | Extract, read `START-HERE.html`, then load the inner `extension` folder in Chrome/Edge. |
+
+Choose a version on the [Releases page](https://github.com/yabs117/baseera/releases)
+and open its Assets section. The preview EXE is unsigned. Use the accompanying
+`SHA256SUMS.txt` to verify download integrity.
 
 Source ZIP downloads from GitHub are source code, not compiled applications.
 The browser extension is installed **inside the browser**. Do not double-click its
@@ -325,7 +323,7 @@ node --test extension/test/protocol.test.js
 ./tests/windows/Test-ReadOnlySystem.ps1 -AllowNetworkCheck
 ```
 
-The development executable is produced in `artifacts/Baseera-v0.5.0-Windows-x64/`,
+The executable is produced in `artifacts/Baseera-v0.5.0-Windows-x64/`,
 with the clean download names `artifacts/Baseera.exe` and `artifacts/Baseera.zip`.
 `-Smoke -Publish` also checks the packaged executable. `-Smoke` uses a separate local data directory and does not run updates or
 register Explorer hooks. It renders the actual WPF screens and tests conversion,

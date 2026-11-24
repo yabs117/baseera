@@ -1,7 +1,6 @@
-# Investigation centers (0.5.0-preview development)
+# Investigation centers (0.5.0 Preview)
 
-These eight centers extend Baseera's existing Windows tools. They are **development
-features** in the draft pull request, not in the public 0.4.15 download. Each
+These eight centers extend Baseera's existing Windows tools. They are included in the 0.5.0 preview build. Each
 center is optional in Settings. Opening a page displays its controls; collection
 starts only after an explicit action. Reports identify missing and partial sources.
 

@@ -75,7 +75,15 @@ internal static class DeviceCenterSmokeChecks
                 Settings.Current.Language = language; Settings.Current.Dark = dark; owner.ApplyTheme(); owner.Navigate(page); await owner.RefreshDevice(); await Settle(owner);
                 Require(Nodes(owner).OfType<Button>().Any(b => AutomationProperties.GetAutomationId(b) == "Navigate-health") && Nodes(owner).OfType<Button>().Any(b => AutomationProperties.GetAutomationId(b) == "Navigate-performance"), "New centers are absent from navigation.");
                 Require(Find<Button>(owner, "DeviceCpuCard").IsVisible && Find<Button>(owner, "DeviceMemoryCard").IsVisible && Find<TextBlock>(owner, "DeviceTimestamp").Text.StartsWith(I18n.T("deviceLastRead").Split('{')[0]), "Metric/timestamp controls are unavailable.");
-                if (page == "home") Require(Find<TextBlock>(owner, "DeviceObservationCount").Text == string.Format(I18n.T("deviceObservations"), 3) && Find<Button>(owner, "Quick-updates").IsVisible, "Home invented issues/update counts or lacks quick access.");
+                if (page == "home")
+                {
+                    var tools = Find<Expander>(owner, "OverviewTools");
+                    bool wasOpen = tools.IsExpanded;
+                    tools.IsExpanded = true; owner.UpdateLayout();
+                    Require(Find<TextBlock>(owner, "DeviceObservationCount").Text == string.Format(I18n.T("deviceObservations"), 3) && Find<Button>(owner, "Quick-updates").IsVisible,
+                        "Home invented issues/update counts or lacks access to app updates.");
+                    tools.IsExpanded = wasOpen; owner.UpdateLayout();
+                }
                 if (page == "performance")
                 {
                     var sort = Find<ComboBox>(owner, "DeviceProcessSort"); sort.SelectedIndex = 1;
@@ -100,7 +108,8 @@ internal static class DeviceCenterSmokeChecks
 
             // Dashboard -> setup -> same assistant, without automatically submitting the reviewed context.
             Settings.Current.AiProvider = "gemini"; Settings.Current.GeminiModel = ""; Settings.SetKey("gemini", ""); owner.ResetConnectionDraftForSmoke();
-            owner.DeviceSourceOverride = (_, _) => Task.FromResult(Fixture); owner.Navigate("home"); await owner.RefreshDevice(); await Settle(owner); Click(owner, "Quick-errors"); await Settle(owner);
+            owner.DeviceSourceOverride = (_, _) => Task.FromResult(Fixture); owner.Navigate("home"); await owner.RefreshDevice(); await Settle(owner);
+            Find<Expander>(owner, "OverviewTools").IsExpanded = true; owner.UpdateLayout(); Click(owner, "Quick-errors"); await Settle(owner);
             Require(owner.CurrentErrorAssistant is null && Nodes(owner).OfType<AiConnectionPanel>().Count() == 1, "Missing AI setup did not route to Settings.");
             Settings.Current.GeminiModel = "gemini-fixture"; Settings.SetKey("gemini", "fixture-not-live"); owner.ResetConnectionDraftForSmoke(); owner.ShowErrorAssistant(); await Settle(owner);
             var realWindow = owner.CurrentErrorAssistant!;
