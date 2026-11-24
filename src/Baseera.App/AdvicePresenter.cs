@@ -76,6 +76,7 @@ internal sealed class AdvicePresenter : Border, IDisposable
 
         var copyLabel = new StackPanel { Orientation = Orientation.Horizontal };
         var copyIcon = new System.Windows.Shapes.Path { Data = Geometry.Parse("M7,3 L15,3 L15,13 L7,13 Z M4,6 L4,16 L12,16"), StrokeThickness = 1.2, Width = 14, Height = 16, Stretch = Stretch.Uniform, Margin = new Thickness(0, 0, 6, 0) };
+        copyIcon.FlowDirection = FlowDirection.LeftToRight;
         copyIcon.SetResourceReference(System.Windows.Shapes.Shape.StrokeProperty, "Muted"); copyLabel.Children.Add(copyIcon);
         copyLabel.Children.Add(Text(I18n.T("errorCopyAdvice"), 11, true)); copy.Content = copyLabel;
         copy.HorizontalAlignment = Settings.Current.Language == "ar" ? HorizontalAlignment.Right : HorizontalAlignment.Left;

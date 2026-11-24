@@ -51,6 +51,9 @@ internal static class SelfUpdateSmokeChecks
         try { await SelfUpdater.Download(release, file, new Progress(_ => cancel.Cancel()), cancel.Token, Response(image)); }
         catch (OperationCanceledException) { failed = true; }
         if (!failed || File.Exists(file)) throw new Exception("Canceled update was retained.");
+        // OneDrive can mark newly created directories read-only during the test.
+        // The path is this method's own GUID fixture, never an application/data folder.
+        File.SetAttributes(folder, File.GetAttributes(folder) & ~FileAttributes.ReadOnly);
         Directory.Delete(folder, true);
     }
 }

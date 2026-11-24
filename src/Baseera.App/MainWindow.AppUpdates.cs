@@ -102,14 +102,18 @@ public sealed partial class MainWindow
         var controls = Stack(); controls.Children.Add(automatic); Grid.SetColumn(controls, 2); row.Children.Add(controls); content.Children.Add(row);
         var options = Stack(); options.Margin = new Thickness(56, 12, 0, 0); options.Visibility = expandedAppSources.Contains(package.Id) ? Visibility.Visible : Visibility.Collapsed;
         var idLabel = Text(package.Id, 11, true); idLabel.FlowDirection = FlowDirection.LeftToRight; options.Children.Add(idLabel);
-        var arrow = Icons.Create(Arabic ? "chevronLeft" : "chevronRight", 12, "Muted"); arrow.FlowDirection = FlowDirection.LeftToRight; arrow.RenderTransformOrigin = new System.Windows.Point(.5, .5);
-        void RotateArrow() => arrow.RenderTransform = new RotateTransform(options.Visibility == Visibility.Visible ? (Arabic ? -90 : 90) : 0);
-        RotateArrow();
+        var arrow = new Border();
+        void UpdateChevron()
+        {
+            string direction = options.Visibility == Visibility.Visible ? "chevronDown" : Arabic ? "chevronLeft" : "chevronRight";
+            arrow.Child = Icons.Create(direction, 12, "Muted");
+        }
+        UpdateChevron();
         var source = Action("appsSource", () =>
         {
             if (expandedAppSources.Remove(package.Id)) options.Visibility = Visibility.Collapsed;
             else { expandedAppSources.Add(package.Id); options.Visibility = Visibility.Visible; }
-            RotateArrow();
+            UpdateChevron();
         }); source.Padding = new Thickness(8, 4, 8, 4); source.HorizontalAlignment = HorizontalAlignment.Left; source.Margin = new Thickness(0, 6, 0, 0);
         var caption = new StackPanel { Orientation = Orientation.Horizontal }; caption.Children.Add(arrow);
         var sourceText = Text(I18n.T("appsSource"), 11, true); sourceText.Margin = new Thickness(6, 0, 0, 0); caption.Children.Add(sourceText); source.Content = caption;

@@ -17,6 +17,11 @@ internal static class SelfUpdateChecks
         check(Select(Release("v0.3.1-preview")) is null, "Self update never downgrades");
         check(Select(Release("v0.5.0-preview"), Release("v0.4.1-preview"))?.Tag == "v0.5.0-preview", "Self update selects highest numeric version, including previews");
         check(Select(Release("v0.4.0"))?.Tag == "v0.4.0", "Stable release supersedes same-version preview");
+        string channels = JsonSerializer.Serialize(new[] { Release("v0.7.0-preview"), Release("v0.6.0") });
+        check(SelfRelease.Select(channels, "0.4.0-preview", "stable")?.Tag == "v0.6.0" && SelfRelease.Select(channels, "0.4.0-preview", "preview")?.Tag == "v0.7.0-preview", "Stable and Preview channels filter independently");
+        check(SelfRelease.Select(channels, "0.7.0-preview", "stable") is null, "Switching to Stable never silently downgrades a newer preview");
+        bool invalidChannel = false; try { SelfRelease.Select("[]", "0.4.0", "unknown"); } catch (ArgumentException) { invalidChannel = true; }
+        check(invalidChannel, "Invalid channel rejected even for an empty feed");
         check(SelfRelease.IsNewer("0.4.0-preview.2", "v0.4.0-preview.10") && !SelfRelease.IsNewer("0.4.0", "v0.4.0-preview"), "Preview counters and stable ordering");
         check(SelfRelease.ParseVersion("v0.5.0-preview/evil") is null && SelfRelease.ParseVersion("v0.5.0+payload") is null, "Unexpected tags are rejected");
         check(Select(Release("v0.5.0-preview", digest: "sha256:bad")) is null, "Missing or malformed digest prevents update offer");

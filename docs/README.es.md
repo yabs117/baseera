@@ -1,22 +1,24 @@
 # Baseera
 
-**En desarrollo — 0.4.17-preview:** centro de control, salud/rendimiento, casos Smart Repair, comparaciones, actividad y canales de actualización. Estas funciones aún no están en la descarga pública 0.4.15. [Lista completa y vista previa](../README.md#in-development--0417).
+Esta página describe el código de la versión 0.5.0. Al actualizarla, la última descarga publicada era la [0.4.15 Preview](https://github.com/yabs117/baseera/releases/tag/v0.4.15-preview).
+
+**Baseera 0.5.0 Preview** incorpora ocho centros de diagnóstico y exploración, lecturas locales bajo demanda y casos Smart Repair. [Descargas publicadas](https://github.com/yabs117/baseera/releases) · [Notas de la versión 0.5.0](RELEASE-0.5.0.md) · [Alcance y límites](INVESTIGATION-CENTERS.md).
 
 **Versión preliminar 0.4.15:** Smart Repair amplía el asistente existente con diagnósticos locales opcionales, vista previa editable y consentimiento por análisis. Solo ejecuta tres herramientas predefinidas tras confirmación independiente y UAC si corresponde: caché DNS, SFC y DISM. Sin scripts generados ni reinicio automático. [Detalles y límites](SMART-REPAIR.md). [Notas de versión y descarga](RELEASE-0.4.15.md).
 
 Aplicación experimental para Windows: análisis local de archivos, traducción de
-ventanas con Gemini, actualizaciones WinGet elegidas y conversión de imágenes/PDF.
+ventanas con el modelo de visión elegido, actualizaciones WinGet elegidas y conversión de imágenes/PDF.
 Interfaz en árabe (RTL), inglés, francés y español.
 
 Requisitos: Windows 10/11 x64. El runtime .NET está incluido. Para compilar con SDK 10:
-`./build.ps1 -Test -Publish`. Abre `artifacts/Baseera-v0.4.15-Windows-x64/Baseera.exe`.
+`./build.ps1 -Test -Publish`. Abre `artifacts/Baseera-v0.5.0-Windows-x64/Baseera.exe`.
 La extensión del navegador se descarga por separado: sigue `START-HERE.html` y carga la carpeta `extension` en Chrome/Edge. No abras sus archivos fuente con doble clic.
 
 Activa solo las herramientas que necesitas. Elige entre 20 servicios directos, como Gemini, OpenAI (modelos ChatGPT), Claude y Grok. Introduce la clave del servicio y carga sus modelos con visión. Se eliminó OpenRouter y se corrigió el cierre al cambiar de servicio. El acceso y los precios dependen de la cuenta. [Servicios y pruebas](AI-SERVICES.md). Envía la captura al servicio seleccionado
 cuando lo solicitas. Esc cierra la capa de traducción. La extensión en `extension/`
 reemplaza el texto de la página y permite restaurar el original.
 
-El asistente de errores aparece en «Tus herramientas» de la página principal y la barra lateral. Su página abre la ventana de análisis; si está activado, también se abre al iniciar Baseera normalmente. Puedes desactivarlo en Configuración.
+El asistente de errores aparece en «Tus herramientas» de la página principal y la barra lateral. En la versión 0.5.0 se abre cuando lo eliges desde su página, una acción de revisión o Ctrl+Shift+E. El inicio normal permanece en la vista general. Puedes desactivarlo en Configuración.
 Pega el mensaje o una imagen, copia un archivo de imagen, elige un archivo o captura una ventana abierta; la vista previa aparece enseguida. Solicita un análisis con la clave elegida. Puedes cerrar la ventana sin configurar
 una clave y volver a abrirla con Ctrl+Shift+E desde Baseera. El texto y la imagen
 elegidos se envían al servicio elegido solo al pulsar Analizar directamente. Revisa la captura antes de

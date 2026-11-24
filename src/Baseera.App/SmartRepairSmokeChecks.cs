@@ -110,7 +110,8 @@ internal static class SmartRepairSmokeChecks
                     Find<CheckBox>(dialog, "smartApplicationEvents").IsChecked = true; Click(dialog, "smartCollect"); await Until(() => preview.Text.Length > 0);
                     Require(collections == 1 && share.IsChecked != true, "Collecting silently approved sharing.");
                     Find<TextBox>(dialog, "ErrorDescription").Text = "App error fixture";
-                    Click(dialog, "errorAnalyze"); await Until(() => inputs.Count == 1);
+                    Click(dialog, "errorAnalyze"); await Settle(owner); Require(inputs.Count == 0, "Selected diagnostics were silently omitted from Send.");
+                    Click(dialog, "DiagnosticSendWithout"); await Until(() => inputs.Count == 1);
                     Require(inputs[0] == "", "Unapproved diagnostics reached AI.");
                     var presentation = Nodes(dialog).OfType<AdvicePresenter>().Single();
                     if (presentation.IsTyping) { Click(dialog, "SmartRepair-flush-dns"); Require(reviews == 0, "Repair review opened before guidance completed."); }

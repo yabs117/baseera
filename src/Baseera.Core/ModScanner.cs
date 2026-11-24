@@ -44,6 +44,9 @@ public sealed class ModScanner(ScanLimits? limits = null)
         long consumed = 0; int entries = 0; var progressClock = Stopwatch.StartNew();
         if (File.Exists(path))
         {
+            var attributes = File.GetAttributes(path);
+            if (LocalPathSafety.IsLink(path, attributes)) { Skip(path, "Filesystem link skipped."); return report; }
+            if (LocalPathSafety.RequiresDownload(attributes)) { Skip(path, "Cloud content is not fully available locally. Download the file first."); return report; }
             using var input = File.OpenRead(path);
             Inspect(input, input.Length, Path.GetFileName(path), 0);
         }
@@ -55,9 +58,11 @@ public sealed class ModScanner(ScanLimits? limits = null)
             {
                 token.ThrowIfCancellationRequested();
                 var directory = directories.Pop();
-                if ((File.GetAttributes(directory) & FileAttributes.ReparsePoint) != 0) { Skip(directory, "Directory link skipped."); continue; }
                 try
                 {
+                    var directoryAttributes = File.GetAttributes(directory);
+                    if (LocalPathSafety.IsLink(directory, directoryAttributes)) { Skip(directory, "Directory link skipped."); continue; }
+                    if (LocalPathSafety.RequiresDownload(directoryAttributes)) { Skip(directory, "Cloud folder is not fully available locally."); continue; }
                     foreach (var item in Directory.EnumerateFileSystemEntries(directory))
                     {
                         token.ThrowIfCancellationRequested();
@@ -66,7 +71,8 @@ public sealed class ModScanner(ScanLimits? limits = null)
                         try
                         {
                             var attributes = File.GetAttributes(item);
-                            if ((attributes & FileAttributes.ReparsePoint) != 0) { Skip(item, "Filesystem link skipped."); continue; }
+                            if (LocalPathSafety.IsLink(item, attributes)) { Skip(item, "Filesystem link skipped."); continue; }
+                            if (LocalPathSafety.RequiresDownload(attributes)) { Skip(item, "Cloud content is not fully available locally. Download the file first."); continue; }
                             if ((attributes & FileAttributes.Directory) != 0) { directories.Push(item); continue; }
                             using var input = File.OpenRead(item);
                             Inspect(input, input.Length, Path.GetRelativePath(path, item), 0);

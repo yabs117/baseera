@@ -37,6 +37,9 @@ internal sealed partial class ErrorAssistantWindow : Window
         Func<byte[], string, string, string, CancellationToken, Task<string>>? transcribeAudio = null, Func<bool>? approveAudioUpload = null)
     {
         Owner = owner;
+        services = owner is MainWindow main ? main.Services : new ApplicationServices();
+        caseWorkflow = new(services.Cases); customDiagnostics = collectDiagnostics is not null;
+        caseWorkflow.PropertyChanged += (_, _) => { if (!closed) RefreshCaseWorkflow(); };
         realAnalyzer = analyze is null && analyzeDiagnostics is null && analyzeConversation is null;
         this.analyzeConversation = analyzeConversation; this.confirmRequests = confirmRequests;
         this.approveAudioUpload = approveAudioUpload;
@@ -63,6 +66,7 @@ internal sealed partial class ErrorAssistantWindow : Window
         {
             if (repairRunning && MessageBox.Show(this, I18n.T("smartCloseRunning"), I18n.T("smartApproveTitle"), MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) != MessageBoxResult.Yes) e.Cancel = true;
         };
+        Closing += SaveCaseOnClosing;
         Closed += (_, _) => { closed = true; ChatGptAuth.SessionSignedOut -= OnSessionSignedOut; active?.Cancel(); diagnosticRequest?.Cancel(); CloseConversation(); };
         Loaded += (_, _) => problem.Focus();
         Activated += (_, _) => { if (!NetworkBusy) RefreshSavedConnection(); };
@@ -134,6 +138,7 @@ internal sealed partial class ErrorAssistantWindow : Window
         var thread = new StackPanel { Margin = new Thickness(22, 0, 22, 12) };
         assistantTools.Header = I18n.T("chatTools"); assistantTools.Content = body; assistantTools.IsExpanded = false;
         System.Windows.Automation.AutomationProperties.SetAutomationId(assistantTools, "ConversationTools"); Add(thread, assistantTools, 10);
+        Add(thread, BuildCaseWorkflow(), 10);
         emptyChat.Children.Add(new System.Windows.Controls.Image { Source = Brand.WindowIcon, Width = 36, Height = 36, Margin = new Thickness(0, 0, 0, 14) });
         emptyChat.Children.Add(Text(I18n.T("chatEmptyTitle"), 20));
         var emptyHint = Text(I18n.T("chatEmptyHelp"), 13, true); emptyHint.Margin = new Thickness(0, 8, 0, 0); emptyHint.MaxWidth = 480; emptyChat.Children.Add(emptyHint);
@@ -143,7 +148,10 @@ internal sealed partial class ErrorAssistantWindow : Window
         System.Windows.Automation.AutomationProperties.SetAutomationId(bodyScroll, "ErrorAssistantScroll");
         bodyScroll.ScrollChanged += (_, e) =>
         {
-            if (!scrollingResponse && e.ExtentHeightChange == 0 && e.VerticalChange != 0)
+            // A deliberate upward move must win even when typing changes the
+            // document extent in the same layout pass.
+            if (!scrollingResponse && e.VerticalChange < 0) followResponse = false;
+            else if (!scrollingResponse && e.ExtentHeightChange == 0 && e.VerticalChange > 0)
                 followResponse = bodyScroll.ScrollableHeight - bodyScroll.VerticalOffset < 44;
         };
         bodyScroll.PreviewMouseWheel += (_, e) => { if (e.Delta > 0) followResponse = false; };
@@ -176,6 +184,7 @@ internal sealed partial class ErrorAssistantWindow : Window
         if (conversation.Recipient == "openai|chatgpt|" + account)
         {
             voiceRequest?.Cancel();
+            caseWorkflow.Reset();
             foreach (var turn in turns) turn.Dispose(); turns.Clear(); result.Children.Clear(); presentation = null;
             conversation.Clear(); repairActions.Children.Clear(); repairSession.Clear(); ClearDiagnostics(); RenderSession();
         }
@@ -283,7 +292,7 @@ internal sealed partial class ErrorAssistantWindow : Window
         using var output = new MemoryStream(); encoder.Save(output);
         return ErrorAssistant.Prepare(output.ToArray(), title);
     }
-    private async Task Analyze()
+    private async Task Analyze(bool withoutDiagnostics = false)
     {
         if (NetworkBusy || recorder?.Recording == true) return;
         if (composerRecipient != DiagnosticRecipient)
@@ -291,11 +300,13 @@ internal sealed partial class ErrorAssistantWindow : Window
         if (!Configured() && realAnalyzer) { ShowConnectionSettings(); feedback.Text = I18n.T("errorKeyMissing"); return; }
         if (problem.Text.Length > 12000) { feedback.Text = I18n.T("errorTextSize"); return; }
         if (recording is not null && !recordingTranscribed) { feedback.Text = I18n.T("chatReviewAudio"); return; }
+        if (withoutDiagnostics) { diagnosticGateActive = false; InvalidateDiagnosticConsent(); }
+        else if (PauseForDiagnosticReview()) return;
         if (string.IsNullOrWhiteSpace(problem.Text) && image is null && video is null && (diagnosticShare.IsChecked != true || string.IsNullOrWhiteSpace(diagnosticPreview.Text))) { feedback.Text = I18n.T("errorNeedInput"); return; }
         if (diagnosticShare.IsChecked == true && diagnosticRecipient != DiagnosticRecipient) { InvalidateDiagnosticConsent(); feedback.Text = I18n.T("smartReviewRecipient"); return; }
         if (!AllowRequest()) return;
         string diagnostics;
-        try { diagnostics = ApprovedDiagnostics(); }
+        try { diagnostics = withoutDiagnostics ? "" : ApprovedDiagnostics(); }
         catch (InvalidOperationException ex) { feedback.Text = ex.Message; return; }
         string submittedDescription = problem.Text, submittedProvider = AiCatalog.Provider, submittedModel = AiCatalog.Model;
         ErrorVideo? submittedVideo = video;
@@ -306,7 +317,9 @@ internal sealed partial class ErrorAssistantWindow : Window
         var history = conversation.Context(); conversation.BeginRequest();
         string localRepairs = string.Join("\n", repairSession.Activity.TakeLast(5).Select(x => $"{x.ActionId}: {x.Status}; exit={x.ExitCode}; UTC {x.Time:O}")
             .Concat(repairSession.Observations.TakeLast(2).Select(x => $"User-reported outcome, not independently verified: {x.Outcome}; UTC {x.Time:O}")));
-        using var request = new CancellationTokenSource(); active = request;
+        using var tracked = services.Tasks.Begin("caseAnalyze", true);
+        using var request = CancellationTokenSource.CreateLinkedTokenSource(tracked.Token); active = request;
+        diagnosticGateActive = false; diagnosticRequestHasData = previousRequestHadDiagnostics = diagnostics.Length > 0;
         analyzeButton.IsEnabled = false; cancelButton.IsEnabled = true;
         presentation?.Finish(); feedback.Text = I18n.T("errorAnalyzing");
         repairActions.Children.Clear(); repairStatus.Text = ""; repairSession.Clear(); sessionDetails.IsExpanded = false; reportDiagnostics.IsChecked = false; RenderSession(); RefreshSmartControls();
@@ -332,13 +345,16 @@ internal sealed partial class ErrorAssistantWindow : Window
             request.Token.ThrowIfCancellationRequested();
             if (closed) return;
             analyzedDescription = submittedDescription; analyzedImage = submittedImage;
+            caseWorkflow.Analyze(submittedDescription, advice, diagnostics);
             conversation.Add(submittedDescription, AdviceHistory(advice), mediaContext, contextAllowed: diagnostics.Length == 0);
             if (turns.Count > Baseera.Core.ConversationLedger.RetainedExchanges) { turns[0].Dispose(); result.Children.Remove(turns[0]); turns.RemoveAt(0); }
             repairSession.SetAnalysis(submittedDescription, submittedImage is not null, diagnostics, submittedProvider, submittedModel, advice); RenderSession();
             feedback.Text = I18n.T("adviceWriting"); current.Reveal(advice); ShowRepairActions(advice);
+            tracked.Complete();
         }
         catch (OperationCanceledException)
         {
+            tracked.Cancelled();
             if (!closed)
             {
                 current.Dispose(); result.Children.Remove(current); turns.Remove(current);
@@ -348,6 +364,7 @@ internal sealed partial class ErrorAssistantWindow : Window
         }
         catch (Exception ex)
         {
+            tracked.Failed();
             if (closed) return;
             current.Dispose(); result.Children.Remove(current); turns.Remove(current);
             if (responseAccount.Length == 0 || ChatGptAuth.Connected(responseAccount)) RestoreChatDraft(submittedDescription, submittedImage, submittedVideo);
@@ -356,7 +373,7 @@ internal sealed partial class ErrorAssistantWindow : Window
         }
         finally
         {
-            if (ReferenceEquals(active, request)) active = null;
+            if (ReferenceEquals(active, request)) { active = null; diagnosticRequestHasData = false; }
             if (!closed) RefreshSmartControls();
         }
     }

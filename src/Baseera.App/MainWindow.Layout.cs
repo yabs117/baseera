@@ -1,4 +1,5 @@
 using System.Windows.Media.Animation;
+using SystemColors = System.Windows.SystemColors;
 using Baseera.App.Services;
 
 namespace Baseera.App;
@@ -20,11 +21,13 @@ public sealed partial class MainWindow
     private string feedbackTitleDraft = "", feedbackBodyDraft = "";
     private int feedbackKindDraft;
     private bool Arabic => Settings.Current.Language == "ar";
-    private static readonly string[] Tools = ["scan", "translate", "updates", "convert", "errors"];
+    private static readonly string[] Tools = ["scan", "translate", "updates", "convert", "errors", "search"];
+    private static readonly string[] PrimaryPages = ["home", "health", "performance", "doctor", "detective", "security", "cases", "activity"];
     private static Brush Resource(string key) => (Brush)Application.Current.FindResource(key);
     private static StackPanel Stack() => new() { Orientation = Orientation.Vertical };
     private FontWeight HeadingWeight => Arabic ? FontWeights.Medium : FontWeights.SemiBold;
 
+    internal bool? HighContrastOverride { get; set; }
     public void ApplyTheme()
     {
         string[] keys = ["Bg", "Surface", "Ink", "Muted", "Line", "Accent", "Sidebar", "Selected", "Hover", "OnAccent", "Subtle"];
@@ -32,6 +35,12 @@ public sealed partial class MainWindow
         string[] dark = ["#272727", "#303030", "#F4F4F4", "#B1B1B1", "#414141", "#79B8E8", "#202020", "#383838", "#3A3A3A", "#172534", "#2B2B2B"];
         var palette = Settings.Current.Dark ? dark : light;
         for (int i = 0; i < keys.Length; i++) Application.Current.Resources[keys[i]] = new SolidColorBrush((Color)ColorConverter.ConvertFromString(palette[i]));
+        if (HighContrastOverride ?? SystemParameters.HighContrast)
+        {
+            var colors = new[] { SystemColors.WindowColor, SystemColors.WindowColor, SystemColors.WindowTextColor, SystemColors.GrayTextColor, SystemColors.WindowTextColor,
+                SystemColors.HighlightColor, SystemColors.ControlColor, SystemColors.ControlColor, SystemColors.ControlColor, SystemColors.HighlightTextColor, SystemColors.WindowColor };
+            for (int i = 0; i < keys.Length; i++) Application.Current.Resources[keys[i]] = new SolidColorBrush(colors[i]);
+        }
         SetResourceReference(BackgroundProperty, "Bg"); SetResourceReference(ForegroundProperty, "Ink");
         FlowDirection = FlowDirection.LeftToRight;
         shell.FlowDirection = Arabic ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
@@ -53,19 +62,23 @@ public sealed partial class MainWindow
         button.Click += (_, _) => action(); return button;
     }
     private Button AsyncAction(string key, Func<CancellationToken, Task> action, bool primary = false) => Action(key, async () => await Run(action), primary);
+    internal Action<Exception>? OperationErrorForSmoke { get; set; }
     private async Task Run(Func<CancellationToken, Task> work)
     {
         if (operation is not null) return;
-        operation = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
+        using var tracked = Services.Tasks.Begin(page, true, lifetime.Token);
+        operation = CancellationTokenSource.CreateLinkedTokenSource(tracked.Token);
         if (cancelOperation is not null) cancelOperation.Visibility = Visibility.Visible;
         if (operationBar is not null) operationBar.Visibility = Visibility.Visible;
         SetOperationStatus("working");
-        try { await work(operation.Token); SetOperationStatus("done"); }
-        catch (OperationCanceledException) { SetOperationStatus("cancel"); }
+        try { await work(operation.Token); tracked.Complete(); SetOperationStatus("done"); }
+        catch (OperationCanceledException) { tracked.Cancelled(); SetOperationStatus("cancel"); }
         catch (Exception ex)
         {
+            tracked.Failed();
             SetOperationStatus("error");
-            if (ex is ChatGptException { Key: "chatGptUsageLimit" }) ChatGptUi.ShowUsageLimit(this);
+            if (smokeMode && OperationErrorForSmoke is { } observe) observe(ex);
+            else if (ex is ChatGptException { Key: "chatGptUsageLimit" }) ChatGptUi.ShowUsageLimit(this);
             else MessageBox.Show(this, ex.Message, I18n.T("error"), MessageBoxButton.OK, MessageBoxImage.Warning);
         }
         finally { operation.Dispose(); operation = null; if (cancelOperation is not null) cancelOperation.Visibility = Visibility.Collapsed; }
@@ -119,11 +132,17 @@ public sealed partial class MainWindow
     }
     private void Divider(StackPanel body) => body.Children.Add(new Border { Height = 1, Background = Resource("Line") });
     private Border? selectedNavigationIndicator;
+    private Button? selectedNavigationButton;
+    private ScrollViewer? sidebarScroll;
+    private string? lastNavigationPage;
     private StackPanel? pageBody;
     public void Navigate(string destination)
     {
+        if (page == "detective" && destination != page && detectiveRunning) operation?.Cancel();
+        if (page == "network" && destination != page && networkRunning) operation?.Cancel();
         bool changed = page != destination;
-        double? previous = selectedNavigationIndicator?.IsLoaded == true ? selectedNavigationIndicator.TranslatePoint(new System.Windows.Point(), sidebar).Y : null;
+        double? previous = selectedNavigationIndicator is { IsLoaded: true, IsVisible: true } visibleIndicator
+            ? visibleIndicator.TranslatePoint(new System.Windows.Point(), sidebar).Y : null;
         page = destination; emphasizeTranslationSettings = pendingTranslationSettings = false; Render();
         if (!changed || !FluentMotion.Allowed) return;
         UpdateLayout();
@@ -150,13 +169,19 @@ public sealed partial class MainWindow
 
     public void Render(bool preserveScroll = false)
     {
+        StopDeviceMonitor();
         selectedNavigationIndicator = null;
+        selectedNavigationButton = null;
         translationProviderSection = null; translationKeyInput = null; translationModelInput = null;
         double offset = preserveScroll ? scroller.VerticalOffset : 0;
+        double sidebarOffset = sidebarScroll?.VerticalOffset ?? 0;
+        bool navigationChanged = page != lastNavigationPage;
+        lastNavigationPage = page;
         frame.Children.Clear(); frame.RowDefinitions.Clear(); frame.Children.Add(shell);
         scroller = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
         status = new TextBlock { Text = OperationStatusText, Foreground = Resource("Muted"), FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
         System.Windows.Automation.AutomationProperties.SetAutomationId(status, "OperationStatus");
+        System.Windows.Automation.AutomationProperties.SetLiveSetting(status, System.Windows.Automation.AutomationLiveSetting.Polite);
         shell.Children.Clear(); shell.ColumnDefinitions.Clear(); shell.RowDefinitions.Clear();
         shell.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); shell.ColumnDefinitions.Add(new ColumnDefinition());
         var navigation = new DockPanel { Margin = new Thickness(8, 10, 8, 14) };
@@ -177,16 +202,15 @@ public sealed partial class MainWindow
             var label = Text(I18n.T("windowsTools"), 11, true); label.Margin = new Thickness(0); wordmark.Children.Add(label); Grid.SetColumn(wordmark, 1); header.Children.Add(wordmark);
         }
         DockPanel.SetDock(header, Dock.Top); navigation.Children.Add(header);
-        var bottom = Stack();
-        if (expanded) { var version = Text("Baseera " + SelfUpdater.CurrentVersion + " · " + I18n.T("preview"), 10, true); version.Margin = new Thickness(16, 0, 0, 10); bottom.Children.Add(version); }
+        var bottom = Stack(); DeviceId(bottom, "SidebarFooter");
         bottom.Children.Add(NavigationButton("feedback"));
         bottom.Children.Add(NavigationButton("settings"));
+        if (expanded) { var version = Text("Baseera " + SelfUpdater.CurrentVersion + " · " + I18n.T("preview"), 10, true); version.Margin = new Thickness(16, 10, 0, 0); DeviceId(version, "SidebarVersion"); bottom.Children.Add(version); }
         DockPanel.SetDock(bottom, Dock.Bottom); navigation.Children.Add(bottom);
-        var links = Stack(); links.Children.Add(NavigationButton("home"));
-        if (expanded) { var label = Text(I18n.T("yourTools"), 11, true); label.Margin = new Thickness(16, 22, 0, 8); links.Children.Add(label); }
-        else links.Children.Add(new Border { Height = 18 });
-        foreach (string tool in Tools) links.Children.Add(NavigationButton(tool));
-        navigation.Children.Add(links);
+        var links = SidebarLinks(navigationChanged);
+        var linksScroller = new ScrollViewer { Content = links, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
+        sidebarScroll = linksScroller;
+        navigation.Children.Add(linksScroller);
         sidebar.BeginAnimation(WidthProperty, null); sidebar.Width = expanded ? 224 : 68; sidebar.Background = Resource("Sidebar"); sidebar.ClipToBounds = true; sidebar.Child = navigation;
         sidebar.BorderBrush = Resource("Line"); sidebar.BorderThickness = Arabic ? new Thickness(1, 0, 0, 0) : new Thickness(0, 0, 1, 0); shell.Children.Add(sidebar);
 
@@ -208,9 +232,25 @@ public sealed partial class MainWindow
             case "scan": ScanPage(body); break; case "translate": TranslationPage(body); break;
             case "updates": UpdatesPage(body); break; case "convert": ConvertPage(body); break;
             case "errors": ErrorAssistantPage(body); break;
+            case "health": DeviceHealthPage(body); break; case "performance": PerformancePage(body); break;
+            case "cases": CasesPage(body); break; case "activity": TasksPage(body); break;
             case "feedback": FeedbackPage(body); break;
-            case "settings": SettingsPage(body); break; default: Home(body); break;
+            case "settings": SettingsPage(body); break;
+            case "doctor": DoctorPage(body); break; case "detective": DetectivePage(body); break; case "security": SecurityPage(body); break; case "network": NetworkPage(body); break;
+            case "storage": StoragePage(body); break; case "search": SearchPage(body); break; case "timeline": TimelinePage(body); break; case "usb": UsbPage(body); break;
+            default: ControlHome(body); break;
         }
+        StartDeviceMonitor();
+        var activeNavigation = selectedNavigationButton;
+        if (sidebarOffset > 0 || navigationChanged && activeNavigation is not null)
+            _ = Dispatcher.InvokeAsync(() =>
+            {
+                if (!ReferenceEquals(sidebarScroll, linksScroller)) return;
+                linksScroller.ScrollToVerticalOffset(sidebarOffset);
+                linksScroller.UpdateLayout();
+                if (navigationChanged && activeNavigation is { IsVisible: true } && linksScroller.IsAncestorOf(activeNavigation))
+                    activeNavigation.BringIntoView();
+            }, System.Windows.Threading.DispatcherPriority.Loaded);
         if (offset > 0) _ = Dispatcher.InvokeAsync(() => scroller.ScrollToVerticalOffset(offset), System.Windows.Threading.DispatcherPriority.Loaded);
         if (pendingTranslationSettings && translationProviderSection is { } section)
         {
@@ -223,7 +263,11 @@ public sealed partial class MainWindow
                 UpdateLayout();
                 double top = section.TransformToAncestor(scroll).Transform(new System.Windows.Point()).Y + scroll.VerticalOffset;
                 scroll.ScrollToVerticalOffset(Math.Max(0, top - 12)); scroll.UpdateLayout();
-                input?.Focus(); if (input is not null) { System.Windows.Input.Keyboard.Focus(input); input.BringIntoView(); }
+                if (input is not { IsVisible: true, IsEnabled: true }) return;
+                input.BringIntoView();
+                var scope = System.Windows.Input.FocusManager.GetFocusScope(input);
+                System.Windows.Input.FocusManager.SetFocusedElement(scope, input);
+                if (IsActive) System.Windows.Input.Keyboard.Focus(input);
             }, System.Windows.Threading.DispatcherPriority.Loaded);
         }
     }
@@ -238,10 +282,22 @@ public sealed partial class MainWindow
             row.Children.Add(selectedNavigationIndicator);
         }
         var icon = Icons.Create(id, 18); icon.HorizontalAlignment = HorizontalAlignment.Center; Grid.SetColumn(icon, 1); row.Children.Add(icon);
-        if (expanded) { var name = new TextBlock { Text = I18n.T(id), FontSize = 13, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 6, 0), FontWeight = selected ? HeadingWeight : FontWeights.Normal, TextWrapping = TextWrapping.NoWrap }; Grid.SetColumn(name, 2); row.Children.Add(name); }
+        if (expanded) { var name = new TextBlock { Text = I18n.T(id), FontSize = 13, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 6, 0), FontWeight = selected ? HeadingWeight : FontWeights.Normal, TextWrapping = TextWrapping.NoWrap, TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 150 }; Grid.SetColumn(name, 2); row.Children.Add(name); }
         var button = new Button { Style = (Style)FindResource("NavigationButton"), Content = row, Background = selected ? Resource("Selected") : Brushes.Transparent, ToolTip = I18n.T(id) };
         System.Windows.Automation.AutomationProperties.SetAutomationId(button, "Navigate-" + id);
-        System.Windows.Automation.AutomationProperties.SetName(button, I18n.T(id)); button.Click += (_, _) => Navigate(id); return button;
+        System.Windows.Automation.AutomationProperties.SetName(button, I18n.T(id));
+        button.Click += (_, _) =>
+        {
+            bool hadFocus = button.IsKeyboardFocusWithin;
+            Navigate(id);
+            if (hadFocus && selectedNavigationButton is { } current)
+                _ = Dispatcher.InvokeAsync(() =>
+                {
+                    if (ReferenceEquals(current, selectedNavigationButton) && current.IsVisible) current.Focus();
+                }, System.Windows.Threading.DispatcherPriority.Loaded);
+        };
+        if (selected) selectedNavigationButton = button;
+        return button;
     }
     private ComboBox LanguageCombo()
     {
@@ -250,9 +306,15 @@ public sealed partial class MainWindow
         System.Windows.Automation.AutomationProperties.SetName(combo, I18n.T("language"));
         combo.SelectionChanged += (_, _) => { if (combo.SelectedIndex < 0) return; Settings.Current.Language = new[] { "ar", "en", "fr", "es" }[combo.SelectedIndex]; Settings.Save(); ApplyTheme(); Render(); }; return combo;
     }
-    private bool IsEnabledFeature(string key) => key switch { "scan" => Settings.Current.ScanEnabled, "translate" => Settings.Current.TranslationEnabled, "updates" => Settings.Current.UpdatesEnabled, "convert" => Settings.Current.ConvertEnabled, "errors" => Settings.Current.ErrorAssistantEnabled, _ => true };
+    private bool IsEnabledFeature(string key) => InvestigationCenters.Contains(key) ? !Settings.Current.DisabledCenters.Contains(key) : key switch { "scan" => Settings.Current.ScanEnabled, "translate" => Settings.Current.TranslationEnabled, "updates" => Settings.Current.UpdatesEnabled, "convert" => Settings.Current.ConvertEnabled, "errors" => Settings.Current.ErrorAssistantEnabled, _ => true };
     private void SetFeature(string key, bool value)
     {
+        if (InvestigationCenters.Contains(key))
+        {
+            Settings.Current.DisabledCenters.RemoveAll(x => x == key);
+            if (!value) { Settings.Current.DisabledCenters.Add(key); operation?.Cancel(); }
+            Settings.Save(); return;
+        }
         switch (key)
         {
             case "scan": Settings.Current.ScanEnabled = value; break;
@@ -365,6 +427,10 @@ public sealed partial class MainWindow
         appearance.Children.Add(SettingRow("welcomeRepeat", welcomeStartup)); Divider(appearance);
         var welcome = Action("welcomeReopen", ShowWelcome); welcome.Margin = new Thickness(0); appearance.Children.Add(SettingRow("welcomeGuide", welcome)); body.Children.Add(Card(appearance));
         SectionHeading(body, "yourTools"); FeatureChoices(body);
+        SectionHeading(body, "hubCenters"); var centers = Stack();
+        foreach (string center in InvestigationCenters.Except(Tools)) centers.Children.Add(Toggle(center, IsEnabledFeature(center), enabled => SetFeature(center, enabled)));
+        centers.Children.Add(Text(I18n.T("hubLocalFirst"), 12, true)); body.Children.Add(Card(centers));
+        var monitoring = Stack(); monitoring.Children.Add(Toggle("deviceAutoRefresh", Settings.Current.AutoRefreshDevice, value => { Settings.Current.AutoRefreshDevice = value; Settings.Save(); })); monitoring.Children.Add(Text(I18n.T("deviceLocalOnly"), 12, true)); body.Children.Add(Card(monitoring));
         SectionHeading(body, "windowsIntegration"); var windows = Stack();
         windows.Children.Add(Toggle("startup", startupDraft ?? Settings.Current.StartWithWindows, value => startupDraft = value));
         windows.Children.Add(Toggle("startupScan", startupScanDraft ?? Settings.Current.ScanAtStartup, value => startupScanDraft = value));
@@ -414,6 +480,10 @@ public sealed partial class MainWindow
         if (!bottomLinks.SequenceEqual(new[] { I18n.T("feedback"), I18n.T("settings") }))
             throw new InvalidOperationException("Feedback must appear directly above Settings at the end of navigation.");
         Navigate("home"); UpdateLayout();
+        foreach (var group in Descendants(frame).OfType<Expander>().Where(e =>
+            System.Windows.Automation.AutomationProperties.GetAutomationId(e) is "SidebarToolsSection" or "OverviewTools"))
+            group.IsExpanded = true;
+        UpdateLayout();
         if (Descendants(frame).OfType<Button>().Count(b => System.Windows.Automation.AutomationProperties.GetName(b) == I18n.T("errors")) != 2)
             throw new InvalidOperationException("Error assistant is missing from Overview or Your tools navigation.");
         Navigate("errors"); UpdateLayout();
