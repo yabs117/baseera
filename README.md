@@ -18,12 +18,11 @@ Windows 10 and 11 x64 · Preview releases · .NET included
 
 ![Baseera welcome screen in English with the dark theme](docs/images/baseera-6.5.0-welcome-en-dark.png)
 
-<details>
-<summary>Device dashboard</summary>
+## Overview
 
-![Baseera dashboard in English with sample device readings](docs/images/baseera-0.6.0-overview-en.png)
+*Sample device readings*
 
-</details>
+![Baseera Overview in English with the dark theme and sample device readings](docs/images/baseera-6.5.0-overview-en-dark.png)
 
 File inspection and image conversion stay on your device. AI features use the service you configure and send the content you choose to share. Repair actions require your approval.
 
