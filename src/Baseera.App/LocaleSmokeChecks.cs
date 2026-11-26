@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
 using System.Windows.Automation;
+using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using System.Windows.Threading;
 using Baseera.App.Services;
@@ -45,6 +46,13 @@ internal static class LocaleSmokeChecks
     private static ComboBox LanguagePicker(Window window) => Descendants(window).OfType<ComboBox>()
         .Single(combo => AutomationProperties.GetAutomationId(combo) == "InterfaceLanguage");
 
+    private static void VerifyLanguageLabels(DependencyObject visual, IEnumerable<string> expected, string description)
+    {
+        var actual = Descendants(visual).OfType<TextBlock>().Where(text => text.IsVisible).Select(text => text.Text).ToArray();
+        if (!actual.SequenceEqual(expected))
+            throw new InvalidOperationException($"{description} rendered [{string.Join(", ", actual)}] instead of the language names.");
+    }
+
     private static void VerifyGlyphs(InterfaceLocale locale, string text)
     {
         var visual = new DrawingVisual();
@@ -78,7 +86,20 @@ internal static class LocaleSmokeChecks
             await Task.Delay(200);
             owner.UpdateLayout();
         }
-        foreach (var locale in InterfaceLocales.All.Skip(3))
+        async Task VerifyOpenLanguagePicker(ComboBox picker, string description, string? screenshot = null)
+        {
+            picker.IsDropDownOpen = true;
+            try
+            {
+                await Settle();
+                var popup = (Popup)picker.Template.FindName("PART_Popup", picker);
+                VerifyLanguageLabels(popup.Child, picker.Items.Cast<InterfaceLocale>().Select(locale => locale.Name), description);
+                if (screenshot is not null)
+                    App.Snapshot(owner, Path.Combine(output, screenshot), popup.Child as FrameworkElement);
+            }
+            finally { picker.IsDropDownOpen = false; }
+        }
+        foreach (var locale in InterfaceLocales.All)
         {
             await Settle();
             if (Descendants(owner).OfType<ComboBox>().Any(combo => AutomationProperties.GetAutomationId(combo) == "InterfaceLanguage"))
@@ -92,6 +113,14 @@ internal static class LocaleSmokeChecks
             Settings.Load();
             if (Settings.Current.Language != locale.Code || !owner.Language.IetfLanguageTag.Equals(locale.Code, StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException($"The interface language did not switch or persist for {locale.Code}.");
+            await Settle();
+            picker = LanguagePicker(owner);
+            VerifyLanguageLabels(picker, [locale.Name], $"The selected interface language for {locale.Code}");
+            if (locale.Code == "ar")
+            {
+                App.Snapshot(owner, Path.Combine(output, "interface-language-ar.png"));
+                await VerifyOpenLanguagePicker(picker, "The open interface language picker", "interface-languages-ar.png");
+            }
 
             owner.Navigate("settings");
             await Settle();
@@ -107,6 +136,10 @@ internal static class LocaleSmokeChecks
             Settings.Load();
             if (Settings.Current.TargetLanguage != locale.Target)
                 throw new InvalidOperationException($"The translation target did not persist for {locale.Code}.");
+            await Settle();
+            VerifyLanguageLabels(target, [locale.Name], $"The selected translation language for {locale.Code}");
+            if (locale.Code == "ar")
+                await VerifyOpenLanguagePicker(target, "The open translation language picker");
             owner.Navigate("home");
         }
 
@@ -126,6 +159,6 @@ internal static class LocaleSmokeChecks
         }
         finally { welcome.Close(); }
         File.WriteAllText(Path.Combine(output, "localization-result.txt"),
-            $"PASS: {I18n.Words.Count} keys per new locale, format-field parity, distinct Chinese scripts, existing Spanish, Windows glyphs, English defaults, persisted interface and translation choices, and selector restricted to Settings.");
+            $"PASS: {I18n.Words.Count} keys per new locale, format-field parity, distinct Chinese scripts, existing Spanish, Windows glyphs, English defaults, persisted interface and translation choices, all seven language labels in both open and closed pickers, and selector restricted to Settings.");
     }
 }
