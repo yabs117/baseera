@@ -17,6 +17,84 @@ internal static class ShellSmokeChecks
     private static T Find<T>(DependencyObject root, string id) where T : DependencyObject => Nodes(root).OfType<T>().Single(n => AutomationProperties.GetAutomationId(n) == id);
     private static void Require(bool condition, string message) { if (!condition) throw new InvalidOperationException(message); }
     private static async Task Settle(Window owner) { await owner.Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle); await Task.Delay(220); owner.UpdateLayout(); }
+
+    private static async Task CheckSettingsNavigation(MainWindow owner, string output)
+    {
+        (string Section, string Title, Func<DependencyObject, bool> HasControl)[] sections =
+        [
+            ("Appearance", "appearance", node => AutomationProperties.GetName(node) == I18n.T("welcomeReopen") && node is Button),
+            ("Ai", "aiSettingsTitle", node => AutomationProperties.GetAutomationId(node) == "TranslationProviderSection"),
+            ("Tools", "yourTools", node => node is CheckBox && AutomationProperties.GetName(node) == I18n.T("search")),
+            ("Diagnostics", "hubCenters", node => node is CheckBox && AutomationProperties.GetName(node) == I18n.T("deviceAutoRefresh")),
+            ("Windows", "windowsIntegration", node => node is CheckBox && AutomationProperties.GetName(node) == I18n.T("startup")),
+            ("Updates", "selfTitle", node => AutomationProperties.GetAutomationId(node) == "ReleaseChannel")
+        ];
+
+        void Click(string id) => Find<Button>(owner, id).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        void VerifyIndex()
+        {
+            var list = Find<StackPanel>(owner, "SettingsIndex");
+            var buttons = list.Children.OfType<Button>().ToArray();
+            Require(buttons.Length == sections.Length && !Nodes(owner).Any(n => AutomationProperties.GetAutomationId(n) == "SettingsDetailHeading"),
+                "Settings index must contain six categories without a detail page.");
+            for (int i = 0; i < sections.Length; i++)
+                Require(AutomationProperties.GetName(buttons[i]) == I18n.T(sections[i].Title) &&
+                    AutomationProperties.GetHelpText(buttons[i]).Length > 0 && buttons[i].IsVisible, "A Settings category is missing a visible, accessible label.");
+        }
+
+        VerifyIndex();
+        App.Snapshot(owner, Path.Combine(output, "settings-index-ar-dark.png"));
+        foreach (var (section, title, hasControl) in sections)
+        {
+            string categoryId = "SettingsCategory-" + section;
+            Click(categoryId);
+            await Settle(owner);
+            var heading = Find<TextBlock>(owner, "SettingsDetailHeading");
+            Require(heading.Text == I18n.T(title) && AutomationProperties.GetHeadingLevel(heading) == AutomationHeadingLevel.Level1,
+                "Settings details opened the wrong page or did not identify its heading.");
+            Require(ReferenceEquals(FocusManager.GetFocusedElement(FocusManager.GetFocusScope(heading)), heading),
+                "Opening a Settings category did not move focus to its heading.");
+            Require(sections.Count(group => Nodes(owner).Any(group.HasControl)) == 1 && Nodes(owner).Any(hasControl),
+                "A Settings detail is missing its own controls or includes unrelated controls.");
+            if (section == "Appearance") App.Snapshot(owner, Path.Combine(output, "settings-appearance-ar-dark.png"));
+            Click("SettingsBack");
+            await Settle(owner);
+            VerifyIndex();
+            var category = Find<Button>(owner, categoryId);
+            Require(ReferenceEquals(FocusManager.GetFocusedElement(FocusManager.GetFocusScope(category)), category),
+                "Returning to Settings did not restore focus to the category.");
+        }
+
+        foreach (string language in new[] { "en", "fr", "es", "ar" })
+        {
+            Settings.Current.Language = language;
+            owner.ApplyTheme();
+            owner.Render();
+            await Settle(owner);
+            VerifyIndex();
+            if (language == "en") App.Snapshot(owner, Path.Combine(output, "settings-index-en-dark.png"));
+        }
+
+        string model = Settings.Current.GeminiModel;
+        try
+        {
+            Settings.Current.GeminiModel = "";
+            Settings.Current.TranslationEnabled = true;
+            owner.Navigate("translate");
+            await Settle(owner);
+            Click("TranslationProviderSettings");
+            await Settle(owner);
+            var picker = Find<ComboBox>(owner, "AiModelPicker");
+            Require(Find<TextBlock>(owner, "SettingsDetailHeading").Text == I18n.T("aiSettingsTitle") &&
+                ReferenceEquals(FocusManager.GetFocusedElement(FocusManager.GetFocusScope(picker)), picker),
+                "The translation link did not open AI settings and focus the missing model.");
+            Click("SettingsBack");
+            await Settle(owner);
+            VerifyIndex();
+        }
+        finally { Settings.Current.GeminiModel = model; }
+    }
+
     private static ScrollViewer SidebarScroll(MainWindow owner)
     {
         DependencyObject? ancestor = Find<StackPanel>(owner, "SidebarPrimary");
@@ -116,7 +194,7 @@ internal static class ShellSmokeChecks
             owner.ApplyTheme();
             foreach (var palette in WorkspacePalette.Choices)
             {
-                owner.Navigate("settings"); await Settle(owner);
+                owner.OpenSettingsSection(SettingsSection.Appearance); await Settle(owner);
                 var section = Find<UniformGrid>(owner, "ColorPaletteChoices");
                 var option = Find<System.Windows.Controls.RadioButton>(section, "Palette-" + palette.Id);
                 Require(section.Children.Count == 4 && AutomationProperties.GetName(option) == I18n.T(palette.Label),
@@ -140,7 +218,7 @@ internal static class ShellSmokeChecks
             }
         }
         owner.HighContrastOverride = true;
-        owner.ApplyTheme(); owner.Navigate("settings"); await Settle(owner);
+        owner.ApplyTheme(); owner.OpenSettingsSection(SettingsSection.Appearance); await Settle(owner);
         Require(!Find<UniformGrid>(owner, "ColorPaletteChoices").IsEnabled && ((SolidColorBrush)owner.Background).Color == System.Windows.SystemColors.WindowColor,
             "A palette overrode Windows high contrast.");
         owner.HighContrastOverride = null;
@@ -209,34 +287,75 @@ internal static class ShellSmokeChecks
     }
     private static async Task CheckToolFinder(MainWindow owner, string output)
     {
-        var inspect = owner.Dispatcher.InvokeAsync(() =>
+        string language = Settings.Current.Language;
+        bool dark = Settings.Current.Dark;
+        try
         {
-            var finder = Application.Current.Windows.OfType<ToolFinder>().Single();
-            try
+            foreach (string locale in new[] { "ar", "en", "fr", "es" })
             {
-                finder.UpdateLayout();
-                var query = Find<TextBox>(finder, "ToolFinderQuery");
-                var results = Find<ListBox>(finder, "ToolFinderResults");
-                Require(results.Items.Count == 20 && query.FlowDirection == FlowDirection.RightToLeft,
-                    "The finder lost a destination, showed duplicates, or ignored Arabic layout.");
-                query.Text = "z9-no-tool-7q";
-                Require(results.Items.Count == 0 && Nodes(finder).OfType<TextBlock>().Any(t => t.IsVisible && t.Text == I18n.T("workspaceFinderEmpty")),
-                    "The finder did not explain an empty result.");
-                query.Text = I18n.T("search");
-                results.SelectedItem = results.Items.OfType<ListBoxItem>().Single(r => Equals(r.Tag, "search"));
-                finder.UpdateLayout();
-                App.Snapshot(finder, Path.Combine(output, "workspace-finder-ar-dark.png"));
-                query.RaiseEvent(new System.Windows.Input.KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(query), Environment.TickCount, Key.Enter)
-                    { RoutedEvent = Keyboard.PreviewKeyDownEvent });
+                Settings.Current.Language = locale;
+                Settings.Current.Dark = locale == "ar";
+                owner.ApplyTheme();
+                owner.Navigate("home");
+                await Settle(owner);
+                var inspect = owner.Dispatcher.InvokeAsync(() =>
+                {
+                    var finder = Application.Current.Windows.OfType<ToolFinder>().Single();
+                    try
+                    {
+                        bool rtl = locale == "ar";
+                        finder.UpdateLayout();
+                        var query = Find<TextBox>(finder, "ToolFinderQuery");
+                        var results = Find<ListBox>(finder, "ToolFinderResults");
+                        var count = Find<TextBlock>(finder, "ToolFinderCount");
+                        var open = Find<Button>(finder, "ToolFinderOpen");
+                        var clear = Find<Button>(finder, "ToolFinderClear");
+                        void KeyPress(Key key) => query.RaiseEvent(new System.Windows.Input.KeyEventArgs(
+                            Keyboard.PrimaryDevice, PresentationSource.FromVisual(query), Environment.TickCount, key)
+                            { RoutedEvent = Keyboard.PreviewKeyDownEvent });
+
+                        Require(finder.WindowStyle == WindowStyle.None && Find<Border>(finder, "ToolFinderSurface").CornerRadius.TopLeft > 0 &&
+                            results.Items.Count == 20 && query.FlowDirection == (rtl ? FlowDirection.RightToLeft : FlowDirection.LeftToRight) && open.IsEnabled,
+                            "The finder lost tools, language direction, or its styled window.");
+                        if (locale is "ar" or "en")
+                            App.Snapshot(finder, Path.Combine(output, $"workspace-finder-{locale}{(rtl ? "-dark" : "")}.png"));
+                        query.Focus();
+                        KeyPress(Key.Down);
+                        Require(results.SelectedIndex == 1, "Down arrow did not move the selected result.");
+                        KeyPress(Key.Up);
+                        Require(results.SelectedIndex == 0, "Up arrow did not move the selected result back.");
+                        query.Text = "z9-no-tool-7q";
+                        Require(results.Items.Count == 0 && count.Text == "0" && !open.IsEnabled &&
+                            Nodes(finder).OfType<TextBlock>().Any(t => t.IsVisible && t.Text == I18n.T("workspaceFinderEmpty")),
+                            "The finder did not present a safe empty state.");
+                        if (rtl) App.Snapshot(finder, Path.Combine(output, "workspace-finder-empty-ar-dark.png"));
+                        clear.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                        Require(query.Text.Length == 0 && results.Items.Count == 20 && open.IsEnabled,
+                            "Clear did not restore all results.");
+                        query.Text = I18n.T("search");
+                        Require(results.SelectedItem is ListBoxItem { Tag: "search" }, "An exact tool name did not rank first.");
+                        if (rtl) App.Snapshot(finder, Path.Combine(output, "workspace-finder-search-ar-dark.png"));
+                        if (locale == "ar") KeyPress(Key.Enter);
+                        else if (locale == "en") open.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                        else KeyPress(Key.Escape);
+                    }
+                    finally { if (finder.IsVisible) finder.Close(); }
+                }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                Find<Button>(owner, "OpenToolFinder").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await inspect;
+                await Settle(owner);
+                bool openedSearch = Nodes(owner).OfType<TextBox>().Any(box => AutomationProperties.GetAutomationId(box) == "HubSearchQuery" && box.IsVisible);
+                Require(openedSearch == (locale is "ar" or "en"), "Open, Enter, or Escape navigated to an unexpected page.");
             }
-            finally { if (finder.IsVisible) finder.Close(); }
-        }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
-        Find<Button>(owner, "OpenToolFinder").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-        await inspect;
-        await Settle(owner);
-        Require(Find<TextBox>(owner, "HubSearchQuery").IsVisible, "Enter did not open the chosen tool.");
-        owner.Navigate("home");
-        await Settle(owner);
+        }
+        finally
+        {
+            Settings.Current.Language = language;
+            Settings.Current.Dark = dark;
+            owner.ApplyTheme();
+            owner.Navigate("home");
+            await Settle(owner);
+        }
     }
 
     private sealed class FeedbackReply(Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> respond) : HttpMessageHandler
@@ -360,6 +479,9 @@ internal static class ShellSmokeChecks
             App.Snapshot(owner, Path.Combine(output, "workspace-min-width-ar-dark.png"));
             owner.Width = normalWidth; await Settle(owner);
             await CheckColorPalettes(owner, output);
+            Find<Button>(owner, "Navigate-settings").RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); await Settle(owner);
+            await CheckSettingsNavigation(owner, output);
+            owner.Navigate("home"); await Settle(owner);
             var overviewTools = Find<Expander>(owner, "OverviewTools"); ToggleSection(overviewTools); await Settle(owner);
             CheckDisclosure(owner, overviewTools, I18n.T("yourTools"), true);
             Find<Button>(owner, "Quick-search").RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); await Settle(owner);
@@ -397,14 +519,21 @@ internal static class ShellSmokeChecks
             Require(sidebarOffset > 0, "Compact navigation fixture did not scroll.");
             Find<Button>(owner, "Navigate-settings").RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); await Settle(owner);
             Require(Math.Abs(SidebarScroll(owner).VerticalOffset - sidebarOffset) < 1, "Selecting Settings lost the sidebar scroll position.");
-            var search = Nodes(owner).OfType<CheckBox>().Single(c => AutomationProperties.GetName(c) == I18n.T("search")); search.IsChecked = false;
-            Require(Settings.Current.DisabledCenters.Contains("search"), "Search tool toggle did not disable search."); search.IsChecked = true;
+            Find<Button>(owner, "SettingsCategory-Tools").RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); await Settle(owner);
+            CheckBox SearchToggle() => Nodes(owner).OfType<CheckBox>().Single(c => AutomationProperties.GetName(c) == I18n.T("search"));
+            SearchToggle().IsChecked = false;
+            Require(Settings.Current.DisabledCenters.Contains("search"), "Search tool toggle did not disable search.");
+            owner.Navigate("search"); await Settle(owner);
+            Nodes(owner).OfType<Button>().Single(b => AutomationProperties.GetName(b) == I18n.T("manageTools")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await Settle(owner);
+            Require(Find<TextBlock>(owner, "SettingsDetailHeading").Text == I18n.T("yourTools"), "Disabled tool linked to the wrong Settings category.");
+            SearchToggle().IsChecked = true;
             Require(!Settings.Current.DisabledCenters.Contains("search"), "Search tool toggle did not enable search.");
             await CheckToolFinder(owner, output);
             await CheckFeedback(owner, output);
             owner.ShowErrorAssistant(); await Settle(owner);
             Require(owner.CurrentErrorAssistant?.IsVisible == true, "Explicit manual assistant launch stopped working.");
-            File.WriteAllText(Path.Combine(output, "shell-result.txt"), "PASS: Overview startup, responsive metric columns, Arabic tool finder and Enter navigation, manual assistant opening, persistent disclosures, accessible layout in four languages and both themes, four saved color palettes with verified text contrast and high-contrast override, RTL arrow and icon directions, opt-in logo blink, replay, reduced motion and sidebar rebuild, compact tool access, sidebar scroll preservation and footer positioning. Feedback: mocked UTF-8 POST, blank input rejected, duplicate clicks blocked, draft retained after HTTP and network failures, cleared only after success. No live feedback sent.");
+            File.WriteAllText(Path.Combine(output, "shell-result.txt"), "PASS: Overview startup, responsive metric columns, Arabic tool finder and Enter navigation, manual assistant opening, persistent disclosures, accessible layout in four languages and both themes, four saved color palettes with verified text contrast and high-contrast override, RTL arrow and icon directions, opt-in logo blink, replay, reduced motion and sidebar rebuild, compact tool access, sidebar scroll preservation and footer positioning. Settings: six separate sections, localized labels, focus on entry and return, direct links from translation and disabled tools. Feedback: mocked UTF-8 POST, blank input rejected, duplicate clicks blocked, draft retained after HTTP and network failures, cleared only after success. No live feedback sent.");
         }
         finally
         {

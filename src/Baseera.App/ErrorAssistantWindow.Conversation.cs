@@ -8,13 +8,12 @@ using Baseera.Core;
 namespace Baseera.App;
 
 internal sealed record ErrorChatRequest(string Text, ErrorImage? Image, ErrorVideo? Video, string Language,
-    string Diagnostics, IReadOnlyList<ConversationExchange> History, string AttachmentContext, string LocalRepairs = "");
+    string Diagnostics, IReadOnlyList<ConversationExchange> History, string AttachmentContext, string LocalRepairs, string Model);
 
 internal sealed partial class ErrorAssistantWindow
 {
     private readonly ConversationLedger conversation = new();
     private readonly List<AdvicePresenter> turns = [];
-    private readonly TextBlock savedConnection = new() { FontSize = 11, TextWrapping = TextWrapping.Wrap };
     private readonly Border setupBanner = new();
     private readonly TextBlock voiceStatus = new(), videoStatus = new();
     private readonly StackPanel voicePanel = new(), videoPanel = new();
@@ -43,8 +42,10 @@ internal sealed partial class ErrorAssistantWindow
     internal void RefreshSavedConnection(bool acknowledged = false)
     {
         if (closed) return;
-        if (acknowledged || composerRecipient.Length == 0) composerRecipient = DiagnosticRecipient;
-        savedConnection.Text = Configured() ? AiProviderBadge.Name(AiCatalog.Provider, ChatGptAuth.Selected) + " · " + AiCatalog.Model : I18n.T("aiConnectionNotConfigured");
+        string recipient = DiagnosticRecipient;
+        if (acknowledged || composerRecipient.Length == 0) composerRecipient = recipient;
+        SyncAssistantModel(recipient);
+        RefreshModelButton();
         UpdateMediaStatus();
         if (recording is not null && recorder?.Recording != true)
             voiceStatus.Text = string.Format(I18n.T("chatRecordingReady"), recordingClock.Elapsed.TotalSeconds.ToString("0.0")) + "\n" + I18n.T(VoiceTranscription.Supported(AiCatalog.Provider, ChatGptAuth.Selected) ? "chatAudioPrivacy" : "chatAudioUnsupported");
@@ -76,6 +77,7 @@ internal sealed partial class ErrorAssistantWindow
     private void RefreshConversationControls(bool idle)
     {
         setupBanner.Visibility = realAnalyzer && !Configured() ? Visibility.Visible : Visibility.Collapsed;
+        modelButton.IsEnabled = idle;
         cancelButton.Visibility = cancelButton.IsEnabled ? Visibility.Visible : Visibility.Collapsed;
         assistantTools.Visibility = assistantTools.IsExpanded ? Visibility.Visible : Visibility.Collapsed;
         emptyChat.Visibility = turns.Count == 0 && caseWorkflow.Current is null && !assistantTools.IsExpanded ? Visibility.Visible : Visibility.Collapsed;
@@ -143,11 +145,13 @@ internal sealed partial class ErrorAssistantWindow
     private async Task TranscribeRecording()
     {
         if (NetworkBusy || recorder?.Recording == true || recording is null || !VoiceTranscription.Supported(AiCatalog.Provider, ChatGptAuth.Selected)) return;
-        bool consent = approveAudioUpload?.Invoke() ?? MessageBox.Show(this, I18n.T("chatAudioPrivacy") + "\n" + AiProviderBadge.Name(AiCatalog.Provider, false) + " · " + VoiceTranscription.Model(AiCatalog.Provider, AiCatalog.Model), I18n.T("chatTranscribe"), MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) == MessageBoxResult.Yes;
+        SyncAssistantModel(DiagnosticRecipient);
+        string model = AssistantModel;
+        bool consent = approveAudioUpload?.Invoke() ?? MessageBox.Show(this, I18n.T("chatAudioPrivacy") + "\n" + AiProviderBadge.Name(AiCatalog.Provider, false) + " · " + VoiceTranscription.Model(AiCatalog.Provider, model), I18n.T("chatTranscribe"), MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) == MessageBoxResult.Yes;
         if (!consent || !AllowRequest()) return;
         using var tracked = services.Tasks.Begin("chatTranscribe", true);
         using var request = CancellationTokenSource.CreateLinkedTokenSource(tracked.Token); voiceRequest = request;
-        string recipient = DiagnosticRecipient, provider = AiCatalog.Provider, model = AiCatalog.Model;
+        string recipient = DiagnosticRecipient, provider = AiCatalog.Provider;
         byte[] audio = recording; RefreshSmartControls();
         try
         {

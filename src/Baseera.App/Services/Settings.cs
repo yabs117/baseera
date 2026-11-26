@@ -7,7 +7,7 @@ namespace Baseera.App.Services;
 
 public sealed class Preferences
 {
-    public string Language { get; set; } = "ar";
+    public string Language { get; set; } = InterfaceLocales.DefaultCode;
     public bool Dark { get; set; }
     public string ColorPalette { get; set; } = WorkspacePalette.DefaultId;
     public bool Onboarded { get; set; }
@@ -21,7 +21,7 @@ public sealed class Preferences
     public bool ErrorAssistantEnabled { get; set; } = true;
     public bool AutoRefreshDevice { get; set; } = true;
     public List<string> DisabledCenters { get; set; } = [];
-    public string ReleaseChannel { get; set; } = "preview";
+    public string ReleaseChannel { get; set; } = "stable";
     public bool StartWithWindows { get; set; }
     public bool ScanAtStartup { get; set; }
     public string ScanPath { get; set; } = "";
@@ -32,7 +32,7 @@ public sealed class Preferences
     public string OpenAiAuth { get; set; } = "api";
     public string ChatGptAccount { get; set; } = "";
     public string ChatGptModel { get; set; } = "";
-    public string TargetLanguage { get; set; } = "Arabic";
+    public string TargetLanguage { get; set; } = InterfaceLocales.DefaultTarget;
     public string ReleasePage { get; set; } = "";
     public List<string> AutoUpdateIds { get; set; } = [];
     public Dictionary<string, string> ManualSources { get; set; } = [];
@@ -51,7 +51,9 @@ public static class Settings
             try { Current = JsonSerializer.Deserialize<Preferences>(File.ReadAllText(file)) ?? new(); }
             catch (JsonException) { Current = new(); }
         }
-        if (!new[] { "ar", "en", "fr", "es" }.Contains(Current.Language)) Current.Language = "ar";
+        int language = InterfaceLocales.Index(Current.Language);
+        Current.Language = language < 0 ? InterfaceLocales.DefaultCode : InterfaceLocales.All[language].Code;
+        Current.TargetLanguage = InterfaceLocales.FromTarget(Current.TargetLanguage).Target;
         Current.ColorPalette = WorkspacePalette.Resolve(Current.ColorPalette).Id;
         Current.AiModels ??= [];
         Current.DisabledCenters ??= [];
@@ -122,7 +124,7 @@ public static class Settings
         byte[] plain = ReadProtected("reputation-key.bin"); try { string value = Encoding.UTF8.GetString(plain); if (value.Length > 500) throw new InvalidDataException("Reputation key limit."); return value; } finally { Array.Clear(plain); }
     }
     internal static byte[] ProtectLocal(byte[] bytes, bool decrypt) => Protect(bytes, decrypt);
-    public static string UpdateChannel => Current.ReleaseChannel == "stable" ? "stable" : "preview";
+    public static string UpdateChannel => Current.ReleaseChannel == "preview" ? "preview" : "stable";
     internal static void WriteProtected(string name, byte[] bytes)
     {
         Directory.CreateDirectory(Folder);

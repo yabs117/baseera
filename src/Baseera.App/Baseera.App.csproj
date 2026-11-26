@@ -6,13 +6,13 @@
     <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>Baseera</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>0.6.5</Version>
-    <InformationalVersion>0.6.5-preview</InformationalVersion>
+    <Version>7.5.0</Version>
+    <InformationalVersion>7.5.0</InformationalVersion>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="PdfPig" Version="0.1.16" />
     <ProjectReference Include="../Baseera.Core/Baseera.Core.csproj" />
-    <Content Include="Locales/*.json" CopyToOutputDirectory="PreserveNewest" />
+    <EmbeddedResource Include="Locales/AdditionalLocales.json" LogicalName="Baseera.AdditionalLocales.json" />
     <Resource Include="Assets/Fonts/*.ttf" />
     <Resource Include="Assets/Fonts/*OFL.txt" />
     <Resource Include="Assets/Fonts/*.CompositeFont" />

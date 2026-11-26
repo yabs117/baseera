@@ -17,13 +17,18 @@ public sealed partial class MainWindow
     {
         if ((smokeMode && check is null) || checkingSelf || showingSelf || (!manual && !Settings.Current.CheckBaseeraUpdates)) return;
         checkingSelf = true; bool refreshed = false;
+        void RefreshUpdateSettings()
+        {
+            if (page == "settings" && settingsSection == SettingsSection.Updates && !lifetime.IsCancellationRequested)
+                Render(true);
+        }
         try
         {
             if (manual || DateTime.UtcNow >= nextSelfCheck)
             {
                 refreshed = true;
                 string channel = Settings.UpdateChannel;
-                selfStatusKey = "selfChecking"; if (manual) Render(true);
+                selfStatusKey = "selfChecking"; if (manual) RefreshUpdateSettings();
                 using var tracked = Services.Tasks.Begin("selfTitle", true, lifetime.Token);
                 try { pendingSelf = await (check ?? SelfUpdater.Check)(tracked.Token); tracked.Complete(); }
                 catch (OperationCanceledException) { tracked.Cancelled(); throw; }
@@ -31,31 +36,31 @@ public sealed partial class MainWindow
                 if (channel != Settings.UpdateChannel) pendingSelf = null;
                 nextSelfCheck = DateTime.UtcNow.AddHours(2);
                 selfStatusKey = pendingSelf is null ? "selfLatest" : "selfAvailable";
-                if (manual) Render(true);
+                if (manual) RefreshUpdateSettings();
             }
             bool busy = operation is not null || automaticUpdate is not null || OwnedWindows.Cast<Window>().Any(w => w.IsVisible);
             if (pendingSelf is not null && !busy && (manual || (IsActive && WindowState != WindowState.Minimized && !offeredSelf.Contains(pendingSelf.Tag))))
             {
                 // Keep drafts in memory until saved. Updating should not silently discard them.
                 if (aiConnectionDraft.Services.Any(pair => pair.Value.Key.Length > 0 || pair.Value.Model != Settings.GetModel(pair.Key)) || aiConnectionDraft.OpenAiMode != Settings.Current.OpenAiAuth || aiConnectionDraft.ChatGptAccount != Settings.Current.ChatGptAccount || aiConnectionDraft.ChatGpt.Model != Settings.Current.ChatGptModel || startupDraft is not null || startupScanDraft is not null || explorerDraft is not null)
-                { selfStatusKey = "selfSaveDrafts"; if (manual) Render(true); return; }
+                { selfStatusKey = "selfSaveDrafts"; if (manual) RefreshUpdateSettings(); return; }
                 showingSelf = true; offeredSelf.Add(pendingSelf.Tag);
                 new UpdateWindow(this, pendingSelf).ShowDialog();
             }
         }
         catch (OperationCanceledException) { selfStatusKey = "selfCanceled"; }
-        catch { nextSelfCheck = DateTime.UtcNow.AddMinutes(15); selfStatusKey = "selfCheckFailed"; if (manual) Render(true); }
+        catch { nextSelfCheck = DateTime.UtcNow.AddMinutes(15); selfStatusKey = "selfCheckFailed"; }
         finally
         {
             checkingSelf = showingSelf = false;
-            if (refreshed && page == "settings" && !lifetime.IsCancellationRequested) Render(true);
+            if (refreshed) RefreshUpdateSettings();
         }
     }
 
     internal async Task CheckSelfUpdateControls()
     {
         if (!smokeMode) throw new InvalidOperationException("Isolated UI checks only.");
-        Navigate("settings");
+        OpenSettingsSection(SettingsSection.Updates);
         static IEnumerable<DependencyObject> Descendants(DependencyObject root)
         {
             for (int i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
@@ -74,7 +79,7 @@ public sealed partial class MainWindow
 
     private void SelfUpdateSettings(StackPanel body)
     {
-        SectionHeading(body, "selfTitle"); var content = Stack();
+        var content = Stack();
         var version = Text("Baseera " + SelfUpdater.CurrentVersion, 14); version.FlowDirection = FlowDirection.LeftToRight; content.Children.Add(version);
         content.Children.Add(Text(I18n.T("selfSettingsNote"), 12, true));
         content.Children.Add(Text(I18n.T("channelHelp"), 12, true));

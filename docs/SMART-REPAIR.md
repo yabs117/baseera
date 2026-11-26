@@ -9,7 +9,13 @@ context, selectable formatted replies, code copying and a quieter response layou
 
 ## Workflow
 
-1. Open the existing error assistant, describe the problem and optionally attach an image.
+1. Open the error assistant, describe the problem and optionally attach an image.
+   If the composer says **Add a model**, use it to open the AI service settings.
+   After you save a connection and return, your draft is still available.
+   The model control below the message field can load the available text and image
+   models for the saved connection. Choosing one applies it to this assistant
+   window. The default in Settings still applies to window translation and new
+   assistant windows.
 2. Expand **Optional read-only diagnostics** if local evidence would help. Select
    system summary, Application errors, System errors, or a combination. Nothing
    is selected or collected by default. Choose the last **1, 6, 24 or 72 hours**;

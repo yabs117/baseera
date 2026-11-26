@@ -1,0 +1,90 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+ <Style x:Key="AssistantPopup" TargetType="ContextMenu">
+  <Setter Property="Background" Value="{DynamicResource Surface}"/>
+  <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
+  <Setter Property="BorderBrush" Value="{DynamicResource Line}"/>
+  <Setter Property="BorderThickness" Value="1"/>
+  <Setter Property="Padding" Value="5"/>
+  <Setter Property="MinWidth" Value="220"/>
+  <Setter Property="MaxWidth" Value="400"/>
+  <Setter Property="MaxHeight" Value="356"/>
+  <Setter Property="UseLayoutRounding" Value="True"/>
+  <Setter Property="SnapsToDevicePixels" Value="True"/>
+  <Setter Property="Template">
+   <Setter.Value>
+    <ControlTemplate TargetType="ContextMenu">
+     <Border x:Name="MenuSurface" Background="{TemplateBinding Background}"
+             BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+             CornerRadius="11" Padding="{TemplateBinding Padding}">
+      <ScrollViewer x:Name="MenuScroll" Focusable="False" HorizontalScrollBarVisibility="Disabled"
+                    VerticalScrollBarVisibility="Auto" PanningMode="VerticalOnly">
+       <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Cycle"
+                       KeyboardNavigation.TabNavigation="Cycle"/>
+      </ScrollViewer>
+     </Border>
+    </ControlTemplate>
+   </Setter.Value>
+  </Setter>
+ </Style>
+
+ <Style x:Key="AssistantPopupItem" TargetType="MenuItem">
+  <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
+  <Setter Property="Background" Value="Transparent"/>
+  <Setter Property="Padding" Value="9,5"/>
+  <Setter Property="MinHeight" Value="34"/>
+  <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+  <Setter Property="Template">
+   <Setter.Value>
+    <ControlTemplate TargetType="MenuItem">
+     <Border x:Name="Row" CornerRadius="6" Background="{TemplateBinding Background}"
+             Padding="{TemplateBinding Padding}" BorderThickness="1" BorderBrush="Transparent">
+      <Grid>
+       <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="26"/>
+        <ColumnDefinition Width="*"/>
+       </Grid.ColumnDefinitions>
+       <ContentPresenter x:Name="CommandIcon" ContentSource="Icon" VerticalAlignment="Center"
+                         HorizontalAlignment="Left" IsHitTestVisible="False"/>
+       <TextBlock x:Name="SelectionMark" Text="✓" FontFamily="Segoe UI Symbol" FontSize="14"
+                  FlowDirection="LeftToRight" Foreground="{DynamicResource AccentInk}"
+                  VerticalAlignment="Center" HorizontalAlignment="Left"
+                  IsHitTestVisible="False" Visibility="Collapsed"/>
+       <ContentPresenter Grid.Column="1" ContentSource="Header" VerticalAlignment="Center"
+                         RecognizesAccessKey="True" TextElement.Foreground="{TemplateBinding Foreground}"/>
+      </Grid>
+     </Border>
+     <ControlTemplate.Triggers>
+      <Trigger Property="IsChecked" Value="True">
+       <Setter TargetName="Row" Property="Background" Value="{DynamicResource Selected}"/>
+       <Setter TargetName="SelectionMark" Property="Visibility" Value="Visible"/>
+       <Setter TargetName="CommandIcon" Property="Visibility" Value="Collapsed"/>
+      </Trigger>
+      <Trigger Property="IsHighlighted" Value="True">
+       <Setter TargetName="Row" Property="Background" Value="{DynamicResource Hover}"/>
+      </Trigger>
+      <Trigger Property="IsKeyboardFocused" Value="True">
+       <Setter TargetName="Row" Property="BorderBrush" Value="{DynamicResource Accent}"/>
+      </Trigger>
+      <Trigger Property="IsEnabled" Value="False">
+       <Setter Property="Foreground" Value="{DynamicResource Muted}"/>
+       <Setter TargetName="Row" Property="Background" Value="Transparent"/>
+       <Setter TargetName="CommandIcon" Property="Opacity" Value="0.55"/>
+      </Trigger>
+     </ControlTemplate.Triggers>
+    </ControlTemplate>
+   </Setter.Value>
+  </Setter>
+ </Style>
+
+ <Style x:Key="AssistantPopupDivider" TargetType="Separator">
+  <Setter Property="Margin" Value="8,4"/>
+  <Setter Property="Template">
+   <Setter.Value>
+    <ControlTemplate TargetType="Separator">
+     <Border Height="1" Background="{DynamicResource Line}" IsHitTestVisible="False"/>
+    </ControlTemplate>
+   </Setter.Value>
+  </Setter>
+ </Style>
+</ResourceDictionary>

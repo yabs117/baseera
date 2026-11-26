@@ -32,7 +32,9 @@ internal sealed class WelcomeWindow : Window
 
     private void Render()
     {
+        FontFamily = Brand.InterfaceFont;
         bool arabic = Settings.Current.Language == "ar";
+        Language = System.Windows.Markup.XmlLanguage.GetLanguage(Settings.Current.Language);
         Title = I18n.T("welcomeCaption");
         frame.SetResourceReference(System.Windows.Controls.Panel.BackgroundProperty, "Bg");
         frame.Children.Clear(); frame.RowDefinitions.Clear(); frame.ColumnDefinitions.Clear();
@@ -44,14 +46,6 @@ internal sealed class WelcomeWindow : Window
         toolbar.ColumnDefinitions.Add(new ColumnDefinition()); toolbar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var name = Text(arabic ? "بصيرة" : "Baseera", 19); name.FontWeight = arabic ? FontWeights.Medium : FontWeights.SemiBold; name.VerticalAlignment = VerticalAlignment.Center; toolbar.Children.Add(name);
         var choices = new StackPanel { Orientation = Orientation.Horizontal };
-        var language = new ComboBox
-        {
-            ItemsSource = new[] { "العربية", "English", "Français", "Español" }, FlowDirection = FlowDirection.LeftToRight,
-            SelectedIndex = Array.IndexOf(new[] { "ar", "en", "fr", "es" }, Settings.Current.Language), MinWidth = 128, FontSize = 12, Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center
-        };
-        System.Windows.Automation.AutomationProperties.SetName(language, I18n.T("language"));
-        language.SelectionChanged += (_, _) => { if (language.SelectedIndex < 0) return; Settings.Current.Language = new[] { "ar", "en", "fr", "es" }[language.SelectedIndex]; Settings.Save(); RefreshOwner(); };
-        choices.Children.Add(language);
         var theme = new Button { Style = (Style)FindResource("IconButton"), Content = Icons.Create(Settings.Current.Dark ? "sun" : "moon", 18), ToolTip = I18n.T("dark") };
         System.Windows.Automation.AutomationProperties.SetName(theme, I18n.T("dark"));
         theme.Click += (_, _) => { Settings.Current.Dark = !Settings.Current.Dark; Settings.Save(); RefreshOwner(); WindowAppearance.Apply(this, Settings.Current.Dark); };

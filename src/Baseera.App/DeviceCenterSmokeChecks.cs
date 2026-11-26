@@ -125,10 +125,12 @@ internal static class DeviceCenterSmokeChecks
             Settings.Current.AiProvider = "gemini"; Settings.Current.GeminiModel = ""; Settings.SetKey("gemini", ""); owner.ResetConnectionDraftForSmoke();
             owner.DeviceSourceOverride = (_, _) => Task.FromResult(Fixture); owner.Navigate("home"); await owner.RefreshDevice(); await Settle(owner);
             Find<Expander>(owner, "OverviewTools").IsExpanded = true; owner.UpdateLayout(); Click(owner, "Quick-errors"); await Settle(owner);
-            Require(owner.CurrentErrorAssistant is null && Nodes(owner).OfType<AiConnectionPanel>().Count() == 1, "Missing AI setup did not route to Settings.");
+            var pendingAssistant = owner.CurrentErrorAssistant!;
+            Click(pendingAssistant, "AssistantModel"); await Settle(owner);
+            Require(!pendingAssistant.IsVisible && Nodes(owner).OfType<AiConnectionPanel>().Count() == 1, "Add a model did not route from device review to Settings.");
             Settings.Current.GeminiModel = "gemini-fixture"; Settings.SetKey("gemini", "fixture-not-live"); owner.ResetConnectionDraftForSmoke(); owner.ShowErrorAssistant(); await Settle(owner);
             var realWindow = owner.CurrentErrorAssistant!;
-            Require(Find<TextBox>(realWindow, "SmartDiagnosticPreview").Text.Contains("CPU sampled utilization") && !Find<CheckBox>(realWindow, "SmartDiagnosticConsent").IsChecked!.Value && Find<TextBox>(realWindow, "ErrorDescription").Text == I18n.T("deviceDiagnosticQuestion"), "Setup round trip lost device review or granted sharing automatically."); realWindow.Close();
+            Require(ReferenceEquals(realWindow, pendingAssistant) && Find<TextBox>(realWindow, "SmartDiagnosticPreview").Text.Contains("CPU sampled utilization") && !Find<CheckBox>(realWindow, "SmartDiagnosticConsent").IsChecked!.Value && Find<TextBox>(realWindow, "ErrorDescription").Text == I18n.T("deviceDiagnosticQuestion"), "Setup round trip lost device review or granted sharing automatically."); realWindow.Close();
 
             var diagnostics = new Diagnostics(); var requests = new List<ErrorChatRequest>();
             var advice = ErrorAssistant.ParseAdvice(ErrorLanguageSmokeChecks.Fixture("en"));

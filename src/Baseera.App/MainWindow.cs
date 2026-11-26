@@ -99,7 +99,6 @@ public sealed partial class MainWindow : Window
     internal void ShowErrorAssistant()
     {
         if (!Settings.Current.ErrorAssistantEnabled) return;
-        if (!AiCatalog.Configured()) { OpenAiSettings(); return; }
         if (errorAssistant is { } existing)
         { existing.RefreshSavedConnection(true); if (!existing.IsVisible) existing.Show(); existing.Activate(); existing.FocusComposer(); ApplyPendingDeviceReview(existing); return; }
         var created = new ErrorAssistantWindow(this); errorAssistant = created;

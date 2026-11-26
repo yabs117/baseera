@@ -84,7 +84,15 @@ internal static class AiSettingsSmokeChecks
             Settings.Current.Onboarded = true; Settings.Current.ErrorAssistantEnabled = true;
             Settings.Current.AiProvider = "gemini"; Settings.Current.GeminiModel = ""; Settings.SetKey("gemini", "");
             owner.ResetConnectionDraftForSmoke(); owner.ShowErrorAssistant(); await Settle(owner);
-            Require(owner.CurrentErrorAssistant is null && Nodes(owner).OfType<AiConnectionPanel>().Count() == 1, "Unconfigured assistant did not route to Settings.");
+            var firstRun = owner.CurrentErrorAssistant!;
+            var addModel = Find<Button>(firstRun, "AssistantModel");
+            Require(firstRun.IsVisible && AutomationProperties.GetName(addModel) == I18n.T("assistantAddModel") &&
+                !Find<Button>(firstRun, "errorAnalyze").IsEnabled, "Unconfigured assistant did not expose Add a model or prevent a live request.");
+            Find<TextBox>(firstRun, "ErrorDescription").Text = "Draft before choosing a model";
+            Click(firstRun, "AssistantModel"); await Settle(owner);
+            Require(!firstRun.IsVisible && Nodes(owner).OfType<AiConnectionPanel>().Count() == 1 &&
+                Find<TextBox>(firstRun, "ErrorDescription").Text == "Draft before choosing a model", "Add a model did not open AI settings while keeping the draft.");
+            firstRun.Close();
             int calls = 0, opened = 0; bool match = true, fail = false;
             TaskCompletionSource<AiProbeResult>? delayed = null; CancellationToken pendingToken = default;
             var draft = new AiConnectionDraft { Provider = "gemini" };
@@ -148,6 +156,8 @@ internal static class AiSettingsSmokeChecks
                 var assistant = owner.CurrentErrorAssistant!;
                 Require(assistant.IsVisible && !Nodes(assistant).OfType<AiConnectionPanel>().Any() && !Nodes(assistant).OfType<PasswordBox>().Any() &&
                     !Nodes(assistant).OfType<ComboBox>().Any(c => AutomationProperties.GetAutomationId(c) is "ChatModelPicker" or "ErrorAssistantService"), "Assistant still contains editable AI configuration.");
+                var bottom = Find<Border>(assistant, "AssistantComposer");
+                Require(AutomationProperties.GetName(Find<Button>(bottom, "AssistantModel")).Contains("vision-fixture"), "Saved model was not shown in the composer.");
                 Require(Find<TextBox>(assistant, "ErrorDescription").IsKeyboardFocusWithin, "Chat did not start in composer.");
                 if (locale is "en" or "ar") App.Snapshot(assistant, Path.Combine(output, "assistant-ready-" + locale + ".png"));
                 assistant.Close();
@@ -159,7 +169,10 @@ internal static class AiSettingsSmokeChecks
             var composer = Find<TextBox>(dialog, "ErrorDescription"); composer.Text = "First question"; Click(dialog, "errorAnalyze"); await Settle(dialog);
             var first = Nodes(dialog).OfType<AdvicePresenter>().Single(); first.Finish(); composer.Text = "Follow-up draft";
             typeof(ErrorAssistantWindow).GetMethod("SetImage", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.Invoke(dialog, [new ErrorImage(AiConnectionProbe.Image(1), "synthetic.jpg")]);
-            typeof(ErrorAssistantWindow).GetMethod("ShowConnectionSettings", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.Invoke(dialog, null); await Settle(owner);
+            Click(dialog, "AssistantModel"); await Settle(dialog);
+            var menu = Find<Button>(dialog, "AssistantModel").ContextMenu;
+            var add = menu.Items.OfType<System.Windows.Controls.MenuItem>().Single(item => AutomationProperties.GetAutomationId(item) == "AssistantAddModel");
+            add.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.MenuItem.ClickEvent)); menu.IsOpen = false; await Settle(owner);
             Require(!dialog.IsVisible, "Assistant did not give access to main Settings.");
             var actualPanel = Nodes(owner).OfType<AiConnectionPanel>().Single(); Click(actualPanel, "AiOpenAssistant"); await Settle(dialog);
             Require(ReferenceEquals(owner.CurrentErrorAssistant, dialog) && dialog.IsVisible && composer.Text == "Follow-up draft" && ReferenceEquals(Nodes(dialog).OfType<AdvicePresenter>().Single(), first) && Nodes(dialog).OfType<System.Windows.Controls.Image>().Any(i => i.Source is not null && i.IsVisible), "Settings round trip discarded history, attachment or draft.");

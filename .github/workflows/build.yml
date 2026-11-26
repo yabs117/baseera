@@ -22,14 +22,25 @@ jobs:
         with:
           node-version: '22'
       - name: Build, test and package
+        id: build
         shell: pwsh
-        run: ./build.ps1 -Test -Publish
+        run: |
+          $project = [xml](Get-Content -LiteralPath 'src/Baseera.App/Baseera.App.csproj')
+          $identity = ./packaging/release-identity.ps1 -Version $project.Project.PropertyGroup.Version -InformationalVersion $project.Project.PropertyGroup.InformationalVersion
+          "channel=$($identity.Channel)" >> $env:GITHUB_OUTPUT
+          if ($identity.Channel -eq 'preview') {
+            ./build.ps1 -Test -Publish
+          } else {
+            # Verify stable source here. Publisher signing and packaging run separately.
+            ./build.ps1 -Test
+          }
       - name: Extension validation
         run: node --test extension/test/protocol.test.js
       - name: Signing policy validation
         shell: pwsh
         run: ./tests/windows/Test-SigningPolicy.ps1
       - uses: actions/upload-artifact@v4
+        if: steps.build.outputs.channel == 'preview'
         with:
           name: Baseera-windows-preview
           path: |

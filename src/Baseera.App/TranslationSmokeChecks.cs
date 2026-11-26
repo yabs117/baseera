@@ -84,7 +84,7 @@ public sealed partial class MainWindow
                 button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
                 UpdateLayout();
-                if (page != "settings" || translationProviderSection is null || scroller.VerticalOffset <= 0) throw new Exception("Translation provider was not scrolled into view.");
+                if (page != "settings" || settingsSection != SettingsSection.Ai || translationProviderSection is null) throw new Exception("Translation link did not open AI settings.");
                 var expected = savedKey ? (System.Windows.Controls.Control?)translationModelInput : translationKeyInput;
                 if (expected is null || !expected.IsKeyboardFocusWithin) throw new Exception("Missing translation field did not receive keyboard focus.");
                 var bounds = expected.TransformToAncestor(scroller).TransformBounds(new Rect(0, 0, expected.ActualWidth, expected.ActualHeight));

@@ -1,4 +1,4 @@
-import {validateTranslations} from "./protocol.mjs";
+import {defaultLocale, locales, validateTranslations} from "./protocol.mjs";
 const jobs = new Set();
 chrome.storage.session.setAccessLevel({accessLevel:"TRUSTED_CONTEXTS"});
 
@@ -67,9 +67,9 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
     if (message.action === "restore") { await chrome.scripting.executeScript({target:{tabId:tab.id},func:restore}); return {ok:true}; }
     if (message.action !== "translate") throw new Error("Unknown action");
     const {key} = await chrome.storage.session.get("key");
-    const {model,target="Arabic"} = await chrome.storage.local.get(["model","target"]);
+    const {model,target=defaultLocale.target} = await chrome.storage.local.get(["model","target"]);
     if (!key || !/^[a-zA-Z0-9._-]+$/.test(model ?? "")) throw new Error("Set your API key and model first.");
-    if (!["Arabic","English","French","Spanish"].includes(target)) throw new Error("Unsupported language");
+    if (!locales.some(locale => locale.target === target)) throw new Error("Unsupported language");
     jobs.add(tab.id);
     try {
       const [{result:texts}] = await chrome.scripting.executeScript({target:{tabId:tab.id},func:collect});
