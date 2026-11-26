@@ -5,7 +5,7 @@
  <SolidColorBrush x:Key="Muted" Color="#4F655C"/>
  <SolidColorBrush x:Key="Line" Color="#CFDAD2"/>
  <SolidColorBrush x:Key="Accent" Color="#16644F"/>
- <SolidColorBrush x:Key="Sidebar" Color="#E8EEE7"/>
+ <SolidColorBrush x:Key="Workspace" Color="#E8EEE7"/>
  <SolidColorBrush x:Key="Selected" Color="#D0E7DA"/>
  <SolidColorBrush x:Key="Hover" Color="#E2ECE4"/>
  <SolidColorBrush x:Key="OnAccent" Color="#FFFFFF"/>
@@ -25,6 +25,34 @@
  </Style>
  <Style x:Key="IconButton" TargetType="Button" BasedOn="{StaticResource NavigationButton}"><Setter Property="Width" Value="36"/><Setter Property="Height" Value="34"/><Setter Property="Margin" Value="0"/><Setter Property="Background" Value="Transparent"/></Style>
  <Style x:Key="ToolRowButton" TargetType="Button" BasedOn="{StaticResource NavigationButton}"><Setter Property="Height" Value="Auto"/><Setter Property="MinHeight" Value="94"/><Setter Property="Margin" Value="0"/><Setter Property="Background" Value="Transparent"/><Setter Property="Padding" Value="20,16"/></Style>
+ <Style x:Key="PaletteChoice" TargetType="RadioButton">
+  <Setter Property="Margin" Value="0,0,8,8"/>
+  <Setter Property="MinHeight" Value="49"/>
+  <Setter Property="Background" Value="{DynamicResource Workspace}"/>
+  <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="RadioButton">
+   <Border x:Name="Tile" Background="{TemplateBinding Background}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="7" Padding="8,5">
+    <Grid>
+     <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="16"/></Grid.ColumnDefinitions>
+     <ContentPresenter VerticalAlignment="Center"/>
+     <Path x:Name="SelectionMark" Grid.Column="1" Data="M1,5 L4,8 L10,1" Stroke="{DynamicResource Ink}" StrokeThickness="1.8"
+           Width="11" Height="9" Stretch="Uniform" StrokeLineJoin="Round" FlowDirection="LeftToRight"
+           HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed"/>
+    </Grid>
+   </Border>
+   <ControlTemplate.Triggers>
+    <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Tile" Property="Background" Value="{DynamicResource Hover}"/></Trigger>
+    <Trigger Property="IsChecked" Value="True">
+     <Setter TargetName="Tile" Property="Background" Value="{DynamicResource Selected}"/>
+     <Setter TargetName="Tile" Property="BorderBrush" Value="{DynamicResource Accent}"/>
+     <Setter TargetName="SelectionMark" Property="Visibility" Value="Visible"/>
+    </Trigger>
+    <Trigger Property="IsKeyboardFocused" Value="True">
+     <Setter TargetName="Tile" Property="BorderBrush" Value="{DynamicResource Accent}"/>
+     <Setter TargetName="Tile" Property="BorderThickness" Value="2"/>
+    </Trigger>
+   </ControlTemplate.Triggers>
+  </ControlTemplate></Setter.Value></Setter>
+ </Style>
 
  <Style x:Key="DisclosureHeader" TargetType="ToggleButton">
   <Setter Property="MinHeight" Value="40"/>

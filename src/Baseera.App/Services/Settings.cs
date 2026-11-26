@@ -9,6 +9,7 @@ public sealed class Preferences
 {
     public string Language { get; set; } = "ar";
     public bool Dark { get; set; }
+    public string ColorPalette { get; set; } = WorkspacePalette.DefaultId;
     public bool Onboarded { get; set; }
     public bool WelcomeSeen { get; set; }
     public bool ShowWelcomeOnStartup { get; set; }
@@ -51,6 +52,7 @@ public static class Settings
             catch (JsonException) { Current = new(); }
         }
         if (!new[] { "ar", "en", "fr", "es" }.Contains(Current.Language)) Current.Language = "ar";
+        Current.ColorPalette = WorkspacePalette.Resolve(Current.ColorPalette).Id;
         Current.AiModels ??= [];
         Current.DisabledCenters ??= [];
         if (Current.OpenAiAuth is not ("api" or "chatgpt")) Current.OpenAiAuth = "api";

@@ -4,6 +4,13 @@ internal static class DeviceStrings
 {
     internal static readonly Dictionary<string, string[]> Words = new()
     {
+        ["blinkLogo"] = ["اجعل شعار بصيرة يرمش", "Make the Baseera logo blink", "Faire cligner le logo Baseera", "Hacer parpadear el logo de Baseera"],
+        ["colorPalette"] = ["ألوان التطبيق", "App colors", "Couleurs de l’application", "Colores de la aplicación"],
+        ["paletteGreen"] = ["الأخضر", "Green", "Vert", "Verde"],
+        ["paletteGraphite"] = ["الفحمي", "Graphite", "Graphite", "Grafito"],
+        ["paletteRed"] = ["الأحمر", "Red", "Rouge", "Rojo"],
+        ["paletteBlue"] = ["الأزرق", "Blue", "Bleu", "Azul"],
+        ["paletteHighContrast"] = ["يستخدم التطبيق ألوان ويندوز أثناء تشغيل التباين العالي.", "Baseera uses Windows colors while high contrast is on.", "Baseera utilise les couleurs de Windows en mode contraste élevé.", "Baseera usa los colores de Windows con el contraste alto activado."],
         ["workspaceFinder"] = ["البحث عن أداة", "Find a tool", "Trouver un outil", "Buscar una herramienta"],
         ["workspaceFinderHint"] = ["الاسم أو الوظيفة", "Name or task", "Nom ou fonction", "Nombre o función"],
         ["workspaceFinderEmpty"] = ["لا توجد أدوات مطابقة.", "No matching tools.", "Aucun outil correspondant.", "No hay herramientas que coincidan."],
