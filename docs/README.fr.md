@@ -1,5 +1,7 @@
 # Baseera
 
+[English](../README.md) · [العربية](README.ar.md) · [Español](README.es.md) · **Français** · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [Tiếng Việt](README.vi.md)
+
 **Baseera 0.6.5 Preview** ajoute quatre palettes de couleurs, un logo qui cligne au clic et l’envoi de remarques dans l’application. [Télécharger Baseera.exe](https://github.com/yabs117/baseera/releases/download/v0.6.5-preview/Baseera.exe) · [Version et fichiers](https://github.com/yabs117/baseera/releases/tag/v0.6.5-preview) · [Périmètre et limites](INVESTIGATION-CENTERS.md).
 
 **Version expérimentale 0.4.15 :** Smart Repair étend l’assistant existant avec des diagnostics locaux facultatifs, une prévisualisation modifiable et un consentement par analyse. Seuls trois outils Windows prédéfinis peuvent être lancés après confirmation distincte et UAC si nécessaire : cache DNS, SFC et DISM. Aucun script généré ni redémarrage automatique. [Détails et limites](SMART-REPAIR.md). [Notes de version et téléchargement](RELEASE-0.4.15.md).

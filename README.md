@@ -10,8 +10,10 @@ An open-source toolkit for everyday Windows maintenance and troubleshooting.
 
 Windows 10 and 11 x64 · Preview releases · .NET included
 
+**English** · [العربية](docs/README.ar.md) · [Español](docs/README.es.md) · [Français](docs/README.fr.md) · [简体中文](docs/README.zh-CN.md) · [繁體中文](docs/README.zh-TW.md) · [Tiếng Việt](docs/README.vi.md)
+
 ![Baseera dashboard in English with sample device readings](docs/images/baseera-0.6.0-overview-en.png)
 
 File inspection and image conversion stay on your device. AI features use the service you configure and send the content you choose to share. Repair actions require your approval.
 
-[العربية](docs/README.ar.md) · [Français](docs/README.fr.md) · [Español](docs/README.es.md) · [Build from source](docs/BUILD.md) · [Contribute](CONTRIBUTING.md) · [MIT license](LICENSE)
+[Build from source](docs/BUILD.md) · [Contribute](CONTRIBUTING.md) · [MIT license](LICENSE)
