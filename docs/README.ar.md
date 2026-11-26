@@ -1,5 +1,7 @@
 # بصيرة
 
+[English](../README.md) · **العربية** · [Español](README.es.md) · [Français](README.fr.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [Tiếng Việt](README.vi.md)
+
 **بصيرة 0.6.5 التجريبي** يضيف أربعة ألوان للتطبيق، ورمشة عند النقر على الشعار، وإرسال الملاحظات مباشرة من بصيرة. تجد خيارات الألوان ضمن «الإعدادات ← المظهر واللغة». [تنزيل Baseera.exe](https://github.com/yabs117/baseera/releases/download/v0.6.5-preview/Baseera.exe) · [صفحة الإصدار والملفات](https://github.com/yabs117/baseera/releases/tag/v0.6.5-preview).
 
 ![مساعد الإصلاح في بصيرة 0.6.0 بالعربية مع نموذج تجريبي](images/baseera-0.6.0-smart-repair-ar.png)
