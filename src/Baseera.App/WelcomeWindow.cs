@@ -1,4 +1,7 @@
+using System.ComponentModel;
+using System.Diagnostics;
 using System.Windows.Automation;
+using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Markup;
 using Baseera.App.Services;
@@ -8,16 +11,19 @@ namespace Baseera.App;
 internal sealed class WelcomeWindow : Window
 {
     private const double CompactWidth = 640;
+    private static readonly Uri PrivacyPolicyUri = new("https://github.com/yabs117/baseera/blob/main/PRIVACY.md");
     private readonly MainWindow owner;
+    private readonly Action<Uri> openPrivacyPolicy;
     private readonly Grid frame = new();
     private bool compact;
 
     internal bool ShowAgain { get; private set; }
     internal static bool ShouldShow(Preferences preferences) => !preferences.WelcomeSeen || preferences.ShowWelcomeOnStartup;
 
-    internal WelcomeWindow(MainWindow owner)
+    internal WelcomeWindow(MainWindow owner, Action<Uri>? openPrivacyPolicy = null)
     {
         this.owner = owner;
+        this.openPrivacyPolicy = openPrivacyPolicy ?? OpenBrowser;
         Owner = owner;
         ShowAgain = Settings.Current.ShowWelcomeOnStartup;
         WindowStyle = WindowStyle.SingleBorderWindow;
@@ -279,6 +285,49 @@ internal sealed class WelcomeWindow : Window
         return note;
     }
 
+    private static void OpenBrowser(Uri destination)
+    {
+        using var process = Process.Start(new ProcessStartInfo(destination.AbsoluteUri) { UseShellExecute = true });
+    }
+
+    private TextBlock BuildPrivacyLink()
+    {
+        const string titleKey = "welcomePrivacyPolicy";
+        var row = new TextBlock
+        {
+            FontSize = 12,
+            TextAlignment = TextAlignment.Center,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 9, 0, 0)
+        };
+        row.SetResourceReference(TextBlock.ForegroundProperty, "Muted");
+        AutomationProperties.SetAutomationId(row, "WelcomePrivacyFooter");
+
+        string action = I18n.T("welcomePrivacyLink");
+        var link = new Hyperlink(new Run(action))
+        {
+            NavigateUri = PrivacyPolicyUri,
+            ToolTip = PrivacyPolicyUri.AbsoluteUri,
+            Focusable = true
+        };
+        link.SetResourceReference(TextElement.ForegroundProperty, "Accent");
+        AutomationProperties.SetName(link, $"{action} ({I18n.T(titleKey)})");
+        AutomationProperties.SetAutomationId(link, "WelcomePrivacyPolicy");
+        link.RequestNavigate += (_, e) =>
+        {
+            e.Handled = true;
+            try { openPrivacyPolicy(e.Uri); }
+            catch (Exception ex) when (ex is Win32Exception or InvalidOperationException)
+            {
+                MessageBox.Show(this, I18n.T("welcomePrivacyOpenFailed") + "\n\n" + PrivacyPolicyUri.AbsoluteUri,
+                    I18n.T(titleKey), MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        };
+        row.Inlines.Add(new Run(I18n.T(titleKey) + "  ·  "));
+        row.Inlines.Add(link);
+        return row;
+    }
+
     private Border BuildFooter(double inset)
     {
         var actions = new Grid();
@@ -334,11 +383,14 @@ internal sealed class WelcomeWindow : Window
         Grid.SetColumn(start, 1);
         actions.Children.Add(start);
 
+        var footerContent = new StackPanel();
+        footerContent.Children.Add(actions);
+        footerContent.Children.Add(BuildPrivacyLink());
         var footer = new Border
         {
             Padding = new Thickness(inset, 12, inset, 13),
             BorderThickness = new Thickness(0, 1, 0, 0),
-            Child = actions
+            Child = footerContent
         };
         footer.SetResourceReference(Border.BackgroundProperty, "Surface");
         footer.SetResourceReference(Border.BorderBrushProperty, "Line");

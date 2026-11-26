@@ -42,7 +42,7 @@ public partial class App : Application
                     await WelcomeSmokeChecks.RenderPreviews(window, output);
                     await WelcomeSmokeChecks.Run(window);
                     File.WriteAllText(Path.Combine(output, "welcome-result.txt"),
-                        "PASS: welcome layout in seven languages and both themes, compact scrolling with pinned controls, theme switching, first-run and returning actions, and startup preference persistence.");
+                        "PASS: welcome layout in seven languages and both themes, compact scrolling with a pinned privacy link, accessible policy activation, theme switching, first-run and returning actions, and startup preference persistence.");
                     Shutdown(0); return;
                 }
                 if (e.Args.Contains("--shell-only"))

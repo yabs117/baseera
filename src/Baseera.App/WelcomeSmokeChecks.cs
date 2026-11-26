@@ -1,6 +1,9 @@
 using Baseera.App.Services;
 using System.Text.Json;
 using System.Windows.Automation;
+using System.Windows.Automation.Peers;
+using System.Windows.Automation.Provider;
+using System.Windows.Documents;
 using System.Windows.Threading;
 
 namespace Baseera.App;
@@ -28,7 +31,8 @@ internal static class WelcomeSmokeChecks
             Settings.Current.Onboarded = compact;
             owner.ApplyTheme();
             owner.Navigate("home");
-            var dialog = new WelcomeWindow(owner);
+            Uri? openedPolicy = null;
+            var dialog = new WelcomeWindow(owner, uri => openedPolicy = uri);
             if (compact)
             {
                 dialog.Width = Math.Min(dialog.Width, 530);
@@ -52,6 +56,31 @@ internal static class WelcomeSmokeChecks
                     throw new InvalidOperationException($"Welcome content did not fit or retain its accessible layout for {language}.");
                 if (compact && (scroll.ScrollableHeight <= 0 || Descendants(scroll).Contains(next)))
                     throw new InvalidOperationException("Compact welcome did not keep Continue outside the scrolling content.");
+
+                const string privacyUrl = "https://github.com/yabs117/baseera/blob/main/PRIVACY.md";
+                var policy = Control<TextBlock>(dialog, "WelcomePrivacyFooter");
+                var link = policy.Inlines.OfType<Hyperlink>().Single();
+                string footerLabel = string.Concat(policy.Inlines.OfType<Run>().Select(run => run.Text));
+                string linkLabel = string.Concat(link.Inlines.OfType<Run>().Select(run => run.Text));
+                var root = (UIElement)dialog.Content;
+                double actionBottom = next.TranslatePoint(new System.Windows.Point(0, next.ActualHeight), root).Y;
+                double privacyTop = policy.TranslatePoint(new System.Windows.Point(), root).Y;
+                if (!policy.IsVisible || policy.ActualHeight == 0 || privacyTop < actionBottom || Descendants(scroll).Contains(policy) ||
+                    !footerLabel.Contains(I18n.T("welcomePrivacyPolicy"), StringComparison.Ordinal) ||
+                    linkLabel != I18n.T("welcomePrivacyLink") ||
+                    !link.Focusable || link.NavigateUri.AbsoluteUri != privacyUrl || openedPolicy is not null)
+                    throw new InvalidOperationException($"Welcome privacy footer failed for {language}: visible={policy.IsVisible}, " +
+                        $"top={privacyTop}, action bottom={actionBottom}, focusable={link.Focusable}, label='{footerLabel}', link='{linkLabel}', URL={link.NavigateUri}.");
+                if (language == "en" && dark)
+                {
+                    var peer = new HyperlinkAutomationPeer(link);
+                    if (peer.GetPattern(PatternInterface.Invoke) is not IInvokeProvider invoke)
+                        throw new InvalidOperationException("The welcome privacy link does not support accessible activation.");
+                    invoke.Invoke();
+                    await dialog.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ApplicationIdle);
+                    if (openedPolicy?.AbsoluteUri != privacyUrl || !dialog.IsVisible)
+                        throw new InvalidOperationException("Activating the privacy link did not open the policy or dismissed Welcome.");
+                }
 
                 string suffix = language + (dark ? "-dark" : "") + (compact ? "-compact" : "");
                 App.Snapshot(dialog, Path.Combine(output, $"welcome-{suffix}.png"));
