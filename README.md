@@ -24,6 +24,8 @@ Windows 10 and 11 x64 · Preview releases · .NET included
 
 ![Baseera Overview in English with the dark theme and sample device readings](docs/images/baseera-6.5.0-overview-en-dark.png)
 
-File inspection and image conversion stay on your device. AI features use the service you configure and send the content you choose to share. Repair actions require your approval.
+## Privacy and data
+
+File inspection and image conversion stay on your device. AI features send requests to the service you configure. Baseera's automatic update checks can be turned off in Settings. [Privacy Policy](PRIVACY.md)
 
 [Build from source](docs/BUILD.md) · [Contribute](CONTRIBUTING.md) · [MIT license](LICENSE)
