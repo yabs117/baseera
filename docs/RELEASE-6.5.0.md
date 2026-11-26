@@ -5,6 +5,7 @@
 - Settings opens a list of six categories. Each category has its own page and a route back to the list. Links from translation and disabled tools open the relevant category directly.
 - A fresh installation uses English for the interface and for the translation target. Change the interface language under **Settings → Appearance and language**. Saved preferences carry over from earlier versions.
 - Simplified Chinese, Traditional Chinese using Taiwan terminology, and Vietnamese are available alongside Arabic, English, French and Spanish. The same languages are available as translation targets. Arabic retains its right-to-left layout.
+- The redesigned welcome guide introduces Baseera's tools, highlights the error assistant, and adapts to smaller screens while keeping Continue and the startup preference in view.
 - The optional browser extension also starts in English on first use. Its interface language is changed under **Settings** in the extension popup, separately from the language used to translate a web page.
 
 ## Smart Repair and tool search

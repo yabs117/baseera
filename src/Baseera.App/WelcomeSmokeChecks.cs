@@ -1,5 +1,6 @@
 using Baseera.App.Services;
 using System.Text.Json;
+using System.Windows.Automation;
 using System.Windows.Threading;
 
 namespace Baseera.App;
@@ -11,6 +12,82 @@ internal static class WelcomeSmokeChecks
         for (int i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
         { var child = VisualTreeHelper.GetChild(root, i); yield return child; foreach (var nested in Descendants(child)) yield return nested; }
     }
+
+    private static T Control<T>(WelcomeWindow dialog, string id) where T : FrameworkElement =>
+        Descendants(dialog).OfType<T>().Single(control => AutomationProperties.GetAutomationId(control) == id);
+
+    internal static async Task<int> RenderPreviews(MainWindow owner, string output)
+    {
+        var previous = (Settings.Current.Language, Settings.Current.Dark, Settings.Current.Onboarded);
+        int renders = 0;
+
+        async Task Preview(string language, bool dark, bool compact)
+        {
+            Settings.Current.Language = language;
+            Settings.Current.Dark = dark;
+            Settings.Current.Onboarded = compact;
+            owner.ApplyTheme();
+            owner.Navigate("home");
+            var dialog = new WelcomeWindow(owner);
+            if (compact)
+            {
+                dialog.Width = Math.Min(dialog.Width, 530);
+                dialog.MaxHeight = Math.Min(dialog.MaxHeight, 490);
+            }
+            try
+            {
+                dialog.Show();
+                await dialog.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ApplicationIdle);
+                dialog.UpdateLayout();
+                var title = Control<TextBlock>(dialog, "WelcomeTitle");
+                var next = Control<Button>(dialog, "WelcomeContinue");
+                var scroll = Descendants(dialog).OfType<ScrollViewer>().Single();
+                string action = I18n.T(compact ? "welcomeBack" : "welcomeStart");
+                if (title.Text != I18n.T("welcomeTitle") ||
+                    AutomationProperties.GetHeadingLevel(title) != AutomationHeadingLevel.Level1 ||
+                    title.FlowDirection != (language == "ar" ? FlowDirection.RightToLeft : FlowDirection.LeftToRight) ||
+                    !next.IsVisible || !next.IsDefault || AutomationProperties.GetName(next) != action ||
+                    !Control<CheckBox>(dialog, "WelcomeRepeat").IsVisible ||
+                    scroll.ScrollableWidth != 0)
+                    throw new InvalidOperationException($"Welcome content did not fit or retain its accessible layout for {language}.");
+                if (compact && (scroll.ScrollableHeight <= 0 || Descendants(scroll).Contains(next)))
+                    throw new InvalidOperationException("Compact welcome did not keep Continue outside the scrolling content.");
+
+                string suffix = language + (dark ? "-dark" : "") + (compact ? "-compact" : "");
+                App.Snapshot(dialog, Path.Combine(output, $"welcome-{suffix}.png"));
+                renders++;
+                if ((language == "en" && !dark) || (language == "ar" && dark && !compact))
+                    WindowAppearance.SavePreview(dialog, Path.Combine(output, $"welcome-window-{suffix}.png"));
+                if (language == "ar" && dark && !compact)
+                {
+                    var theme = Control<Button>(dialog, "WelcomeTheme");
+                    theme.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    if (Settings.Current.Dark || AutomationProperties.GetName(theme) != I18n.T("welcomeThemeDark"))
+                        throw new InvalidOperationException("The welcome theme button did not switch to the light theme.");
+                    theme.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    if (!Settings.Current.Dark || AutomationProperties.GetName(theme) != I18n.T("welcomeThemeLight"))
+                        throw new InvalidOperationException("The welcome theme button did not switch back to the dark theme.");
+                }
+            }
+            finally { dialog.Close(); }
+        }
+
+        try
+        {
+            foreach (var locale in InterfaceLocales.All)
+            foreach (bool dark in new[] { false, true })
+                await Preview(locale.Code, dark, compact: false);
+            await Preview("ar", dark: true, compact: true);
+        }
+        finally
+        {
+            (Settings.Current.Language, Settings.Current.Dark, Settings.Current.Onboarded) = previous;
+            owner.ApplyTheme();
+            owner.Render(true);
+        }
+        return renders;
+    }
+
     internal static async Task Run(MainWindow owner)
     {
         var upgraded = JsonSerializer.Deserialize<Preferences>("{\"Onboarded\":true}")!;

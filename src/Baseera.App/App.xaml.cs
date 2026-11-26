@@ -37,6 +37,14 @@ public partial class App : Application
                     await LocaleSmokeChecks.Run(window, output);
                     Shutdown(0); return;
                 }
+                if (e.Args.Contains("--welcome-only"))
+                {
+                    await WelcomeSmokeChecks.RenderPreviews(window, output);
+                    await WelcomeSmokeChecks.Run(window);
+                    File.WriteAllText(Path.Combine(output, "welcome-result.txt"),
+                        "PASS: welcome layout in seven languages and both themes, compact scrolling with pinned controls, theme switching, first-run and returning actions, and startup preference persistence.");
+                    Shutdown(0); return;
+                }
                 if (e.Args.Contains("--shell-only"))
                 {
                     await ShellSmokeChecks.Run(window, output);
@@ -99,21 +107,8 @@ public partial class App : Application
                     Settings.Current.Onboarded = true; window.ApplyTheme(); window.Render();
                     await SmartRepairSmokeChecks.Run(window, output); Shutdown(0); return;
                 }
-                int renders = 0;
+                int renders = await WelcomeSmokeChecks.RenderPreviews(window, output);
                 void SaveView(string name) { Snapshot(window, Path.Combine(output, name + ".png")); renders++; }
-                Settings.Current.Onboarded = false; Settings.Current.ShowWelcomeOnStartup = false;
-                foreach (string language in new[] { "ar", "en", "fr", "es" })
-                foreach (bool dark in new[] { false, true })
-                {
-                    Settings.Current.Language = language; Settings.Current.Dark = dark; window.ApplyTheme(); window.Navigate("home");
-                    var welcome = new WelcomeWindow(window); welcome.Show();
-                    await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
-                    await Task.Delay(220);
-                    Snapshot(welcome, Path.Combine(output, "welcome-" + language + (dark ? "-dark" : "") + ".png")); renders++;
-                    if ((language == "en" && !dark) || (language == "ar" && dark))
-                        WindowAppearance.SavePreview(welcome, Path.Combine(output, "welcome-window-" + language + (dark ? "-dark" : "") + ".png"));
-                    welcome.Close();
-                }
                 Settings.Current.Dark = false;
                 foreach (string language in new[] { "ar", "en", "fr", "es" })
                 {
