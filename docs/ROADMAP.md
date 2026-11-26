@@ -31,7 +31,7 @@
 - Open-window capture, 20 direct AI services for vision translation and dismissible overlay.
 - Error assistant with visible pasted/selected/captured image preview and service model discovery and image-capable model selection.
 - Official ChatGPT account sign-in, account picker, protected OAuth sessions, renewal, revocation, plan-use notices and account model selection.
-- Feedback and bug reporting through a prefilled GitHub issue reviewed in the browser.
+- In-app feedback and bug reporting with draft retention if delivery cannot be confirmed.
 - Chrome/Edge extension for in-place text replacement and original restoration.
 - Selected WinGet packages updated on app start and every six hours while open.
 - Baseera self-update checks, in-app download/progress, digest verification, same-path replacement, restart acknowledgement and rollback backup.

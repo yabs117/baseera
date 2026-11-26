@@ -5,12 +5,11 @@ image conversion and evidence-aware Windows troubleshooting.
 
 [العربية](docs/README.ar.md) · [Français](docs/README.fr.md) · [Español](docs/README.es.md)
 
-**0.6.0 Preview** refreshes the device dashboard and the Smart Repair assistant.
-Use `Ctrl+K` to find a tool, check recent CPU readings on Overview, or open
-diagnostic controls from the assistant while keeping the message composer in view.
-The executable includes the .NET runtime for Windows 10/11 x64.
+**0.6.5 Preview** adds four color palettes, a clickable eye logo and direct in-app
+feedback. Choose a palette under **Settings → Appearance and language**. The
+executable includes the .NET runtime for Windows 10/11 x64.
 
-[Download Baseera.exe](https://github.com/yabs117/baseera/releases/download/v0.6.0-preview/Baseera.exe) · [All release files](https://github.com/yabs117/baseera/releases/tag/v0.6.0-preview) · [Release notes](docs/RELEASE-0.6.0.md) · [Capability status](docs/ROADMAP.md)
+[Download Baseera.exe](https://github.com/yabs117/baseera/releases/download/v0.6.5-preview/Baseera.exe) · [All release files](https://github.com/yabs117/baseera/releases/tag/v0.6.5-preview) · [Release notes](docs/RELEASE-0.6.5.md) · [Capability status](docs/ROADMAP.md)
 
 ![Baseera 0.6.0 dashboard in English with sample readings](docs/images/baseera-0.6.0-overview-en.png)
 
@@ -113,7 +112,7 @@ The layout and supplied fonts are preserved. [Interaction evidence](docs/WINDOWS
 | Baseera updates | Checks the official repository at launch and every two hours. In-app download, SHA-256 verification, same-path replacement and restart, with recovery backup. |
 | Image conversion | PNG, JPEG, BMP, TIFF and ordered multi-image PDF. Preserves source files. Opt-in Explorer menu and Ctrl + right-click on selected images while running. |
 | Interface | Arabic RTL, English, French, Spanish, light/dark themes, vector icons, collapsible navigation and first-run feature selection. |
-| Feedback | An in-app form opens a prefilled GitHub issue for review and submission. Feedback sits above Settings in the sidebar. |
+| Feedback | Send a typed suggestion or bug report from the app. Feedback sits above Settings in the sidebar. |
 
 The 0.3 desktop refresh uses the native Windows caption for close, minimize,
 maximize, system menu and resizing. A compact sidebar, monochrome icons, neutral
@@ -193,11 +192,9 @@ independent; the app does not silently switch to API-key billing.
 
 </details>
 
-The Feedback page is above Settings. It opens a prefilled GitHub issue in your
-browser; you review and submit it there. Long descriptions are copied to the
-clipboard for pasting. Keys and screenshots are never attached automatically.
-
-![Feedback page — English](docs/images/feedback-en.png)
+The Feedback page is above Settings. **Send feedback** submits the selected
+category, title and details to Baseera’s feedback service. Remove private
+information before sending. The draft stays in the form if delivery cannot be confirmed.
 
 The app-update list shows locally resolved names, publishers, installed versions
 and icons from application files or Windows packaged-app resources. Matching is
@@ -320,7 +317,7 @@ node --test extension/test/protocol.test.js
 ./tests/windows/Test-ReadOnlySystem.ps1 -AllowNetworkCheck
 ```
 
-The executable is produced in `artifacts/Baseera-v0.6.0-Windows-x64/`,
+The executable is produced in `artifacts/Baseera-v0.6.5-Windows-x64/`,
 with the clean download names `artifacts/Baseera.exe` and `artifacts/Baseera.zip`.
 `-Smoke -Publish` also checks the packaged executable. `-Smoke` uses a separate local data directory and does not run updates or
 register Explorer hooks. It renders the actual WPF screens and tests conversion,
