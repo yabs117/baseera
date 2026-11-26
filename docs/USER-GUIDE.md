@@ -8,6 +8,12 @@
 
 To verify the download, compare its SHA-256 against `SHA256SUMS.txt` from the same release. See the release notes for that build’s signing status. GitHub’s **Source code** downloads contain the source. For the runnable version, choose the EXE or the desktop ZIP under **Assets**.
 
+## Welcome screen
+
+The 6.5.0 development build introduces a redesigned welcome screen.
+
+![Baseera 6.5.0 welcome screen in English with the dark theme](images/baseera-6.5.0-welcome-en-dark.png)
+
 ## Choose a tool
 
 | Task | Where to start |

@@ -6,7 +6,7 @@ An open-source toolkit for everyday Windows maintenance and troubleshooting.
 - **An app in a language you don’t read?** Translate the text in the Windows window you choose.
 - **Routine maintenance piling up?** Manage updates for selected apps and convert images or combine them into a PDF from the same toolkit.
 
-**[Download for Windows](https://github.com/yabs117/baseera/releases)** · [User guide](docs/USER-GUIDE.md) · [Changelog](docs/CHANGELOG.md)
+**[Download for Windows](https://github.com/yabs117/baseera/releases)** · [User guide](docs/USER-GUIDE.md) · [Welcome screen](docs/USER-GUIDE.md#welcome-screen) · [Changelog](docs/CHANGELOG.md)
 
 Windows 10 and 11 x64 · Preview releases · .NET included
 
