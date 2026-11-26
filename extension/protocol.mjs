@@ -10,3 +10,13 @@ export function validateTranslations(value, originals) {
   }
   return value.sort((a,b) => a.id-b.id).map(item => item.text);
 }
+export const locales = [
+  {code:"ar", label:"العربية", target:"Arabic"},
+  {code:"en", label:"English", target:"English"},
+  {code:"fr", label:"Français", target:"French"},
+  {code:"es", label:"Español", target:"Spanish"},
+  {code:"zh-CN", label:"简体中文", target:"Simplified Chinese (mainland China)"},
+  {code:"zh-TW", label:"繁體中文", target:"Traditional Chinese (Taiwan)"},
+  {code:"vi", label:"Tiếng Việt", target:"Vietnamese"}
+];
+export const defaultLocale = locales.find(locale => locale.code === "en");

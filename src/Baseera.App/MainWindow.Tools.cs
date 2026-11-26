@@ -94,8 +94,17 @@ public sealed partial class MainWindow
         var choice = new Grid(); choice.ColumnDefinitions.Add(new ColumnDefinition()); choice.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); choice.Children.Add(windows);
         var refresh = Action("refresh", RefreshWindows); refresh.Margin = new Thickness(0, 5, 0, 16); refresh.VerticalAlignment = VerticalAlignment.Center; Grid.SetColumn(refresh, 1); choice.Children.Add(refresh); capture.Children.Add(choice); capture.Children.Add(windowCount);
         capture.Children.Add(Text(I18n.T("target")));
-        var target = new ComboBox { ItemsSource = new[] { "Arabic", "English", "French", "Spanish" }, SelectedItem = Settings.Current.TargetLanguage, Width = 220, HorizontalAlignment = HorizontalAlignment.Left };
-        target.SelectionChanged += (_, _) => { Settings.Current.TargetLanguage = target.SelectedItem?.ToString() ?? "Arabic"; Settings.Save(); }; capture.Children.Add(target);
+        var target = new ComboBox
+        {
+            ItemsSource = InterfaceLocales.All, DisplayMemberPath = nameof(InterfaceLocale.Name),
+            SelectedValuePath = nameof(InterfaceLocale.Target), SelectedValue = Settings.Current.TargetLanguage,
+            Width = 220, HorizontalAlignment = HorizontalAlignment.Left
+        };
+        target.SelectionChanged += (_, _) =>
+        {
+            if (target.SelectedValue is string language) { Settings.Current.TargetLanguage = language; Settings.Save(); }
+        };
+        capture.Children.Add(target);
         if (!AiCatalog.Configured())
         {
             capture.Children.Add(Text(I18n.T("needsKey"), 12, true)); var settings = Action("settings", OpenTranslationSettings); settings.ToolTip = I18n.T("translationProvider"); System.Windows.Automation.AutomationProperties.SetAutomationId(settings, "TranslationProviderSettings"); settings.HorizontalAlignment = HorizontalAlignment.Left; capture.Children.Add(settings);

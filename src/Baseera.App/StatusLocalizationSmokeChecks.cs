@@ -10,6 +10,7 @@ public sealed partial class MainWindow
         if (!smokeMode) throw new InvalidOperationException("Isolated UI checks only.");
         string originalLanguage = Settings.Current.Language;
         string originalPage = page, originalKey = operationStatusKey, originalDetail = operationStatusDetail, originalSelfKey = selfStatusKey;
+        SettingsSection? originalSection = settingsSection;
         static IEnumerable<DependencyObject> Descendants(DependencyObject root)
         {
             for (int i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
@@ -18,8 +19,13 @@ public sealed partial class MainWindow
         void SelectLanguage(string language)
         {
             // Exercise the actual language selector, including its rerender and settings persistence.
-            var selector = Descendants(frame).OfType<ComboBox>().First(c => System.Windows.Automation.AutomationProperties.GetName(c) == I18n.T("language"));
-            selector.SelectedIndex = Array.IndexOf(new[] { "ar", "en", "fr", "es" }, language);
+            string destination = page;
+            var section = settingsSection;
+            OpenSettingsSection(SettingsSection.Appearance);
+            UpdateLayout();
+            var selector = Descendants(frame).OfType<ComboBox>().Single(c => System.Windows.Automation.AutomationProperties.GetAutomationId(c) == "InterfaceLanguage");
+            selector.SelectedValue = language;
+            Navigate(destination, section);
             UpdateLayout();
             if (Settings.Current.Language != language) throw new Exception("Status language selector did not change language.");
         }
@@ -29,7 +35,7 @@ public sealed partial class MainWindow
             var message = Descendants(frame).OfType<TextBlock>().Single(t => System.Windows.Automation.AutomationProperties.GetAutomationId(t) == id);
             if (message.Text != expected) throw new Exception($"Stale {id} translation in {Settings.Current.Language}.");
         }
-        string[] languages = ["ar", "en", "fr", "es", "ar"];
+        string[] languages = ["ar", "en", "fr", "es", "zh-CN", "zh-TW", "vi", "ar"];
         try
         {
             Navigate("home");
@@ -52,7 +58,7 @@ public sealed partial class MainWindow
                 foreach (string language in languages) { SelectLanguage(language); Verify("OperationStatus", I18n.T(key) + " diagnostic-123"); }
             }
             SetOperationStatus("done");
-            Navigate("settings");
+            OpenSettingsSection(SettingsSection.Updates);
             var checkResult = new TaskCompletionSource<SelfRelease?>();
             Task checking = CheckSelfUpdate(true, _ => checkResult.Task);
             try
@@ -74,15 +80,15 @@ public sealed partial class MainWindow
                 SelectLanguage(language); ApplyTheme(); Render(true);
                 Verify("OperationStatus", I18n.T("done")); Verify("SelfUpdateStatus", I18n.T("selfLatest"));
                 Navigate("home"); Verify("OperationStatus", I18n.T("done"));
-                Navigate("settings"); Verify("SelfUpdateStatus", I18n.T("selfLatest"));
+                OpenSettingsSection(SettingsSection.Updates); Verify("SelfUpdateStatus", I18n.T("selfLatest"));
             }
-            File.WriteAllText(Path.Combine(output, "status-localization-result.txt"), "PASS: actual language selector updates completed, running, canceled, error and recovery statuses; checking, latest, failed, available and unsaved-draft update statuses; all four languages, navigation and appearance rerenders; diagnostic text preserved.");
+            File.WriteAllText(Path.Combine(output, "status-localization-result.txt"), "PASS: the Settings language selector updates operation and self-update statuses in all seven languages, including after navigation and appearance rerenders.");
         }
         finally
         {
             Settings.Current.Language = originalLanguage; Settings.Save();
             operationStatusKey = originalKey; operationStatusDetail = originalDetail; selfStatusKey = originalSelfKey;
-            ApplyTheme(); Navigate(originalPage);
+            ApplyTheme(); Navigate(originalPage, originalSection);
         }
     }
 }

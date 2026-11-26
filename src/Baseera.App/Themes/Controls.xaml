@@ -25,6 +25,23 @@
  </Style>
  <Style x:Key="IconButton" TargetType="Button" BasedOn="{StaticResource NavigationButton}"><Setter Property="Width" Value="36"/><Setter Property="Height" Value="34"/><Setter Property="Margin" Value="0"/><Setter Property="Background" Value="Transparent"/></Style>
  <Style x:Key="ToolRowButton" TargetType="Button" BasedOn="{StaticResource NavigationButton}"><Setter Property="Height" Value="Auto"/><Setter Property="MinHeight" Value="94"/><Setter Property="Margin" Value="0"/><Setter Property="Background" Value="Transparent"/><Setter Property="Padding" Value="20,16"/></Style>
+ <Style x:Key="ComposerSendButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+  <Setter Property="Width" Value="36"/><Setter Property="Height" Value="36"/>
+  <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+   <Border x:Name="Box" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="18">
+    <Grid>
+     <Border x:Name="HoverOverlay" Background="{DynamicResource OnAccent}" Opacity="0" CornerRadius="18" IsHitTestVisible="False"/>
+     <ContentPresenter x:Name="ContentLayer" HorizontalAlignment="Center" VerticalAlignment="Center" RenderTransformOrigin="0.5,0.5">
+      <ContentPresenter.RenderTransform><ScaleTransform/></ContentPresenter.RenderTransform>
+     </ContentPresenter>
+    </Grid>
+   </Border>
+   <ControlTemplate.Triggers>
+    <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource Ink}"/><Setter TargetName="Box" Property="BorderThickness" Value="2"/></Trigger>
+    <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.45"/></Trigger>
+   </ControlTemplate.Triggers>
+  </ControlTemplate></Setter.Value></Setter>
+ </Style>
  <Style x:Key="PaletteChoice" TargetType="RadioButton">
   <Setter Property="Margin" Value="0,0,8,8"/>
   <Setter Property="MinHeight" Value="49"/>
@@ -100,9 +117,9 @@
  <Style TargetType="TextBox">
   <Setter Property="Padding" Value="10,7"/><Setter Property="Height" Value="36"/><Setter Property="Margin" Value="0,5,0,16"/>
   <Setter Property="Background" Value="{DynamicResource Surface}"/><Setter Property="Foreground" Value="{DynamicResource Ink}"/>
-  <Setter Property="BorderBrush" Value="{DynamicResource Line}"/><Setter Property="CaretBrush" Value="{DynamicResource Ink}"/>
+  <Setter Property="BorderBrush" Value="{DynamicResource Line}"/><Setter Property="BorderThickness" Value="1"/><Setter Property="CaretBrush" Value="{DynamicResource Ink}"/>
   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="TextBox">
-   <Border x:Name="Box" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="7"><Grid><TextBlock x:Name="Placeholder" Text="{TemplateBinding Tag}" Foreground="{DynamicResource Muted}" Margin="{TemplateBinding Padding}" IsHitTestVisible="False" Visibility="Collapsed"/><ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}"/></Grid></Border>
+   <Border x:Name="Box" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="7"><Grid><TextBlock x:Name="Placeholder" Text="{TemplateBinding Tag}" Foreground="{DynamicResource Muted}" Margin="{TemplateBinding Padding}" IsHitTestVisible="False" Visibility="Collapsed"/><ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}"/></Grid></Border>
    <ControlTemplate.Triggers><Trigger Property="Text" Value=""><Setter TargetName="Placeholder" Property="Visibility" Value="Visible"/></Trigger><Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource Accent}"/></Trigger><Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.45"/></Trigger></ControlTemplate.Triggers>
   </ControlTemplate></Setter.Value></Setter>
  </Style>
@@ -143,14 +160,19 @@
  <Style x:Key="ToolFinderItem" TargetType="ListBoxItem">
   <Setter Property="Margin" Value="0,1"/>
   <Setter Property="Padding" Value="11,8"/>
+  <Setter Property="MinHeight" Value="54"/>
   <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem">
-   <Border x:Name="Row" Background="Transparent" BorderBrush="Transparent" BorderThickness="1" CornerRadius="6">
-    <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"/>
+   <Border x:Name="Row" Background="Transparent" BorderBrush="Transparent" BorderThickness="1" CornerRadius="8">
+    <Grid>
+     <Border x:Name="Marker" Background="{DynamicResource AccentInk}" Width="3" Height="19" Margin="3,0,0,0" CornerRadius="2"
+             HorizontalAlignment="Left" VerticalAlignment="Center" Visibility="Collapsed"/>
+     <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center"/>
+    </Grid>
    </Border>
    <ControlTemplate.Triggers>
     <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Row" Property="Background" Value="{DynamicResource Hover}"/></Trigger>
-    <Trigger Property="IsSelected" Value="True"><Setter TargetName="Row" Property="Background" Value="{DynamicResource Selected}"/><Setter TargetName="Row" Property="BorderBrush" Value="{DynamicResource Accent}"/></Trigger>
+    <Trigger Property="IsSelected" Value="True"><Setter TargetName="Row" Property="Background" Value="{DynamicResource Selected}"/><Setter TargetName="Marker" Property="Visibility" Value="Visible"/></Trigger>
     <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="Row" Property="BorderBrush" Value="{DynamicResource Accent}"/></Trigger>
    </ControlTemplate.Triggers>
   </ControlTemplate></Setter.Value></Setter>

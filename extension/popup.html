@@ -1,11 +1,12 @@
 <!doctype html>
-<html lang="ar" dir="rtl"><head><meta charset="utf-8"><link rel="stylesheet" href="popup.css"><title>Baseera Translate</title></head>
+<html lang="en" dir="ltr"><head><meta charset="utf-8"><link rel="stylesheet" href="popup.css"><title>Baseera Translate</title></head>
 <body>
-<header><strong>Baseera</strong><select id="language" aria-label="Interface language"><option value="ar">العربية</option><option value="en">English</option><option value="fr">Français</option><option value="es">Español</option></select></header>
+<header><strong>Baseera</strong></header>
 <h1 data-i="title"></h1><p data-i="description"></p>
 <label for="key" data-i="key"></label><input id="key" type="password" autocomplete="off">
 <label for="model" data-i="model"></label><input id="model" dir="ltr" placeholder="gemini-…">
-<label for="target" data-i="target"></label><select id="target"><option value="Arabic">العربية</option><option value="English">English</option><option value="French">Français</option><option value="Spanish">Español</option></select>
-<button id="translate" class="primary" data-i="translate"></button><button id="restore" data-i="restore"></button><button id="forget" data-i="forget"></button>
+<label for="target" data-i="target"></label><select id="target"></select>
+<button id="translate" class="primary" data-i="title"></button><button id="restore" data-i="restore"></button><button id="forget" data-i="forget"></button>
 <p id="status" role="status"></p><small data-i="privacy"></small>
+<details id="settings"><summary data-i="settings"></summary><label for="language" data-i="language"></label><select id="language"></select></details>
 <script type="module" src="popup.mjs"></script></body></html>

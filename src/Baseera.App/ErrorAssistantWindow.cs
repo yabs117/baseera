@@ -35,7 +35,8 @@ internal sealed partial class ErrorAssistantWindow : Window
         RepairRunner? repairRunner = null,
         Func<ErrorChatRequest, CancellationToken, Task<ErrorAdvice>>? analyzeConversation = null,
         Func<long, bool>? confirmRequests = null, Func<IVoiceRecorder>? recorderFactory = null,
-        Func<byte[], string, string, string, CancellationToken, Task<string>>? transcribeAudio = null, Func<bool>? approveAudioUpload = null)
+        Func<byte[], string, string, string, CancellationToken, Task<string>>? transcribeAudio = null, Func<bool>? approveAudioUpload = null,
+        Func<CancellationToken, Task<IReadOnlyList<AiModelOption>>>? listAssistantModels = null)
     {
         Owner = owner;
         services = owner is MainWindow main ? main.Services : new ApplicationServices();
@@ -44,6 +45,7 @@ internal sealed partial class ErrorAssistantWindow : Window
         realAnalyzer = analyze is null && analyzeDiagnostics is null && analyzeConversation is null;
         this.analyzeConversation = analyzeConversation; this.confirmRequests = confirmRequests;
         this.approveAudioUpload = approveAudioUpload;
+        this.listAssistantModels = listAssistantModels ?? LoadAvailableAssistantModels;
         this.recorderFactory = recorderFactory ?? (() => new VoiceRecording());
         this.transcribeAudio = transcribeAudio ?? ((audio, provider, key, model, ct) => VoiceTranscription.Transcribe(audio, provider, key, model, ct));
         this.analyze = analyze ?? ((description, picture, language, ct) => ErrorAssistant.Analyze(description, picture, language, ct));
@@ -56,6 +58,7 @@ internal sealed partial class ErrorAssistantWindow : Window
         Height = Math.Min(860, SystemParameters.WorkArea.Height - 28);
         MinWidth = Math.Min(600, Width); MinHeight = Math.Min(550, Height);
         FontFamily = Brand.InterfaceFont; FontSize = 13; Icon = Brand.WindowIcon;
+        Language = System.Windows.Markup.XmlLanguage.GetLanguage(Settings.Current.Language);
         UseLayoutRounding = true; SnapsToDevicePixels = true;
         FlowDirection = FlowDirection.LeftToRight;
         Title = I18n.T("smartWorkspaceTitle");
@@ -68,7 +71,7 @@ internal sealed partial class ErrorAssistantWindow : Window
             if (repairRunning && MessageBox.Show(this, I18n.T("smartCloseRunning"), I18n.T("smartApproveTitle"), MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) != MessageBoxResult.Yes) e.Cancel = true;
         };
         Closing += SaveCaseOnClosing;
-        Closed += (_, _) => { closed = true; ChatGptAuth.SessionSignedOut -= OnSessionSignedOut; active?.Cancel(); diagnosticRequest?.Cancel(); CloseConversation(); };
+        Closed += (_, _) => { closed = true; ChatGptAuth.SessionSignedOut -= OnSessionSignedOut; active?.Cancel(); diagnosticRequest?.Cancel(); modelRequest?.Cancel(); CloseConversation(); };
         Loaded += (_, _) => problem.Focus();
         Activated += (_, _) => { if (!NetworkBusy) RefreshSavedConnection(); };
         PreviewKeyDown += (_, e) =>
@@ -182,6 +185,7 @@ internal sealed partial class ErrorAssistantWindow : Window
     private void ShowConnectionSettings()
     {
         if (NetworkBusy || recorder?.Recording == true) { feedback.Text = I18n.T("aiFinishBeforeSettings"); return; }
+        modelRequest?.Cancel();
         InvalidateDiagnosticConsent();
         presentation?.Finish();
         if (Owner is MainWindow main) { Hide(); main.OpenAiSettings(this); }
@@ -308,9 +312,11 @@ internal sealed partial class ErrorAssistantWindow : Window
     private async Task Analyze(bool withoutDiagnostics = false)
     {
         if (NetworkBusy || recorder?.Recording == true) return;
-        if (composerRecipient != DiagnosticRecipient)
+        string recipient = DiagnosticRecipient;
+        if (composerRecipient != recipient)
         { RefreshSavedConnection(true); InvalidateDiagnosticConsent(); feedback.Text = I18n.T("chatConnectionChanged"); return; }
-        if (!Configured() && realAnalyzer) { ShowConnectionSettings(); feedback.Text = I18n.T("errorKeyMissing"); return; }
+        if (!Configured() && realAnalyzer) { RefreshSavedConnection(); modelButton.Focus(); return; }
+        if (SyncAssistantModel(recipient)) RefreshModelButton();
         if (problem.Text.Length > 12000) { feedback.Text = I18n.T("errorTextSize"); return; }
         if (recording is not null && !recordingTranscribed) { feedback.Text = I18n.T("chatReviewAudio"); return; }
         if (withoutDiagnostics) { diagnosticGateActive = false; InvalidateDiagnosticConsent(); }
@@ -321,7 +327,7 @@ internal sealed partial class ErrorAssistantWindow : Window
         string diagnostics;
         try { diagnostics = withoutDiagnostics ? "" : ApprovedDiagnostics(); }
         catch (InvalidOperationException ex) { feedback.Text = ex.Message; return; }
-        string submittedDescription = problem.Text, submittedProvider = AiCatalog.Provider, submittedModel = AiCatalog.Model;
+        string submittedDescription = problem.Text, submittedProvider = AiCatalog.Provider, submittedModel = AssistantModel;
         ErrorVideo? submittedVideo = video;
         ErrorImage? submittedImage = image ?? submittedVideo?.Frames;
         string mediaContext = submittedVideo is null ? submittedImage is null ? "" : "A user-selected image is attached to this turn only." :
@@ -348,11 +354,11 @@ internal sealed partial class ErrorAssistantWindow : Window
         current.CopyFailed += message => feedback.Text = I18n.T("errorClipboardFailed") + " " + message;
         try
         {
-            string language = Settings.Current.Language switch { "ar" => "Arabic", "fr" => "French", "es" => "Spanish", _ => "English" };
-            var chatRequest = new ErrorChatRequest(submittedDescription, submittedImage, submittedVideo, language, diagnostics, history, mediaContext, localRepairs);
+            string language = InterfaceLocales.TargetFor(Settings.Current.Language);
+            var chatRequest = new ErrorChatRequest(submittedDescription, submittedImage, submittedVideo, language, diagnostics, history, mediaContext, localRepairs, submittedModel);
             var advice = analyzeConversation is not null ? await analyzeConversation(chatRequest, request.Token) :
                 analyzeDiagnosticData is not null ? await analyzeDiagnosticData(submittedDescription, submittedImage, language, diagnostics, request.Token) :
-                realAnalyzer ? await ErrorAssistant.Analyze(submittedDescription, submittedProvider == "gemini" && submittedVideo is not null ? null : submittedImage, language, request.Token, approvedDiagnostics: diagnostics,
+                realAnalyzer ? await ErrorAssistant.Analyze(submittedDescription, submittedProvider == "gemini" && submittedVideo is not null ? null : submittedImage, language, request.Token, suppliedModel: submittedModel, approvedDiagnostics: diagnostics,
                     conversation: history, video: submittedProvider == "gemini" ? submittedVideo : null, attachmentContext: mediaContext, localRepairs: localRepairs) :
                 await analyze(submittedDescription, submittedImage, language, request.Token);
             request.Token.ThrowIfCancellationRequested();

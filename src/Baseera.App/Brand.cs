@@ -8,7 +8,16 @@ internal static class Brand
 
     internal static Brush EyeBackground => EyeTile;
     internal static FontFamily ArabicFont { get; } = new(new Uri("pack://application:,,,/"), "./Assets/Fonts/#Elgharib-");
-    internal static FontFamily InterfaceFont { get; } = new(new Uri("pack://application:,,,/"), "./Assets/Fonts/#Baseera UI");
+    private static readonly FontFamily DefaultInterfaceFont = new(new Uri("pack://application:,,,/"), "./Assets/Fonts/#Baseera UI");
+    private static readonly FontFamily SimplifiedInterfaceFont = new("Microsoft YaHei UI, Microsoft YaHei, Segoe UI");
+    private static readonly FontFamily TraditionalInterfaceFont = new("Microsoft JhengHei UI, Microsoft JhengHei, Segoe UI");
+    internal static FontFamily InterfaceFont => FontFor(Services.Settings.Current.Language);
+    internal static FontFamily FontFor(string language) => language switch
+    {
+        "zh-CN" => SimplifiedInterfaceFont,
+        "zh-TW" => TraditionalInterfaceFont,
+        _ => DefaultInterfaceFont
+    };
     internal static DrawingImage WindowIcon { get; } = CreateWindowIcon();
 
     private static DrawingImage CreateWindowIcon()

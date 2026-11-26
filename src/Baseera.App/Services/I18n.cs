@@ -3,10 +3,16 @@ namespace Baseera.App.Services;
 public static class I18n
 {
     static I18n() { foreach (var pair in DeviceStrings.Words.Concat(WorkflowStrings.Words).Concat(InvestigationStrings.Words)) Words.Add(pair.Key, pair.Value); }
-    public static string T(string key)
+    public static string T(string key) => Translate(key, Settings.Current.Language);
+
+    internal static string Translate(string key, string language)
     {
-        int i = Settings.Current.Language switch { "ar" => 0, "fr" => 2, "es" => 3, _ => 1 };
-        return Words.TryGetValue(key, out var values) ? values[i] : key;
+        if (!Words.TryGetValue(key, out var values)) return key;
+        int index = InterfaceLocales.Index(language);
+        if (index is >= 0 and < 4) return values[index];
+        if (index >= 4 && InterfaceLocales.Additional.Value.TryGetValue(key, out var translated))
+            return translated[index - 4];
+        return values[1];
     }
     public static readonly Dictionary<string, string[]> Words = new()
     {
@@ -39,7 +45,9 @@ public static class I18n
         ["smartWorkspacePlaceholder"] = ["اكتب رسالتك…", "Write a message…", "Écrivez un message…", "Escribe un mensaje…"],
         ["smartWorkspacePrivacy"] = ["تُرسل الرسالة إلى مزوّد الذكاء الاصطناعي عند الإرسال.", "Sending shares your message with the AI provider.", "L’envoi partage votre message avec le fournisseur d’IA.", "Al enviar, compartes el mensaje con el proveedor de IA."],
         ["smartWorkspacePrivacyTitle"] = ["الخصوصية والاستخدام", "Privacy & usage", "Confidentialité et usage", "Privacidad y uso"],
-        ["smartWorkspaceSetup"] = ["اربط مزوّد الذكاء الاصطناعي لإرسال الرسائل.", "Connect an AI provider to send messages.", "Connectez un fournisseur d’IA pour envoyer des messages.", "Conecta un proveedor de IA para enviar mensajes."],
+        ["smartWorkspaceSetup"] = ["اختر نموذجًا للبدء. يمكنك كتابة رسالتك الآن.", "Choose a model to get started. You can write your message now.", "Choisissez un modèle pour commencer. Vous pouvez déjà écrire votre message.", "Elige un modelo para empezar. Ya puedes escribir tu mensaje."],
+        ["assistantAddModel"] = ["إضافة نموذج", "Add a model", "Ajouter un modèle", "Añadir un modelo"],
+        ["assistantChooseModel"] = ["اختيار النموذج", "Choose a model", "Choisir un modèle", "Elegir un modelo"],
         ["smartWorkspaceSources"] = ["مصادر تُقرأ محليًا", "Sources read locally", "Sources lues localement", "Fuentes de lectura local"],
         ["smartWorkspaceFilter"] = ["اسم تطبيق أو رمز خطأ (اختياري)", "App name or error code (optional)", "Nom de l’application ou code d’erreur (facultatif)", "Nombre de app o código de error (opcional)"],
         ["smartWorkspaceCaseLocal"] = ["احفظ القضية على جهازك للرجوع إليها.", "Save the case locally to reopen it later.", "Enregistrez le dossier localement pour le rouvrir.", "Guarda el caso localmente para volver a abrirlo."],
@@ -258,7 +266,15 @@ public static class I18n
         ["convertShort"] = ["حوّل الصور أو اجمعها في PDF مع الاحتفاظ بالأصول.", "Convert images or combine them into a PDF. Keep the originals.", "Convertissez les images ou assemblez un PDF, sans modifier les originaux.", "Convierte imágenes o crea un PDF conservando los originales."],
         ["errorsShort"] = ["فسّر أخطاء ويندوز من النص أو الصورة، وراجع خطوات الحل المقترحة.", "Explain Windows errors from text or an image and review suggested fixes.", "Expliquez les erreurs Windows à partir d’un texte ou d’une image et examinez les solutions proposées.", "Explica errores de Windows a partir de texto o imágenes y revisa las soluciones sugeridas."],
         ["errorsOpen"] = ["فتح مساعد الأخطاء", "Open error assistant", "Ouvrir l’assistant d’erreurs", "Abrir asistente de errores"],
-        ["settingsDesc"] = ["إعدادات المظهر والأدوات والتكامل مع ويندوز.", "Manage appearance, tools and Windows integration.", "Gérez l’apparence, les outils et l’intégration Windows.", "Gestiona apariencia, herramientas e integración con Windows."],
+        ["settingsDesc"] = ["اختر قسمًا لتغيير إعداداته.", "Choose a category to change its settings.", "Choisissez une catégorie pour modifier ses paramètres.", "Elige una categoría para cambiar sus ajustes."],
+        ["allSettings"] = ["كل الإعدادات", "All settings", "Tous les paramètres", "Todos los ajustes"],
+        ["settingsAppearanceHint"] = ["اللغة، والمظهر الداكن، والألوان، ودليل الترحيب.", "Language, dark mode, color palettes and welcome guide.", "Langue, mode sombre, palettes de couleurs et guide de bienvenue.", "Idioma, modo oscuro, paletas de colores y guía de bienvenida."],
+        ["settingsAiHint"] = ["مزود الخدمة، وطريقة الاتصال، والنموذج، واختبار الاتصال.", "Provider, connection method, model and connection test.", "Fournisseur, mode de connexion, modèle et test de connexion.", "Proveedor, método de conexión, modelo y prueba de conexión."],
+        ["settingsToolsHint"] = ["تفعيل أدوات مثل فحص الملفات والترجمة والبحث.", "Enable tools such as file inspection, translation and search.", "Activez des outils comme l’inspection de fichiers, la traduction et la recherche.", "Activa herramientas como la inspección de archivos, la traducción y la búsqueda."],
+        ["settingsDiagnosticsHint"] = ["تفعيل مراكز التشخيص وضبط تحديث قراءات الجهاز.", "Enable diagnostic centers and adjust how device readings refresh.", "Activez les centres de diagnostic et réglez l’actualisation des mesures de l’appareil.", "Activa los centros de diagnóstico y ajusta la actualización de las lecturas del equipo."],
+        ["settingsWindowsHint"] = ["التشغيل مع ويندوز، والفحص عند بدء التشغيل، وقائمة مستكشف الملفات.", "Start with Windows, inspect at startup and add a File Explorer menu.", "Démarrage avec Windows, inspection au démarrage et menu de l’Explorateur de fichiers.", "Inicio con Windows, inspección al arrancar y menú del Explorador de archivos."],
+        ["settingsUpdatesHint"] = ["قناة الإصدار والتحقق من التحديثات تلقائيًا أو يدويًا.", "Release channel and automatic or manual update checks.", "Canal de diffusion et recherche automatique ou manuelle des mises à jour.", "Canal de versiones y búsqueda automática o manual de actualizaciones."],
+        ["settingsWelcomeStartup"] = ["عرض دليل الترحيب عند بدء التطبيق", "Show the welcome guide at startup", "Afficher le guide de bienvenue au démarrage", "Mostrar la guía de bienvenida al iniciar"],
         ["appearance"] = ["المظهر واللغة", "Appearance and language", "Apparence et langue", "Apariencia e idioma"],
         ["windowsIntegration"] = ["التكامل مع ويندوز", "Windows integration", "Intégration Windows", "Integración con Windows"],
         ["translationProvider"] = ["الذكاء الاصطناعي للترجمة ومساعد الأخطاء", "AI for translation and error help", "IA pour la traduction et l’aide aux erreurs", "IA para traducción y ayuda con errores"],

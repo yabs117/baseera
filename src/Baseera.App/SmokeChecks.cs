@@ -34,6 +34,7 @@ internal static class SmokeChecks
         }
         File.WriteAllLines(Path.Combine(output, "noto-font.txt"), latinSources);
         foreach (var values in I18n.Words.Values) if (values.Length != 4 || values.Any(string.IsNullOrWhiteSpace)) throw new Exception("Missing translation.");
+        LocaleSmokeChecks.VerifyCatalog();
         var source = Path.Combine(output, "sample.png");
         var bitmap = BitmapSource.Create(2, 2, 96, 96, PixelFormats.Bgra32, null,
             new byte[] { 0, 0, 255, 255, 0, 255, 0, 255, 255, 0, 0, 255, 0, 0, 0, 0 }, 8);

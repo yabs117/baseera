@@ -149,7 +149,7 @@ public sealed partial class MainWindow
 {
     internal void CheckAiServices()
     {
-        Navigate("settings"); UpdateLayout();
+        OpenSettingsSection(SettingsSection.Ai); UpdateLayout();
         static IEnumerable<DependencyObject> Nodes(DependencyObject root)
         {
             for (int i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)

@@ -5,11 +5,17 @@ image conversion and evidence-aware Windows troubleshooting.
 
 [العربية](docs/README.ar.md) · [Français](docs/README.fr.md) · [Español](docs/README.es.md)
 
-**0.6.5 Preview** adds four color palettes, a clickable eye logo and direct in-app
+**6.5.0 source candidate** groups Settings into six pages, updates Smart Repair
+and tool search, and makes English the default for a fresh installation. Change
+the interface language under **Settings → Appearance and language**. Existing
+language preferences are kept. The Windows Stable download awaits publisher signing.
+The previous preview includes four color palettes, a clickable eye logo and direct in-app
 feedback. Choose a palette under **Settings → Appearance and language**. The
 executable includes the .NET runtime for Windows 10/11 x64.
 
 [Download Baseera.exe](https://github.com/yabs117/baseera/releases/download/v0.6.5-preview/Baseera.exe) · [All release files](https://github.com/yabs117/baseera/releases/tag/v0.6.5-preview) · [Release notes](docs/RELEASE-0.6.5.md) · [Capability status](docs/ROADMAP.md)
+
+[What changes in 6.5.0](docs/RELEASE-6.5.0.md)
 
 ![Baseera 0.6.0 dashboard in English with sample readings](docs/images/baseera-0.6.0-overview-en.png)
 
@@ -47,7 +53,7 @@ privacy and validation](docs/INVESTIGATION-CENTERS.md).
 | Persistent case files | Locally protected case title, onset time, analysis, action/exit-code history and comparisons. Raw evidence storage is separately optional; archived actions cannot execute. |
 | Before/after verification | Compatible CPU/RAM/storage/service observations, preserved comparison history and explicit inconclusive results. A changed reading or exit zero does not establish a fix. |
 | Activity center | Shared bounded task history, supported cancellation and real download progress. Windows servicing is never force-stopped. |
-| Accessibility and localization | Four-language workflow, Arabic RTL, named controls, keyboard focus, live status and Windows high-contrast colors. A complete screen-reader audit remains outstanding. |
+| Accessibility and localization | Seven interface languages, Arabic RTL, named controls, keyboard focus, live status and Windows high-contrast colors. A complete screen-reader audit remains outstanding. |
 | Maintainable workflow services | Gradual case MVVM and constructor-injected storage/diagnostic services, preserving existing tools. This is not a completed whole-app rewrite. |
 | Update channels | Stable/Preview selection without automatic downgrade; existing reviewed in-app update and recovery flow remain in use. |
 | Code-signing support | Explicit-certificate SHA-256/timestamp signing and a Stable packaging trust gate. No publisher certificate is available yet; current binaries remain unsigned. |
@@ -63,7 +69,7 @@ Details: [Device center and privacy](docs/DEVICE-CENTER.md),
 
 The download already includes local file/folder/ZIP inspection, screenshot-based
 window translation, the optional browser translation extension, selected app
-updates, image/PDF conversion, configurable first-run tools and four interface
+updates, image/PDF conversion, configurable first-run tools and seven desktop interface
 languages. The existing Smart Repair assistant supports ongoing bounded chats,
 images/video, optional local voice recording with approved transcription, twenty
 direct AI services, model discovery, and supported ChatGPT account sign-in.
@@ -111,7 +117,7 @@ The layout and supplied fonts are preserved. [Interaction evidence](docs/WINDOWS
 | App updates | Opt-in WinGet updates per package, at launch and every six hours while running. Manual per-app GitHub release URLs override automatic installation and show releases for review. |
 | Baseera updates | Checks the official repository at launch and every two hours. In-app download, SHA-256 verification, same-path replacement and restart, with recovery backup. |
 | Image conversion | PNG, JPEG, BMP, TIFF and ordered multi-image PDF. Preserves source files. Opt-in Explorer menu and Ctrl + right-click on selected images while running. |
-| Interface | Arabic RTL, English, French, Spanish, light/dark themes, vector icons, collapsible navigation and first-run feature selection. |
+| Desktop interface | Arabic (RTL), English, French, Spanish, Simplified Chinese, Traditional Chinese (Taiwan) and Vietnamese. Includes light and dark themes, collapsible navigation and first-run feature selection. |
 | Feedback | Send a typed suggestion or bug report from the app. Feedback sits above Settings in the sidebar. |
 
 The 0.3 desktop refresh uses the native Windows caption for close, minimize,
@@ -148,7 +154,7 @@ respected. Reanalysis or closing the window stops the previous animation.
 
 Built-in Baseera instructions accompany every error-assistance request, with text
 alone or a screenshot. The welcome sentence and all answer sections follow the
-language of the user’s explanation, independently of the app’s four interface
+language of the user’s explanation, independently of the app’s interface
 languages. Other reply languages depend on the selected model’s language abilities.
 [Prompt, language selection and limits](docs/ERROR-ASSISTANT-PROMPT.md).
 

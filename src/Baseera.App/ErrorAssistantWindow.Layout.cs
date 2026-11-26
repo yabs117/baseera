@@ -1,6 +1,9 @@
 using System.Windows.Automation;
 using Binding = System.Windows.Data.Binding;
 using ContextMenu = System.Windows.Controls.ContextMenu;
+using PlacementMode = System.Windows.Controls.Primitives.PlacementMode;
+using CustomPopupPlacement = System.Windows.Controls.Primitives.CustomPopupPlacement;
+using PopupPrimaryAxis = System.Windows.Controls.Primitives.PopupPrimaryAxis;
 using MessageBoxOptions = System.Windows.MessageBoxOptions;
 using MenuItem = System.Windows.Controls.MenuItem;
 using Baseera.App.Services;
@@ -57,9 +60,10 @@ internal sealed partial class ErrorAssistantWindow
         actions.Children.Add(tools);
         newChat = CompactAction("chatNew", () => ClearConversation(true), "plus");
         actions.Children.Add(newChat);
-        actions.Children.Add(AssistantMenu("chatMore", "more", ("chatDictation", StartDictation), ("chatExport", ExportConversation),
-            ("smartWorkspacePrivacyTitle", ShowAssistantPrivacy),
-            ("settings", () => ShowConnectionSettings()), ("errorClose", Close)));
+        actions.Children.Add(AssistantMenu("chatMore", "more", PlacementMode.Bottom, "settings",
+            ("chatDictation", "microphone", StartDictation), ("chatExport", "cases", ExportConversation),
+            ("smartWorkspacePrivacyTitle", "security", ShowAssistantPrivacy),
+            ("settings", "settings", ShowConnectionSettings), ("errorClose", "close", Close)));
 
         var identity = new DockPanel { Margin = new Thickness(0, 0, 10, 0) };
         var badge = new Border { Width = 34, Height = 34, CornerRadius = new CornerRadius(7), Background = Brush("Tint"),
@@ -70,11 +74,6 @@ internal sealed partial class ErrorAssistantWindow
         var title = Text(I18n.T("smartWorkspaceTitle"), 15);
         title.FontWeight = FontWeights.SemiBold;
         copy.Children.Add(title);
-        savedConnection.Foreground = Brush("Muted");
-        savedConnection.TextWrapping = TextWrapping.NoWrap;
-        savedConnection.TextTrimming = TextTrimming.CharacterEllipsis;
-        savedConnection.SetBinding(ToolTipProperty, new Binding(nameof(TextBlock.Text)) { Source = savedConnection });
-        copy.Children.Add(savedConnection);
         identity.Children.Add(copy);
         row.Children.Add(identity);
         return new Border { Child = row, Background = Brush("Surface"), BorderBrush = Brush("Line"), BorderThickness = new Thickness(0, 0, 0, 1) };
@@ -89,25 +88,69 @@ internal sealed partial class ErrorAssistantWindow
             MessageBoxResult.OK, frame.FlowDirection == FlowDirection.RightToLeft ? MessageBoxOptions.RtlReading | MessageBoxOptions.RightAlign : MessageBoxOptions.None);
     }
 
-    private Button AssistantMenu(string key, string icon, params (string Label, Action Select)[] options)
+    private ContextMenu CreateAssistantPopup(Button target, PlacementMode placement)
+    {
+        var menu = new ContextMenu
+        {
+            PlacementTarget = target, Placement = PlacementMode.Custom,
+            FlowDirection = frame.FlowDirection, FontFamily = FontFamily, FontSize = 13
+        };
+        menu.CustomPopupPlacementCallback = (popup, anchor, _) =>
+        {
+            bool above = placement == PlacementMode.Top;
+            bool rtl = frame.FlowDirection == FlowDirection.RightToLeft;
+            // WPF supplies the physical right edge as the origin for an RTL anchor.
+            double x = rtl ? (above ? -popup.Width : -anchor.Width) : (above ? 0 : anchor.Width - popup.Width);
+            double top = -popup.Height - 5, bottom = anchor.Height + 5;
+            return
+            [
+                new(new System.Windows.Point(x, above ? top : bottom), PopupPrimaryAxis.Horizontal),
+                new(new System.Windows.Point(x, above ? bottom : top), PopupPrimaryAxis.Horizontal)
+            ];
+        };
+        menu.SetResourceReference(StyleProperty, "AssistantPopup");
+        AutomationProperties.SetName(menu, AutomationProperties.GetName(target));
+        target.ContextMenu = menu;
+        return menu;
+    }
+
+    private static MenuItem CreateAssistantMenuItem(string label, string? icon = null)
+    {
+        var title = new TextBlock { Text = label, TextWrapping = TextWrapping.Wrap };
+        var item = new MenuItem { Header = title };
+        item.SetResourceReference(StyleProperty, "AssistantPopupItem");
+        if (icon is not null) item.Icon = Icons.Create(icon, 16, "Muted");
+        AutomationProperties.SetName(item, label);
+        return item;
+    }
+
+    private static void AddAssistantMenuDivider(ContextMenu menu)
+    {
+        var divider = new Separator();
+        divider.SetResourceReference(StyleProperty, "AssistantPopupDivider");
+        menu.Items.Add(divider);
+    }
+
+    private Button AssistantMenu(string key, string icon, PlacementMode placement, string splitBefore,
+        params (string Label, string Icon, Action Select)[] options)
     {
         var button = CompactAction(key, () => { }, icon);
-        var menu = new ContextMenu { Background = Brush("Surface"), Foreground = Brush("Ink"),
-            BorderBrush = Brush("Line"), FlowDirection = frame.FlowDirection };
+        var menu = CreateAssistantPopup(button, placement);
         foreach (var option in options)
         {
-            var item = new MenuItem { Header = I18n.T(option.Label), Foreground = Brush("Ink") };
+            if (option.Label == splitBefore) AddAssistantMenuDivider(menu);
+            var item = CreateAssistantMenuItem(I18n.T(option.Label), option.Icon);
+            AutomationProperties.SetAutomationId(item, option.Label);
             item.Click += (_, _) => option.Select();
             menu.Items.Add(item);
         }
-        button.ContextMenu = menu;
-        button.Click += (_, _) => { menu.PlacementTarget = button; menu.IsOpen = true; };
+        button.Click += (_, _) => menu.IsOpen = true;
         return button;
     }
 
     private Border BuildComposer()
     {
-        var panel = new StackPanel { Margin = new Thickness(24, 8, 24, 10), MaxWidth = AssistantContentWidth };
+        var panel = new StackPanel { Margin = new Thickness(24, 6, 24, 9), MaxWidth = AssistantContentWidth };
         var context = new StackPanel();
         var contextScroll = new ScrollViewer { Content = context, MaxHeight = 155, VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Focusable = false };
@@ -128,18 +171,9 @@ internal sealed partial class ErrorAssistantWindow
         AutomationProperties.SetAutomationId(checkpoint, "ChatCheckpoint");
         Add(context, checkpoint, 6);
 
-        var setup = new DockPanel();
-        var settings = CompactAction("aiOpenSettings", () => ShowConnectionSettings());
-        DockPanel.SetDock(settings, Dock.Right);
-        setup.Children.Add(settings);
         var setupHint = Text(I18n.T("smartWorkspaceSetup"), 12, true);
-        setupHint.VerticalAlignment = VerticalAlignment.Center;
-        setup.Children.Add(setupHint);
-        setupBanner.Child = setup;
-        setupBanner.Padding = new Thickness(8);
-        setupBanner.BorderBrush = Brush("Line");
-        setupBanner.BorderThickness = new Thickness(1);
-        setupBanner.CornerRadius = new CornerRadius(6);
+        setupBanner.Child = setupHint;
+        setupBanner.Padding = new Thickness(8, 3, 8, 0);
         AutomationProperties.SetAutomationId(setupBanner, "AssistantSetupNotice");
         Add(context, setupBanner, 6);
         Add(context, BuildDiagnosticDelivery(), 6);
@@ -176,15 +210,18 @@ internal sealed partial class ErrorAssistantWindow
         voicePanel.Visibility = Visibility.Collapsed;
         Add(context, voicePanel, 6);
 
-        problem.Height = 68;
+        var inputArea = new StackPanel();
+        problem.Height = 69;
         problem.Tag = I18n.T("smartWorkspacePlaceholder");
-        problem.Padding = new Thickness(11, 9, 11, 9);
+        problem.Padding = new Thickness(7, 3, 7, 4);
+        problem.Background = Brushes.Transparent;
+        problem.BorderThickness = new Thickness(0);
         problem.ToolTip = I18n.T("chatPlaceholder");
         problem.FlowDirection = frame.FlowDirection;
         AutomationProperties.SetAutomationId(problem, "ErrorDescription");
         AutomationProperties.SetName(problem, I18n.T("smartWorkspacePlaceholder"));
         AutomationProperties.SetHelpText(problem, I18n.T("chatPlaceholder"));
-        Add(panel, problem, 5);
+        Add(inputArea, problem, 4);
         problem.PreviewKeyDown += async (_, e) =>
         {
             if (e.Key == System.Windows.Input.Key.Enter && System.Windows.Input.Keyboard.Modifiers == System.Windows.Input.ModifierKeys.None)
@@ -197,28 +234,34 @@ internal sealed partial class ErrorAssistantWindow
         toolbar.Children.Add(deliveryActions);
         cancelButton = CompactAction("cancel", () => { active?.Cancel(); diagnosticRequest?.Cancel(); mediaRequest?.Cancel(); voiceRequest?.Cancel(); });
         deliveryActions.Children.Add(cancelButton);
-        analyzeButton = CompactAction("chatSend", async () => await Analyze());
-        analyzeButton.Background = Brush("Accent");
-        analyzeButton.BorderBrush = analyzeButton.Background;
-        var sendLabel = new StackPanel { Orientation = Orientation.Horizontal };
-        var sendIcon = Icons.Create("send", 15, "OnAccent");
-        sendIcon.Margin = new Thickness(0, 0, 5, 0);
-        sendLabel.Children.Add(sendIcon);
-        var sendText = Text(I18n.T("chatSend"), 12);
-        sendText.Foreground = Brush("OnAccent");
-        sendLabel.Children.Add(sendText);
-        analyzeButton.Content = sendLabel;
+        deliveryActions.Children.Add(BuildModelButton());
+        recordButton = CompactAction("chatRecord", ToggleRecording, "microphone");
+        deliveryActions.Children.Add(recordButton);
+        analyzeButton = CompactAction("chatSend", async () => await Analyze(), "send");
+        analyzeButton.SetResourceReference(StyleProperty, "ComposerSendButton");
+        analyzeButton.Content = Icons.Create("send", 16, "OnAccent");
+        analyzeButton.SetResourceReference(BackgroundProperty, "Accent");
+        analyzeButton.SetResourceReference(BorderBrushProperty, "Accent");
         analyzeButton.Margin = new Thickness(0);
         AutomationProperties.SetAutomationId(analyzeButton, "errorAnalyze");
         deliveryActions.Children.Add(analyzeButton);
-        var utilities = new StackPanel { Orientation = Orientation.Horizontal };
-        utilities.Children.Add(AssistantMenu("chatAttach", "attachment", ("errorChooseImage", ChooseImage),
-            ("chatChooseVideo", async () => await ChooseVideo()), ("errorPaste", PasteClipboard),
-            ("smartWorkspaceCapture", OpenTools), ("smartWorkspaceDiagnostics", () => ShowDiagnosticPreview(false))));
-        recordButton = CompactAction("chatRecord", ToggleRecording, "microphone");
-        utilities.Children.Add(recordButton);
-        toolbar.Children.Add(utilities);
-        Add(panel, toolbar, 5);
+        var attach = AssistantMenu("chatAttach", "plus", PlacementMode.Top, "smartWorkspaceCapture",
+            ("errorChooseImage", "convert", ChooseImage), ("chatChooseVideo", "attachment", async () => await ChooseVideo()),
+            ("errorPaste", "activity", PasteClipboard), ("smartWorkspaceCapture", "application", OpenTools),
+            ("smartWorkspaceDiagnostics", "health", () => ShowDiagnosticPreview(false)));
+        attach.HorizontalAlignment = HorizontalAlignment.Left;
+        toolbar.Children.Add(attach);
+        inputArea.Children.Add(toolbar);
+        var composerStyle = new Style(typeof(Border));
+        composerStyle.Setters.Add(new Setter(Border.BorderBrushProperty, Brush("Line")));
+        var focused = new Trigger { Property = IsKeyboardFocusWithinProperty, Value = true };
+        focused.Setters.Add(new Setter(Border.BorderBrushProperty, Brush("Accent")));
+        composerStyle.Triggers.Add(focused);
+        Add(panel, new Border
+        {
+            Child = inputArea, Style = composerStyle, Background = Brush("Surface"),
+            BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(17), Padding = new Thickness(9)
+        }, 6);
 
         feedback.FontSize = 11; feedback.Foreground = Brush("Muted"); feedback.MaxHeight = 35; feedback.TextTrimming = TextTrimming.CharacterEllipsis;
         feedback.SetBinding(ToolTipProperty, new Binding(nameof(TextBlock.Text)) { Source = feedback });
@@ -241,7 +284,7 @@ internal sealed partial class ErrorAssistantWindow
             voiceStatus.Text = string.Format(I18n.T("chatRecording"), (int)recordingClock.Elapsed.TotalSeconds);
             if (recordingClock.Elapsed.TotalSeconds >= VoiceRecording.MaxSeconds) ToggleRecording();
         };
-        var composer = new Border { Child = panel, Background = Brush("Surface"), BorderBrush = Brush("Line"), BorderThickness = new Thickness(0, 1, 0, 0) };
+        var composer = new Border { Child = panel };
         AutomationProperties.SetAutomationId(composer, "AssistantComposer");
         return composer;
     }

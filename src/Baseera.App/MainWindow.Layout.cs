@@ -17,8 +17,6 @@ public sealed partial class MainWindow
         status.Text = OperationStatusText;
         if (operationBar is not null) operationBar.Visibility = key.Length == 0 && operation is null ? Visibility.Collapsed : Visibility.Visible;
     }
-    private bool? startupDraft, startupScanDraft, explorerDraft;
-    private readonly AiConnectionDraft aiConnectionDraft = new();
     private bool Arabic => Settings.Current.Language == "ar";
     private static readonly string[] Tools = ["scan", "translate", "updates", "convert", "errors", "search"];
     private static readonly string[] PrimaryPages = ["home", "health", "performance", "doctor", "detective", "security", "cases", "activity"];
@@ -31,6 +29,8 @@ public sealed partial class MainWindow
 
     public void ApplyTheme()
     {
+        FontFamily = Brand.InterfaceFont;
+        Language = System.Windows.Markup.XmlLanguage.GetLanguage(Settings.Current.Language);
         var palette = WorkspacePalette.Resolve(Settings.Current.ColorPalette);
         var resources = Application.Current.Resources;
         bool highContrast = UsesHighContrast;
@@ -107,11 +107,12 @@ public sealed partial class MainWindow
         Background = Resource("Surface"), BorderBrush = Resource("Line"), BorderThickness = new Thickness(1),
         CornerRadius = new CornerRadius(9), Padding = new Thickness(padding), Margin = new Thickness(0, 0, 0, 16), Child = child
     };
-    private void Heading(StackPanel body, string title, string? subtitle = null)
+    private TextBlock Heading(StackPanel body, string title, string? subtitle = null)
     {
         var name = Text(I18n.T(title), 31); name.FontWeight = HeadingWeight; name.Margin = new Thickness(0, 0, 0, 7); body.Children.Add(name);
         if (subtitle is not null) { var description = Text(I18n.T(subtitle), 14, true); description.Margin = new Thickness(0, 0, 0, 20); body.Children.Add(description); }
         else body.Children.Add(new Border { Height = 14 });
+        return name;
     }
     private void SectionHeading(StackPanel body, string key)
     {
@@ -154,14 +155,19 @@ public sealed partial class MainWindow
     private ScrollViewer? sidebarScroll;
     private string? lastNavigationPage;
     private StackPanel? pageBody;
-    public void Navigate(string destination)
+    public void Navigate(string destination) => Navigate(destination, null);
+
+    private void Navigate(string destination, SettingsSection? section, bool focusTranslation = false)
     {
         if (page == "detective" && destination != page && detectiveRunning) operation?.Cancel();
         if (page == "network" && destination != page && networkRunning) operation?.Cancel();
-        bool changed = page != destination;
+        bool changed = page != destination || settingsSection != section;
         double? previous = selectedNavigationIndicator is { IsLoaded: true, IsVisible: true } visibleIndicator
             ? visibleIndicator.TranslatePoint(new System.Windows.Point(), sidebar).Y : null;
-        page = destination; emphasizeTranslationSettings = pendingTranslationSettings = false; Render();
+        page = destination;
+        settingsSection = section;
+        emphasizeTranslationSettings = pendingTranslationSettings = focusTranslation;
+        Render();
         if (!changed || !FluentMotion.Allowed) return;
         UpdateLayout();
         if (previous is { } y && selectedNavigationIndicator is { } indicator)
@@ -180,10 +186,7 @@ public sealed partial class MainWindow
     private Border? translationProviderSection;
     private System.Windows.Controls.Control? translationKeyInput;
     private ComboBox? translationModelInput;
-    private void OpenTranslationSettings()
-    {
-        page = "settings"; emphasizeTranslationSettings = pendingTranslationSettings = true; Render();
-    }
+    private void OpenTranslationSettings() => OpenSettingsSection(SettingsSection.Ai, focusTranslation: true);
 
     public void Render(bool preserveScroll = false)
     {
@@ -192,6 +195,8 @@ public sealed partial class MainWindow
         selectedNavigationIndicator = null;
         selectedNavigationButton = null;
         translationProviderSection = null; translationKeyInput = null; translationModelInput = null;
+        settingsHeading = null;
+        settingsCategoryButtons.Clear();
         double offset = preserveScroll ? scroller.VerticalOffset : 0;
         double sidebarOffset = sidebarScroll?.VerticalOffset ?? 0;
         bool navigationChanged = page != lastNavigationPage;
@@ -245,7 +250,8 @@ public sealed partial class MainWindow
         bottom.Children.Add(NavigationButton("settings"));
         if (expanded)
         {
-            var version = Text("Baseera " + SelfUpdater.CurrentVersion + " · " + I18n.T("preview"), 10, true);
+            string releaseLabel = SelfUpdater.CurrentVersion.Contains("-preview", StringComparison.Ordinal) ? "channelPreview" : "channelStable";
+            var version = Text("Baseera " + SelfUpdater.CurrentVersion + " · " + I18n.T(releaseLabel), 10, true);
             version.Margin = new Thickness(16, 10, 0, 0);
             version.SetResourceReference(TextBlock.ForegroundProperty, "Muted");
             DeviceId(version, "SidebarVersion"); bottom.Children.Add(version);
@@ -266,7 +272,6 @@ public sealed partial class MainWindow
         main.RowDefinitions.Add(new RowDefinition { Height = new GridLength(58) }); main.RowDefinitions.Add(new RowDefinition()); main.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         var toolbar = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
         if (Settings.Current.Onboarded) toolbar.Children.Add(ToolFinderButton());
-        var languages = LanguageCombo(); languages.MinWidth = 134; languages.Margin = new Thickness(0, 0, 8, 0); languages.VerticalAlignment = VerticalAlignment.Center; toolbar.Children.Add(languages);
         var theme = new Button { Style = (Style)FindResource("IconButton"), Content = Icons.Create(Settings.Current.Dark ? "sun" : "moon", 18), ToolTip = I18n.T("dark") };
         System.Windows.Automation.AutomationProperties.SetName(theme, I18n.T("dark"));
         theme.Click += (_, _) => { Settings.Current.Dark = !Settings.Current.Dark; Settings.Save(); ApplyTheme(); Render(true); }; toolbar.Children.Add(theme);
@@ -319,11 +324,8 @@ public sealed partial class MainWindow
                 UpdateLayout();
                 double top = section.TransformToAncestor(scroll).Transform(new System.Windows.Point()).Y + scroll.VerticalOffset;
                 scroll.ScrollToVerticalOffset(Math.Max(0, top - 12)); scroll.UpdateLayout();
-                if (input is not { IsVisible: true, IsEnabled: true }) return;
-                input.BringIntoView();
-                var scope = System.Windows.Input.FocusManager.GetFocusScope(input);
-                System.Windows.Input.FocusManager.SetFocusedElement(scope, input);
-                if (IsActive) System.Windows.Input.Keyboard.Focus(input);
+                if (input is { IsVisible: true, IsEnabled: true }) FocusSettingsTarget(input);
+                else if (settingsHeading is { } heading) FocusSettingsTarget(heading);
             }, System.Windows.Threading.DispatcherPriority.Loaded);
         }
     }
@@ -356,13 +358,6 @@ public sealed partial class MainWindow
         };
         if (selected) selectedNavigationButton = button;
         return button;
-    }
-    private ComboBox LanguageCombo()
-    {
-        var combo = new ComboBox { ItemsSource = new[] { "العربية", "English", "Français", "Español" }, FlowDirection = FlowDirection.LeftToRight,
-            SelectedIndex = Array.IndexOf(new[] { "ar", "en", "fr", "es" }, Settings.Current.Language), HorizontalAlignment = HorizontalAlignment.Left };
-        System.Windows.Automation.AutomationProperties.SetName(combo, I18n.T("language"));
-        combo.SelectionChanged += (_, _) => { if (combo.SelectedIndex < 0) return; Settings.Current.Language = new[] { "ar", "en", "fr", "es" }[combo.SelectedIndex]; Settings.Save(); ApplyTheme(); Render(); }; return combo;
     }
     private bool IsEnabledFeature(string key) => InvestigationCenters.Contains(key) ? !Settings.Current.DisabledCenters.Contains(key) : key switch { "scan" => Settings.Current.ScanEnabled, "translate" => Settings.Current.TranslationEnabled, "updates" => Settings.Current.UpdatesEnabled, "convert" => Settings.Current.ConvertEnabled, "errors" => Settings.Current.ErrorAssistantEnabled, _ => true };
     private void SetFeature(string key, bool value)
@@ -402,7 +397,14 @@ public sealed partial class MainWindow
     private bool Guard(StackPanel body, string feature)
     {
         Heading(body, feature, feature + "Short"); if (IsEnabledFeature(feature)) return true;
-        var panel = Stack(); panel.Children.Add(Text(I18n.T("disabledDesc"))); var settings = Action("manageTools", () => Navigate("settings"), true); settings.HorizontalAlignment = HorizontalAlignment.Left; panel.Children.Add(settings); body.Children.Add(Card(panel)); return false;
+        var panel = Stack();
+        panel.Children.Add(Text(I18n.T("disabledDesc")));
+        var section = Tools.Contains(feature) ? SettingsSection.Tools : SettingsSection.Diagnostics;
+        var settings = Action("manageTools", () => OpenSettingsSection(section), true);
+        settings.HorizontalAlignment = HorizontalAlignment.Left;
+        panel.Children.Add(settings);
+        body.Children.Add(Card(panel));
+        return false;
     }
     private void ErrorAssistantPage(StackPanel body)
     {
@@ -431,49 +433,6 @@ public sealed partial class MainWindow
         }
         body.Children.Add(Card(rows, 0)); Help(body, "private");
     }
-    private void SettingsPage(StackPanel body)
-    {
-        Heading(body, "settings", "settingsDesc");
-        AiSettingsSection(body);
-        SelfUpdateSettings(body);
-        SectionHeading(body, "appearance"); var appearance = Stack(); var language = LanguageCombo(); language.Margin = new Thickness(0); appearance.Children.Add(SettingRow("language", language)); Divider(appearance);
-        var dark = Toggle("dark", Settings.Current.Dark, value => { Settings.Current.Dark = value; Settings.Save(); ApplyTheme(); Render(true); }); dark.Content = null;
-        appearance.Children.Add(SettingRow("dark", dark)); Divider(appearance);
-        appearance.Children.Add(ColorPalettePicker()); Divider(appearance);
-        var welcomeStartup = Toggle("welcomeRepeat", Settings.Current.ShowWelcomeOnStartup, value => { Settings.Current.ShowWelcomeOnStartup = value; Settings.Save(); }); welcomeStartup.Content = null;
-        appearance.Children.Add(SettingRow("welcomeRepeat", welcomeStartup)); Divider(appearance);
-        var welcome = Action("welcomeReopen", ShowWelcome); welcome.Margin = new Thickness(0); appearance.Children.Add(SettingRow("welcomeGuide", welcome)); body.Children.Add(Card(appearance));
-        SectionHeading(body, "yourTools"); FeatureChoices(body);
-        SectionHeading(body, "hubCenters"); var centers = Stack();
-        foreach (string center in InvestigationCenters.Except(Tools)) centers.Children.Add(Toggle(center, IsEnabledFeature(center), enabled => SetFeature(center, enabled)));
-        centers.Children.Add(Text(I18n.T("hubLocalFirst"), 12, true)); body.Children.Add(Card(centers));
-        var monitoring = Stack(); monitoring.Children.Add(Toggle("deviceAutoRefresh", Settings.Current.AutoRefreshDevice, value => { Settings.Current.AutoRefreshDevice = value; Settings.Save(); })); monitoring.Children.Add(Text(I18n.T("deviceLocalOnly"), 12, true)); body.Children.Add(Card(monitoring));
-        SectionHeading(body, "windowsIntegration"); var windows = Stack();
-        windows.Children.Add(Toggle("startup", startupDraft ?? Settings.Current.StartWithWindows, value => startupDraft = value));
-        windows.Children.Add(Toggle("startupScan", startupScanDraft ?? Settings.Current.ScanAtStartup, value => startupScanDraft = value));
-        if (Settings.Current.ScanPath.Length > 0) windows.Children.Add(Text(Settings.Current.ScanPath, 12, true));
-        windows.Children.Add(Toggle("explorer", explorerDraft ?? Settings.Current.ExplorerMenu, value => explorerDraft = value)); Help(windows, "explorerNote");
-        var apply = AsyncAction("save", _ =>
-        {
-            Settings.Current.StartWithWindows = startupDraft ?? Settings.Current.StartWithWindows;
-            Settings.Current.ScanAtStartup = startupScanDraft ?? Settings.Current.ScanAtStartup;
-            Settings.Current.ExplorerMenu = explorerDraft ?? Settings.Current.ExplorerMenu;
-            Settings.Save(); Settings.ApplyWindowsIntegration(); ApplyExplorerShortcut(); startupDraft = startupScanDraft = explorerDraft = null; Render(true); return Task.CompletedTask;
-        }, true); apply.HorizontalAlignment = HorizontalAlignment.Left; windows.Children.Add(apply); body.Children.Add(Card(windows));
-    }
-    private void AiSettingsSection(StackPanel body)
-    {
-        var provider = Stack(); SectionHeading(provider, "aiSettingsTitle");
-        provider.Children.Add(Text(I18n.T("aiSettingsHelp"), 12, true));
-        var connection = new AiConnectionPanel(aiConnectionDraft, () => SetOperationStatus("done"), probe: ConnectionProbeOverride, openAssistant: ShowErrorAssistant);
-        provider.Children.Add(connection);
-        translationKeyInput = connection.MissingInput; translationModelInput = connection.ModelInput;
-        translationProviderSection = Card(provider);
-        System.Windows.Automation.AutomationProperties.SetAutomationId(translationProviderSection, "TranslationProviderSection");
-        if (emphasizeTranslationSettings) translationProviderSection.BorderBrush = Resource("Accent");
-        body.Children.Add(translationProviderSection);
-    }
-
     internal async Task CheckNavigation()
     {
         static IEnumerable<DependencyObject> Descendants(DependencyObject root)
@@ -487,10 +446,14 @@ public sealed partial class MainWindow
         Menu().RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); UpdateLayout(); if (!expanded) throw new InvalidOperationException("Navigation did not expand.");
         sidebar.BeginAnimation(WidthProperty, null); sidebar.Width = 224;
         await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
-        var languages = Descendants(frame).OfType<ComboBox>().Single(); languages.IsDropDownOpen = true; UpdateLayout();
+        if (Descendants(frame).OfType<ComboBox>().Any(c => System.Windows.Automation.AutomationProperties.GetAutomationId(c) == "InterfaceLanguage"))
+            throw new InvalidOperationException("Language selector was visible outside Settings.");
+        OpenSettingsSection(SettingsSection.Appearance); UpdateLayout();
+        var languages = Descendants(frame).OfType<ComboBox>().Single(c => System.Windows.Automation.AutomationProperties.GetAutomationId(c) == "InterfaceLanguage");
+        languages.IsDropDownOpen = true; UpdateLayout();
         await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
         if (languages.Template.FindName("PART_Popup", languages) is not System.Windows.Controls.Primitives.Popup { IsOpen: true }) throw new InvalidOperationException("Language menu did not open.");
-        languages.IsDropDownOpen = false; languages.SelectedIndex = Arabic ? 1 : 0; UpdateLayout();
+        languages.IsDropDownOpen = false; languages.SelectedValue = Arabic ? "en" : "ar"; UpdateLayout();
         if (shell.FlowDirection != (Arabic ? FlowDirection.RightToLeft : FlowDirection.LeftToRight)) throw new InvalidOperationException("Language direction did not update.");
         var bottomLinks = ((DockPanel)sidebar.Child).Children.OfType<StackPanel>().Single(panel => DockPanel.GetDock(panel) == Dock.Bottom)
             .Children.OfType<Button>().Select(button => System.Windows.Automation.AutomationProperties.GetName(button)).ToArray();
@@ -524,7 +487,7 @@ public sealed partial class MainWindow
         SystemCommands.RestoreWindow(this); await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
         aiConnectionDraft.Provider = "gemini"; aiConnectionDraft.For("gemini").Model = "gemini-3.8-flash";
         aiConnectionDraft.For("gemini").Models = [new("gemini-3.8-flash", "Gemini Flash", "Google", "aiTierVaries")];
-        Navigate("settings"); await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+        OpenSettingsSection(SettingsSection.Ai); await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
         var password = Descendants(frame).OfType<PasswordBox>().Single(); password.Password = "baseera-ui-draft-not-a-real-key";
         aiConnectionDraft.For("gemini").Models = [new("gemini-3.8-flash", "Gemini Flash", "Google", "aiTierVaries")];
         var theme = Descendants(frame).OfType<Button>().Single(b => System.Windows.Automation.AutomationProperties.GetName(b) == I18n.T("dark"));

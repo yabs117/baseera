@@ -42,12 +42,13 @@ public sealed partial class MainWindow
                 // Fast changes exercise interruption without waiting for intermediate transitions.
                 Navigate("settings"); Navigate("home"); Navigate("scan"); await Settle();
                 Require(page == "scan" && pageBody?.Opacity == 1, "Interrupted navigation left a page invisible.");
-                var combo = Nodes(frame).OfType<ComboBox>().Single(c => AutomationProperties.GetName(c) == I18n.T("language"));
+                OpenSettingsSection(SettingsSection.Appearance); await Settle();
+                var combo = Nodes(frame).OfType<ComboBox>().Single(c => AutomationProperties.GetAutomationId(c) == "InterfaceLanguage");
                 combo.IsDropDownOpen = true; await Settle();
                 var popup = (System.Windows.Controls.Primitives.Popup)combo.Template.FindName("PART_Popup", combo);
                 Require(popup.IsOpen && popup.Child is FrameworkElement { Opacity: 1 }, "Language flyout was invisible.");
                 combo.IsDropDownOpen = false; await Settle();
-                Navigate("settings"); await Settle();
+                OpenSettingsSection(SettingsSection.Updates); await Settle();
                 var toggle = Nodes(frame).OfType<CheckBox>().First(c => c.IsVisible);
                 bool original = toggle.IsChecked == true; toggle.IsChecked = !original; await Settle();
                 var dot = (FrameworkElement)toggle.Template.FindName("Dot", toggle);

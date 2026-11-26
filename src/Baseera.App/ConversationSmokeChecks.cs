@@ -25,6 +25,31 @@ internal static class ConversationSmokeChecks
     private static void Click(DependencyObject root, string id) => Find<Button>(root, id).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
     private static void Require(bool condition, string message) { if (!condition) throw new Exception(message); }
     private static async Task Settle(Window window) { await window.Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle); await Task.Delay(30); window.UpdateLayout(); }
+    private static void CheckPopup(Window owner, System.Windows.Controls.ContextMenu popup, int rows)
+    {
+        var items = popup.Items.OfType<System.Windows.Controls.MenuItem>().ToArray();
+        Require(popup.IsOpen && items.Length == rows &&
+            popup.Template.FindName("MenuSurface", popup) is Border surface && surface.CornerRadius.TopLeft == 11 &&
+            Equals(surface.Background, Application.Current.FindResource("Surface")), "Assistant menu fell back to Windows menu chrome.");
+        Require(items.All(item => item.ActualHeight >= 34 && AutomationProperties.GetName(item).Length > 0),
+            "A menu entry is too small or missing its accessible name.");
+        var first = items[0];
+        Require(first.Template.FindName("SelectionMark", first) is TextBlock mark &&
+            mark.Visibility == (first.IsChecked ? Visibility.Visible : Visibility.Collapsed), "The selected item did not get a themed check mark.");
+        var start = owner.PointFromScreen(popup.PointToScreen(new System.Windows.Point()));
+        var end = owner.PointFromScreen(popup.PointToScreen(new System.Windows.Point(popup.ActualWidth, popup.ActualHeight)));
+        Require(Math.Min(start.X, end.X) >= -1 && Math.Max(start.X, end.X) <= owner.ActualWidth + 1,
+            $"The {AutomationProperties.GetName(popup)} menu exceeded the window horizontally ({start.X:0} to {end.X:0}).");
+        var button = (FrameworkElement)popup.PlacementTarget;
+        var anchorStart = owner.PointFromScreen(button.PointToScreen(new System.Windows.Point()));
+        var anchorEnd = owner.PointFromScreen(button.PointToScreen(new System.Windows.Point(button.ActualWidth, button.ActualHeight)));
+        bool more = AutomationProperties.GetAutomationId(button) == "chatMore";
+        bool right = more == (popup.FlowDirection == FlowDirection.LeftToRight);
+        double difference = right ? Math.Max(start.X, end.X) - Math.Max(anchorStart.X, anchorEnd.X)
+            : Math.Min(start.X, end.X) - Math.Min(anchorStart.X, anchorEnd.X);
+        Require(Math.Abs(difference) <= 2, "Assistant menu and its trigger did not share an edge.");
+    }
+
     internal static async Task Run(MainWindow owner, string output)
     {
         var wave = VoiceRecording.WrapPcm(new byte[32000]);
@@ -85,7 +110,10 @@ internal static class ConversationSmokeChecks
                 var inputs = new List<ErrorChatRequest>(); bool continueAllowed = false; int confirmations = 0;
                 var localized = advice with { Locale = AdviceLocale.Interface, Message = locale switch { "ar" => "نعم، يمكننا المتابعة. **ما الذي حدث بعد الخطوة السابقة؟** يمكنك إضافة صورة أو فيديو أو تسجيل صوتك ثم مراجعة النص قبل إرساله.", "fr" => "Oui, continuons. **Que s’est-il passé ensuite ?**", "es" => "Sí, continuemos. **¿Qué pasó después?**", _ => advice.Message } };
                 var dialog = new ErrorAssistantWindow(owner, analyzeConversation: (request, _) => { inputs.Add(request); return Task.FromResult(localized); },
-                    confirmRequests: _ => { confirmations++; return continueAllowed; });
+                    confirmRequests: _ => { confirmations++; return continueAllowed; },
+                    listAssistantModels: _ => Task.FromResult<IReadOnlyList<AiModelOption>>(
+                        [new("gemini-other-vision", "Fixture Alternative", "Google", "aiTierVaries"),
+                            .. Enumerable.Range(1, 18).Select(i => new AiModelOption($"gemini-vision-{i}", $"Fixture Vision {i}", "Google", "aiTierVaries"))]));
                 dialog.Show(); await Settle(dialog);
                 var composer = Find<TextBox>(dialog, "ErrorDescription");
                 double fullWidth = dialog.Width, fullHeight = dialog.Height;
@@ -109,13 +137,48 @@ internal static class ConversationSmokeChecks
                 if (locale is "en" or "ar") App.Snapshot(dialog, Path.Combine(output, "smart-repair-compact-" + locale + ".png"));
                 dialog.Width = fullWidth; dialog.Height = fullHeight; await Settle(dialog);
                 if (locale is "en" or "ar") App.Snapshot(dialog, Path.Combine(output, "smart-repair-start-" + locale + ".png"));
+                foreach (string control in new[] { "chatAttach", "chatMore" })
+                {
+                    Click(dialog, control); await Settle(dialog);
+                    var popup = Find<Button>(dialog, control).ContextMenu;
+                    CheckPopup(dialog, popup, 5);
+                    if (locale is "en" or "ar")
+                    {
+                        await Task.Delay(180);
+                        App.Snapshot(dialog, Path.Combine(output, control + "-" + locale + ".png"), popup);
+                    }
+                    popup.IsOpen = false;
+                }
+                var modelButton = Find<Button>(dock, "AssistantModel");
+                Click(dock, "AssistantModel"); await Settle(dialog);
+                var menu = modelButton.ContextMenu;
+                const string testModel = "gemini-other-vision";
+                System.Windows.Controls.MenuItem ModelItem(string id) => menu.Items.OfType<System.Windows.Controls.MenuItem>()
+                    .Single(item => AutomationProperties.GetAutomationId(item) == id);
+                Require(menu.IsOpen && ModelItem("AssistantModel-gemini-fixture").IsChecked, "Saved model was missing from the open model picker.");
+                CheckPopup(dialog, menu, 3);
+                if (locale is "en" or "ar")
+                {
+                    await Task.Delay(180);
+                    App.Snapshot(dialog, Path.Combine(output, "model-menu-" + locale + ".png"), menu);
+                }
+                ModelItem("AssistantLoadModels").RaiseEvent(new RoutedEventArgs(System.Windows.Controls.MenuItem.ClickEvent)); await Settle(dialog);
+                var catalogScroll = (ScrollViewer)menu.Template.FindName("MenuScroll", menu);
+                Require(menu.IsOpen && catalogScroll.ScrollableHeight > 0 && menu.ActualHeight <= menu.MaxHeight &&
+                    ModelItem("AssistantAddModel").TransformToAncestor(catalogScroll).Transform(new System.Windows.Point()).Y < catalogScroll.ViewportHeight,
+                    "A long account catalog hid the Settings shortcut or escaped the menu viewport.");
+                if (locale is "en" or "ar") App.Snapshot(dialog, Path.Combine(output, "model-catalog-" + locale + ".png"), menu);
+                ModelItem("AssistantModel-" + testModel).RaiseEvent(new RoutedEventArgs(System.Windows.Controls.MenuItem.ClickEvent)); menu.IsOpen = false;
+                Require(AutomationProperties.GetName(modelButton).Contains(testModel) && Settings.Current.GeminiModel == "gemini-fixture" && inputs.Count == 0,
+                    "Picking a model changed the saved default, sent a message or left the old model visible.");
                 for (int i = 0; i < 10; i++)
                 {
                     composer.Text = "Question " + i; Click(dialog, "errorAnalyze"); await Settle(dialog); Nodes(dialog).OfType<AdvicePresenter>().Last().Finish(); await Settle(dialog);
                     Require(composer.Text.Length == 0, "Sent draft was not cleared from the bottom composer.");
                 }
-                Require(inputs.Count == 10 && inputs[1].History.Count == 1 && inputs[1].History[0].User == "Question 0" && inputs[^1].History.Count <= 8,
-                    "Follow-ups did not receive bounded chronological context.");
+                Require(inputs.Count == 10 && inputs.All(request => request.Model == testModel) && inputs[1].History.Count == 1 &&
+                    inputs[1].History[0].User == "Question 0" && inputs[^1].History.Count <= 8,
+                    "Follow-ups used the wrong model or lost bounded chronological context.");
                 composer.Text = "Do not send without continuation"; Click(dialog, "errorAnalyze"); await Settle(dialog);
                 Require(inputs.Count == 10 && confirmations == 1 && composer.Text.Contains("Do not send"), "Declined usage checkpoint sent a request or discarded the draft.");
                 Require(Find<Border>(dialog, "ChatCheckpoint").IsVisible, "Ten-request checkpoint is not visible.");

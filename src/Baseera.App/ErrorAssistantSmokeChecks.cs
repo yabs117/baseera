@@ -71,11 +71,14 @@ internal static class ErrorAssistantSmokeChecks
             if (!hasKey)
             {
                 owner.ResetConnectionDraftForSmoke(); owner.ShowErrorAssistant(); await owner.Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle); owner.UpdateLayout();
+                var setupAssistant = owner.CurrentErrorAssistant ?? throw new Exception("Error assistant did not open without a model.");
+                Descendants(setupAssistant).OfType<Button>().Single(b => System.Windows.Automation.AutomationProperties.GetAutomationId(b) == "AssistantModel").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await owner.Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle); owner.UpdateLayout();
                 if (!Descendants(owner).OfType<PasswordBox>().Any(box => box.IsVisible &&
                     System.Windows.Automation.AutomationProperties.GetAutomationId(box) == "AiApiKey") ||
                     !Descendants(owner).OfType<ComboBox>().Any(box => box.IsVisible &&
-                    System.Windows.Automation.AutomationProperties.GetAutomationId(box) == "AiModelPicker") || owner.CurrentErrorAssistant is not null)
-                    throw new Exception("First-run assistant did not route to main Settings.");
+                    System.Windows.Automation.AutomationProperties.GetAutomationId(box) == "AiModelPicker") || setupAssistant.IsVisible)
+                    throw new Exception("Add a model did not route to main Settings.");
                 App.Snapshot(owner, Path.Combine(output, "error-assistant-setup.png"));
                 var connection = Descendants(owner).OfType<AiConnectionPanel>().Single();
                 foreach (var provider in AiProviders.All.Concat(AiProviders.All.Reverse()))
@@ -89,6 +92,7 @@ internal static class ErrorAssistantSmokeChecks
                 await owner.Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
                 await Task.Delay(150);
                 App.Snapshot(owner, Path.Combine(output, "ai-services-dialog-en.png"));
+                setupAssistant.Close();
             }
             foreach (string language in new[] { "ar", "en", "fr", "es" })
             {

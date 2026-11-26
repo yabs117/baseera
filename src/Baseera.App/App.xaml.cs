@@ -32,8 +32,21 @@ public partial class App : Application
             {
                 string output = e.Args.SkipWhile(x => x != "--smoke").Skip(1).FirstOrDefault() ?? "artifacts";
                 Directory.CreateDirectory(output);
+                if (e.Args.Contains("--localization-only"))
+                {
+                    await LocaleSmokeChecks.Run(window, output);
+                    Shutdown(0); return;
+                }
                 if (e.Args.Contains("--shell-only"))
-                { await ShellSmokeChecks.Run(window, output); Shutdown(0); return; }
+                {
+                    await ShellSmokeChecks.Run(window, output);
+                    Settings.Current.Onboarded = true;
+                    window.Activate();
+                    await window.CheckSelfUpdateControls();
+                    await window.CheckStatusLocalization(output);
+                    await window.CheckTranslationSettingsLink(output);
+                    Shutdown(0); return;
+                }
                 if (e.Args.Contains("--read-only-system-only"))
                 {
                     Settings.Current.Onboarded = true; window.ApplyTheme(); window.Render();
@@ -188,7 +201,7 @@ public partial class App : Application
         };
         window.Show();
     }
-    internal static void Snapshot(Window window, string path)
+    internal static void Snapshot(Window window, string path, FrameworkElement? popup = null)
     {
         window.UpdateLayout();
         // Render the opaque LTR frame, including its RTL descendants.
@@ -201,6 +214,20 @@ public partial class App : Application
             var bounds = new Rect(0, 0, bitmap.PixelWidth, bitmap.PixelHeight);
             drawing.DrawRectangle((Brush)Current.FindResource("Bg"), null, bounds);
             drawing.DrawRectangle(new VisualBrush(root) { Stretch = Stretch.Fill }, null, bounds);
+            if (popup is { IsVisible: true } && PresentationSource.FromVisual(popup)?.RootVisual is FrameworkElement popupRoot)
+            {
+                static System.Windows.Point ScreenOrigin(FrameworkElement element)
+                {
+                    var first = element.PointToScreen(new System.Windows.Point());
+                    var opposite = element.PointToScreen(new System.Windows.Point(element.ActualWidth, element.ActualHeight));
+                    return new System.Windows.Point(Math.Min(first.X, opposite.X), Math.Min(first.Y, opposite.Y));
+                }
+                // Use the LTR window for physical positions while preserving the menu's RTL content.
+                var menuOrigin = window.PointFromScreen(ScreenOrigin(popupRoot));
+                var clientOrigin = window.PointFromScreen(ScreenOrigin(root));
+                var origin = new System.Windows.Point(menuOrigin.X - clientOrigin.X, menuOrigin.Y - clientOrigin.Y);
+                drawing.DrawRectangle(new VisualBrush(popupRoot) { Stretch = Stretch.Fill }, null, new Rect(origin, popupRoot.RenderSize));
+            }
         }
         bitmap.Render(visual);
         var pixels = new byte[bitmap.PixelWidth * bitmap.PixelHeight * 4]; bitmap.CopyPixels(pixels, bitmap.PixelWidth * 4, 0);

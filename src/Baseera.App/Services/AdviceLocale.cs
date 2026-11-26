@@ -5,8 +5,7 @@ internal sealed record AdviceLocale(string Language, bool RightToLeft, string Gr
 {
     internal static string GreetingFor(string language, string generated)
     {
-        int known = language.Split('-')[0].ToLowerInvariant() switch { "ar" => 0, "en" => 1, "fr" => 2, "es" => 3, _ => -1 };
-        return known < 0 ? generated : I18n.Words["assistantGreeting"][known];
+        return InterfaceLocales.ResponseLocale(language) is { } known ? I18n.Translate("assistantGreeting", known) : generated;
     }
 
     internal static AdviceLocale Interface => new(Settings.Current.Language, Settings.Current.Language == "ar",
