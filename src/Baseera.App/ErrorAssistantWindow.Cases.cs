@@ -31,8 +31,10 @@ internal sealed partial class ErrorAssistantWindow
     }
     private Border BuildCaseWorkflow()
     {
-        var body = new StackPanel();
-        Add(body, caseStages, 8); Add(body, Text(I18n.T("caseWorkflowHelp"), 12, true), 10);
+        var body = new StackPanel { Margin = new Thickness(10, 10, 10, 4) };
+        Add(body, caseStages, 8);
+        var storageNote = Text(I18n.T("smartWorkspaceCaseLocal"), 12, true);
+        storageNote.ToolTip = I18n.T("caseWorkflowHelp"); Add(body, storageNote, 8);
         Add(body, Text(I18n.T("caseTitle"), 12), 4); AutomationProperties.SetAutomationId(caseTitle, "CaseTitle");
         AutomationProperties.SetName(caseTitle, I18n.T("caseTitle")); caseTitle.MaxLength = 160;
         caseTitle.SetBinding(TextBox.TextProperty, new Binding(nameof(RepairCaseViewModel.Title)) { Source = caseWorkflow, Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged }); Add(body, caseTitle, 8);
@@ -48,8 +50,8 @@ internal sealed partial class ErrorAssistantWindow
         var status = Text("", 12, true); status.SetBinding(TextBlock.TextProperty, new Binding(nameof(RepairCaseViewModel.Status)) { Source = caseWorkflow }); AutomationProperties.SetAutomationId(status, "CaseStatus"); Add(body, status, 8);
         AutomationProperties.SetLiveSetting(status, AutomationLiveSetting.Polite);
         AutomationProperties.SetAutomationId(caseComparison, "CaseComparison"); Add(body, caseComparison, 0);
-        workflowDetails.Header = I18n.T("caseWorkflow"); workflowDetails.Content = body;
-        workflowPanel.Child = workflowDetails; workflowPanel.Padding = new Thickness(12); workflowPanel.CornerRadius = new CornerRadius(5); workflowPanel.Background = Brush("Surface"); workflowPanel.BorderBrush = Brush("Line"); workflowPanel.BorderThickness = new Thickness(1);
+        ConfigureDisclosure(workflowDetails, "caseWorkflow", body, "CaseWorkflowDetails");
+        workflowPanel.Child = workflowDetails;
         AutomationProperties.SetAutomationId(workflowPanel, "CaseWorkflow"); RefreshCaseWorkflow(); return workflowPanel;
     }
     private void RefreshCaseWorkflow()

@@ -1,8 +1,8 @@
 # Baseera
 
-Esta página describe el código de la versión 0.5.0. Al actualizarla, la última descarga publicada era la [0.4.15 Preview](https://github.com/yabs117/baseera/releases/tag/v0.4.15-preview).
+[English](../README.md) · [العربية](README.ar.md) · **Español** · [Français](README.fr.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [Tiếng Việt](README.vi.md)
 
-**Baseera 0.5.0 Preview** incorpora ocho centros de diagnóstico y exploración, lecturas locales bajo demanda y casos Smart Repair. [Descargas publicadas](https://github.com/yabs117/baseera/releases) · [Notas de la versión 0.5.0](RELEASE-0.5.0.md) · [Alcance y límites](INVESTIGATION-CENTERS.md).
+**Baseera 0.6.5 Preview** añade cuatro paletas de colores, un logotipo que parpadea al pulsarlo y el envío de comentarios desde la aplicación. [Descargar Baseera.exe](https://github.com/yabs117/baseera/releases/download/v0.6.5-preview/Baseera.exe) · [Versión y archivos](https://github.com/yabs117/baseera/releases/tag/v0.6.5-preview) · [Alcance y límites](INVESTIGATION-CENTERS.md).
 
 **Versión preliminar 0.4.15:** Smart Repair amplía el asistente existente con diagnósticos locales opcionales, vista previa editable y consentimiento por análisis. Solo ejecuta tres herramientas predefinidas tras confirmación independiente y UAC si corresponde: caché DNS, SFC y DISM. Sin scripts generados ni reinicio automático. [Detalles y límites](SMART-REPAIR.md). [Notas de versión y descarga](RELEASE-0.4.15.md).
 
@@ -11,7 +11,7 @@ ventanas con el modelo de visión elegido, actualizaciones WinGet elegidas y con
 Interfaz en árabe (RTL), inglés, francés y español.
 
 Requisitos: Windows 10/11 x64. El runtime .NET está incluido. Para compilar con SDK 10:
-`./build.ps1 -Test -Publish`. Abre `artifacts/Baseera-v0.5.0-Windows-x64/Baseera.exe`.
+`./build.ps1 -Test -Publish`. Abre `artifacts/Baseera-v0.6.5-Windows-x64/Baseera.exe`.
 La extensión del navegador se descarga por separado: sigue `START-HERE.html` y carga la carpeta `extension` en Chrome/Edge. No abras sus archivos fuente con doble clic.
 
 Activa solo las herramientas que necesitas. Elige entre 20 servicios directos, como Gemini, OpenAI (modelos ChatGPT), Claude y Grok. Introduce la clave del servicio y carga sus modelos con visión. Se eliminó OpenRouter y se corrigió el cierre al cambiar de servicio. El acceso y los precios dependen de la cuenta. [Servicios y pruebas](AI-SERVICES.md). Envía la captura al servicio seleccionado
@@ -25,7 +25,7 @@ elegidos se envían al servicio elegido solo al pulsar Analizar directamente. Re
 enviarla: puede contener datos privados. Los pasos sugeridos no garantizan una
 solución y no cambian automáticamente la configuración de Windows.
 
-«Opiniones y comentarios», justo encima de Configuración, abre una incidencia de GitHub prellenada para que la revises y la envíes en el navegador. No se adjuntan imágenes ni claves API automáticamente.
+En «Opiniones y comentarios», justo encima de Configuración, el botón de envío transmite el tipo, el título y los detalles al servicio de comentarios de Baseera. El borrador se conserva si no se puede confirmar el envío.
 
 El análisis es estático y limitado: no certifica que un archivo sea seguro o malicioso.
 Las fuentes manuales admiten actualmente GitHub Releases para revisión; no ejecutan

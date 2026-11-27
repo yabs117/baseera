@@ -1,4 +1,5 @@
 using System.Windows.Media.Animation;
+using Image = System.Windows.Controls.Image;
 using SystemColors = System.Windows.SystemColors;
 using Baseera.App.Services;
 
@@ -18,8 +19,6 @@ public sealed partial class MainWindow
     }
     private bool? startupDraft, startupScanDraft, explorerDraft;
     private readonly AiConnectionDraft aiConnectionDraft = new();
-    private string feedbackTitleDraft = "", feedbackBodyDraft = "";
-    private int feedbackKindDraft;
     private bool Arabic => Settings.Current.Language == "ar";
     private static readonly string[] Tools = ["scan", "translate", "updates", "convert", "errors", "search"];
     private static readonly string[] PrimaryPages = ["home", "health", "performance", "doctor", "detective", "security", "cases", "activity"];
@@ -28,24 +27,43 @@ public sealed partial class MainWindow
     private FontWeight HeadingWeight => Arabic ? FontWeights.Medium : FontWeights.SemiBold;
 
     internal bool? HighContrastOverride { get; set; }
+    private bool UsesHighContrast => HighContrastOverride ?? SystemParameters.HighContrast;
+
     public void ApplyTheme()
     {
-        string[] keys = ["Bg", "Surface", "Ink", "Muted", "Line", "Accent", "Sidebar", "Selected", "Hover", "OnAccent", "Subtle"];
-        string[] light = ["#FAFAFA", "#FFFFFF", "#1B1B1B", "#666666", "#E4E4E4", "#005FB8", "#F3F3F3", "#E5E5E5", "#EEEEEE", "#FFFFFF", "#F6F6F6"];
-        string[] dark = ["#272727", "#303030", "#F4F4F4", "#B1B1B1", "#414141", "#79B8E8", "#202020", "#383838", "#3A3A3A", "#172534", "#2B2B2B"];
-        var palette = Settings.Current.Dark ? dark : light;
-        for (int i = 0; i < keys.Length; i++) Application.Current.Resources[keys[i]] = new SolidColorBrush((Color)ColorConverter.ConvertFromString(palette[i]));
-        if (HighContrastOverride ?? SystemParameters.HighContrast)
+        var palette = WorkspacePalette.Resolve(Settings.Current.ColorPalette);
+        var resources = Application.Current.Resources;
+        bool highContrast = UsesHighContrast;
+        if (!highContrast) palette.Colors(Settings.Current.Dark).Apply(resources);
+        else
         {
-            var colors = new[] { SystemColors.WindowColor, SystemColors.WindowColor, SystemColors.WindowTextColor, SystemColors.GrayTextColor, SystemColors.WindowTextColor,
-                SystemColors.HighlightColor, SystemColors.ControlColor, SystemColors.ControlColor, SystemColors.ControlColor, SystemColors.HighlightTextColor, SystemColors.WindowColor };
-            for (int i = 0; i < keys.Length; i++) Application.Current.Resources[keys[i]] = new SolidColorBrush(colors[i]);
+            foreach (string key in new[] { "Bg", "Surface", "Workspace", "Subtle", "Hero", "Tint" })
+                resources[key] = SystemColors.WindowBrush;
+            foreach (string key in new[] { "Ink", "Line", "HeroInk", "HeroMuted", "HeroLine", "AccentInk" })
+                resources[key] = SystemColors.WindowTextBrush;
+            resources["Selected"] = resources["Hover"] = SystemColors.ControlBrush;
+            resources["Accent"] = SystemColors.HighlightBrush;
+            resources["OnAccent"] = SystemColors.HighlightTextBrush;
+            resources["Muted"] = SystemColors.GrayTextBrush;
         }
-        SetResourceReference(BackgroundProperty, "Bg"); SetResourceReference(ForegroundProperty, "Ink");
+        ApplySidebarPalette(palette, highContrast);
+        SetResourceReference(BackgroundProperty, "Workspace"); SetResourceReference(ForegroundProperty, "Ink");
         FlowDirection = FlowDirection.LeftToRight;
         shell.FlowDirection = Arabic ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
-        frame.SetResourceReference(System.Windows.Controls.Panel.BackgroundProperty, "Bg");
+        frame.SetResourceReference(System.Windows.Controls.Panel.BackgroundProperty, "Workspace");
         WindowAppearance.Apply(this, Settings.Current.Dark);
+    }
+
+    private void ApplySidebarPalette(WorkspacePalette palette, bool highContrast)
+    {
+        var colors = sidebar.Resources;
+        colors["Bg"] = highContrast ? SystemColors.ControlBrush : Brand.EyeBackground;
+        colors["Surface"] = highContrast ? SystemColors.ControlBrush : new SolidColorBrush(Color.FromRgb(49, 57, 63));
+        colors["Ink"] = highContrast ? SystemColors.ControlTextBrush : new SolidColorBrush(Color.FromRgb(243, 247, 249));
+        colors["Muted"] = highContrast ? SystemColors.ControlTextBrush : new SolidColorBrush(Color.FromRgb(189, 202, 211));
+        colors["Line"] = highContrast ? SystemColors.ControlTextBrush : new SolidColorBrush(Color.FromRgb(71, 83, 92));
+        colors["Accent"] = colors["AccentInk"] = highContrast ? SystemColors.HighlightBrush : WorkspaceColors.Brush(palette.Dark.Accent);
+        colors["Selected"] = highContrast ? SystemColors.ControlBrush : WorkspaceColors.Brush(palette.SidebarSelected);
     }
 
     private TextBlock Text(string text, double size = 13, bool muted = false) => new()
@@ -87,12 +105,12 @@ public sealed partial class MainWindow
     private Border Card(UIElement child, double padding = 20) => new()
     {
         Background = Resource("Surface"), BorderBrush = Resource("Line"), BorderThickness = new Thickness(1),
-        CornerRadius = new CornerRadius(5), Padding = new Thickness(padding), Margin = new Thickness(0, 0, 0, 16), Child = child
+        CornerRadius = new CornerRadius(9), Padding = new Thickness(padding), Margin = new Thickness(0, 0, 0, 16), Child = child
     };
     private void Heading(StackPanel body, string title, string? subtitle = null)
     {
-        var name = Text(I18n.T(title), 27); name.FontWeight = HeadingWeight; name.Margin = new Thickness(0, 0, 0, 9); body.Children.Add(name);
-        if (subtitle is not null) { var description = Text(I18n.T(subtitle), 13, true); description.Margin = new Thickness(0, 0, 0, 22); body.Children.Add(description); }
+        var name = Text(I18n.T(title), 31); name.FontWeight = HeadingWeight; name.Margin = new Thickness(0, 0, 0, 7); body.Children.Add(name);
+        if (subtitle is not null) { var description = Text(I18n.T(subtitle), 14, true); description.Margin = new Thickness(0, 0, 0, 20); body.Children.Add(description); }
         else body.Children.Add(new Border { Height = 14 });
     }
     private void SectionHeading(StackPanel body, string key)
@@ -169,6 +187,7 @@ public sealed partial class MainWindow
 
     public void Render(bool preserveScroll = false)
     {
+        refreshFeedback = null;
         StopDeviceMonitor();
         selectedNavigationIndicator = null;
         selectedNavigationButton = null;
@@ -184,44 +203,81 @@ public sealed partial class MainWindow
         System.Windows.Automation.AutomationProperties.SetLiveSetting(status, System.Windows.Automation.AutomationLiveSetting.Polite);
         shell.Children.Clear(); shell.ColumnDefinitions.Clear(); shell.RowDefinitions.Clear();
         shell.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); shell.ColumnDefinitions.Add(new ColumnDefinition());
-        var navigation = new DockPanel { Margin = new Thickness(8, 10, 8, 14) };
-        var header = new Grid { Height = 68, Margin = new Thickness(4, 0, 0, 10) };
-        header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) }); header.ColumnDefinitions.Add(new ColumnDefinition());
+        var navigation = new DockPanel { Margin = new Thickness(10, 10, 10, 14) };
+        var header = new Grid { Height = 60, Margin = new Thickness(2, 0, 2, 10) };
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(expanded ? 42 : 28) });
+        header.ColumnDefinitions.Add(new ColumnDefinition());
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var menu = new Button { Style = (Style)FindResource("IconButton"), Content = Icons.Create("menu", 18), ToolTip = I18n.T("menu"), HorizontalAlignment = HorizontalAlignment.Left };
+        menu.VerticalAlignment = VerticalAlignment.Center;
         System.Windows.Automation.AutomationProperties.SetName(menu, I18n.T("menu"));
         menu.Click += (_, _) =>
         {
             double from = sidebar.ActualWidth; expanded = !expanded; Render(true);
-            if (FluentMotion.Allowed) sidebar.BeginAnimation(WidthProperty, new DoubleAnimation(from, expanded ? 224 : 68, TimeSpan.FromMilliseconds(180)) { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } });
+            if (FluentMotion.Allowed) sidebar.BeginAnimation(WidthProperty, new DoubleAnimation(from, expanded ? 236 : 68, TimeSpan.FromMilliseconds(180)) { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } });
         };
-        header.Children.Add(menu);
         if (expanded)
         {
-            var wordmark = Stack(); wordmark.VerticalAlignment = VerticalAlignment.Center; wordmark.Margin = new Thickness(8, 0, 4, 0);
-            var name = Text(Arabic ? "بصيرة" : "Baseera", 21); name.FontWeight = HeadingWeight; name.Margin = new Thickness(0, 0, 0, 2); wordmark.Children.Add(name);
-            var label = Text(I18n.T("windowsTools"), 11, true); label.Margin = new Thickness(0); wordmark.Children.Add(label); Grid.SetColumn(wordmark, 1); header.Children.Add(wordmark);
+            var eye = new BlinkingEye();
+            var mark = new Button
+            {
+                Style = (Style)FindResource("IconButton"), Content = eye, Width = 40, Height = 40,
+                VerticalAlignment = VerticalAlignment.Center, HorizontalContentAlignment = HorizontalAlignment.Center,
+                Cursor = System.Windows.Input.Cursors.Hand, ToolTip = I18n.T("blinkLogo")
+            };
+            DeviceId(mark, "BaseeraBlinkLogo");
+            System.Windows.Automation.AutomationProperties.SetName(mark, I18n.T("blinkLogo"));
+            mark.Click += (_, _) => eye.Blink(FluentMotion.Allowed);
+            header.Children.Add(mark);
+            var wordmark = Stack(); wordmark.VerticalAlignment = VerticalAlignment.Center; wordmark.Margin = new Thickness(4, 0, 4, 0);
+            var name = Text(Arabic ? "بصيرة" : "Baseera", 23); name.FontWeight = HeadingWeight; name.Margin = new Thickness(0, 0, 0, 1); wordmark.Children.Add(name);
+            name.SetResourceReference(TextBlock.ForegroundProperty, "Ink");
+            var label = Text(I18n.T("windowsTools"), 11, true); label.Margin = new Thickness(0);
+            label.SetResourceReference(TextBlock.ForegroundProperty, "Muted");
+            wordmark.Children.Add(label); Grid.SetColumn(wordmark, 1); header.Children.Add(wordmark);
+            Grid.SetColumn(menu, 2);
         }
+        else { Grid.SetColumnSpan(menu, 2); menu.HorizontalAlignment = HorizontalAlignment.Center; }
+        header.Children.Add(menu);
         DockPanel.SetDock(header, Dock.Top); navigation.Children.Add(header);
         var bottom = Stack(); DeviceId(bottom, "SidebarFooter");
         bottom.Children.Add(NavigationButton("feedback"));
         bottom.Children.Add(NavigationButton("settings"));
-        if (expanded) { var version = Text("Baseera " + SelfUpdater.CurrentVersion + " · " + I18n.T("preview"), 10, true); version.Margin = new Thickness(16, 10, 0, 0); DeviceId(version, "SidebarVersion"); bottom.Children.Add(version); }
+        if (expanded)
+        {
+            var version = Text("Baseera " + SelfUpdater.CurrentVersion + " · " + I18n.T("preview"), 10, true);
+            version.Margin = new Thickness(16, 10, 0, 0);
+            version.SetResourceReference(TextBlock.ForegroundProperty, "Muted");
+            DeviceId(version, "SidebarVersion"); bottom.Children.Add(version);
+        }
         DockPanel.SetDock(bottom, Dock.Bottom); navigation.Children.Add(bottom);
         var links = SidebarLinks(navigationChanged);
         var linksScroller = new ScrollViewer { Content = links, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
         sidebarScroll = linksScroller;
         navigation.Children.Add(linksScroller);
-        sidebar.BeginAnimation(WidthProperty, null); sidebar.Width = expanded ? 224 : 68; sidebar.Background = Resource("Sidebar"); sidebar.ClipToBounds = true; sidebar.Child = navigation;
-        sidebar.BorderBrush = Resource("Line"); sidebar.BorderThickness = Arabic ? new Thickness(1, 0, 0, 0) : new Thickness(0, 0, 1, 0); shell.Children.Add(sidebar);
+        sidebar.BeginAnimation(WidthProperty, null); sidebar.Width = expanded ? 236 : 68; sidebar.ClipToBounds = true; sidebar.Child = navigation;
+        sidebar.SetResourceReference(Border.BackgroundProperty, "Bg");
+        sidebar.SetResourceReference(Border.BorderBrushProperty, "Line");
+        sidebar.BorderThickness = Arabic ? new Thickness(1, 0, 0, 0) : new Thickness(0, 0, 1, 0); shell.Children.Add(sidebar);
+        DeviceId(sidebar, "WorkspaceSidebar");
 
         var main = new Grid(); Grid.SetColumn(main, 1); shell.Children.Add(main);
-        main.RowDefinitions.Add(new RowDefinition { Height = new GridLength(62) }); main.RowDefinitions.Add(new RowDefinition()); main.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        var toolbar = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(24, 0, 32, 0) };
+        main.Resources["Bg"] = Resource("Workspace");
+        main.RowDefinitions.Add(new RowDefinition { Height = new GridLength(58) }); main.RowDefinitions.Add(new RowDefinition()); main.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        var toolbar = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        if (Settings.Current.Onboarded) toolbar.Children.Add(ToolFinderButton());
         var languages = LanguageCombo(); languages.MinWidth = 134; languages.Margin = new Thickness(0, 0, 8, 0); languages.VerticalAlignment = VerticalAlignment.Center; toolbar.Children.Add(languages);
         var theme = new Button { Style = (Style)FindResource("IconButton"), Content = Icons.Create(Settings.Current.Dark ? "sun" : "moon", 18), ToolTip = I18n.T("dark") };
         System.Windows.Automation.AutomationProperties.SetName(theme, I18n.T("dark"));
-        theme.Click += (_, _) => { Settings.Current.Dark = !Settings.Current.Dark; Settings.Save(); ApplyTheme(); Render(true); }; toolbar.Children.Add(theme); main.Children.Add(toolbar);
-        var body = Stack(); pageBody = body; body.Margin = new Thickness(36, 4, 36, 28); scroller.Content = body; Grid.SetRow(scroller, 1); main.Children.Add(scroller);
+        theme.Click += (_, _) => { Settings.Current.Dark = !Settings.Current.Dark; Settings.Save(); ApplyTheme(); Render(true); }; toolbar.Children.Add(theme);
+        var topbar = new DockPanel { Margin = new Thickness(28, 0, 28, 0) };
+        DockPanel.SetDock(toolbar, Dock.Right); topbar.Children.Add(toolbar);
+        var currentPage = Text(I18n.T(Settings.Current.Onboarded ? page : "setupNew"), 13, true);
+        currentPage.VerticalAlignment = VerticalAlignment.Center; currentPage.Margin = new Thickness(0, 0, 16, 0);
+        currentPage.TextWrapping = TextWrapping.NoWrap; currentPage.TextTrimming = TextTrimming.CharacterEllipsis;
+        topbar.Children.Add(currentPage);
+        main.Children.Add(new Border { BorderBrush = Resource("Line"), BorderThickness = new Thickness(0, 0, 0, 1), Child = topbar });
+        var body = Stack(); pageBody = body; body.Margin = new Thickness(28, 20, 28, 28); scroller.Content = body; Grid.SetRow(scroller, 1); main.Children.Add(scroller);
         var progress = new DockPanel(); cancelOperation = Action("cancel", () => operation?.Cancel()); cancelOperation.Margin = new Thickness(12, 0, 0, 0); cancelOperation.Padding = new Thickness(12, 5, 12, 5);
         cancelOperation.Visibility = operation is null ? Visibility.Collapsed : Visibility.Visible; DockPanel.SetDock(cancelOperation, Dock.Right); progress.Children.Add(cancelOperation); progress.Children.Add(status);
         operationBar = new Border { Child = progress, Background = Resource("Surface"), BorderBrush = Resource("Line"), BorderThickness = new Thickness(0, 1, 0, 0), Padding = new Thickness(36, 10, 36, 10), Visibility = status.Text.Length == 0 && operation is null ? Visibility.Collapsed : Visibility.Visible };
@@ -278,12 +334,14 @@ public sealed partial class MainWindow
         var row = new Grid(); row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(4) }); row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) }); row.ColumnDefinitions.Add(new ColumnDefinition());
         if (selected)
         {
-            selectedNavigationIndicator = new Border { Background = Resource("Accent"), Width = 3, Height = 18, CornerRadius = new CornerRadius(2), VerticalAlignment = VerticalAlignment.Center };
+            selectedNavigationIndicator = new Border { Width = 3, Height = 18, CornerRadius = new CornerRadius(2), VerticalAlignment = VerticalAlignment.Center };
+            selectedNavigationIndicator.SetResourceReference(Border.BackgroundProperty, "Accent");
             row.Children.Add(selectedNavigationIndicator);
         }
-        var icon = Icons.Create(id, 18); icon.HorizontalAlignment = HorizontalAlignment.Center; Grid.SetColumn(icon, 1); row.Children.Add(icon);
+        var icon = Icons.Create(id, 18, selected ? "AccentInk" : "Muted"); icon.HorizontalAlignment = HorizontalAlignment.Center; Grid.SetColumn(icon, 1); row.Children.Add(icon);
         if (expanded) { var name = new TextBlock { Text = I18n.T(id), FontSize = 13, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 6, 0), FontWeight = selected ? HeadingWeight : FontWeights.Normal, TextWrapping = TextWrapping.NoWrap, TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 150 }; Grid.SetColumn(name, 2); row.Children.Add(name); }
-        var button = new Button { Style = (Style)FindResource("NavigationButton"), Content = row, Background = selected ? Resource("Selected") : Brushes.Transparent, ToolTip = I18n.T(id) };
+        var button = new Button { Style = (Style)FindResource("NavigationButton"), Content = row, Background = Brushes.Transparent, ToolTip = I18n.T(id) };
+        if (selected) button.SetResourceReference(BackgroundProperty, "Selected");
         System.Windows.Automation.AutomationProperties.SetAutomationId(button, "Navigate-" + id);
         System.Windows.Automation.AutomationProperties.SetName(button, I18n.T(id));
         button.Click += (_, _) =>
@@ -358,48 +416,6 @@ public sealed partial class MainWindow
         body.Children.Add(Card(panel));
         Help(body, "errorPrivacy");
     }
-    private void FeedbackPage(StackPanel body)
-    {
-        Heading(body, "feedback", "feedbackDesc");
-        var panel = Stack();
-        panel.Children.Add(Text(I18n.T("feedbackKind")));
-        var kind = new ComboBox { ItemsSource = new[] { I18n.T("feedbackIdea"), I18n.T("feedbackBug"), I18n.T("feedbackOther") }, SelectedIndex = feedbackKindDraft };
-        kind.SelectionChanged += (_, _) => feedbackKindDraft = kind.SelectedIndex;
-        panel.Children.Add(kind);
-        panel.Children.Add(Text(I18n.T("feedbackTitle")));
-        var title = new TextBox { Text = feedbackTitleDraft, MaxLength = 120 };
-        title.TextChanged += (_, _) => feedbackTitleDraft = title.Text;
-        panel.Children.Add(title);
-        panel.Children.Add(Text(I18n.T("feedbackDetails")));
-        var details = new TextBox { Text = feedbackBodyDraft, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, Height = 170,
-            VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MaxLength = 4000 };
-        details.TextChanged += (_, _) => feedbackBodyDraft = details.Text;
-        panel.Children.Add(details);
-        var message = Text("", 12, true); panel.Children.Add(message);
-        var send = Action("feedbackContinue", () =>
-        {
-            if (string.IsNullOrWhiteSpace(title.Text) || string.IsNullOrWhiteSpace(details.Text))
-            { message.Text = I18n.T("feedbackRequired"); return; }
-            try
-            {
-                string category = kind.SelectedIndex switch { 1 => "Bug", 2 => "Other", _ => "Idea" };
-                string issueTitle = $"[{category}] {title.Text.Trim()}";
-                string issueBody = details.Text.Trim() + $"\n\nBaseera {SelfUpdater.CurrentVersion} · {Settings.Current.Language}";
-                string url = "https://github.com/yabs117/baseera/issues/new?title=" + Uri.EscapeDataString(issueTitle) + "&body=" + Uri.EscapeDataString(issueBody);
-                if (url.Length > 1800)
-                {
-                    System.Windows.Clipboard.SetText(issueBody);
-                    url = "https://github.com/yabs117/baseera/issues/new?title=" + Uri.EscapeDataString(issueTitle);
-                    message.Text = I18n.T("feedbackCopied");
-                }
-                else message.Text = I18n.T("feedbackReview");
-                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
-            }
-            catch (Exception ex) { message.Text = I18n.T("feedbackFailed") + " " + ex.Message; }
-        }, true);
-        send.HorizontalAlignment = HorizontalAlignment.Left; panel.Children.Add(send);
-        body.Children.Add(Card(panel)); Help(body, "feedbackPrivacy");
-    }
     private void Home(StackPanel body)
     {
         Heading(body, "home", "overviewDesc");
@@ -423,6 +439,7 @@ public sealed partial class MainWindow
         SectionHeading(body, "appearance"); var appearance = Stack(); var language = LanguageCombo(); language.Margin = new Thickness(0); appearance.Children.Add(SettingRow("language", language)); Divider(appearance);
         var dark = Toggle("dark", Settings.Current.Dark, value => { Settings.Current.Dark = value; Settings.Save(); ApplyTheme(); Render(true); }); dark.Content = null;
         appearance.Children.Add(SettingRow("dark", dark)); Divider(appearance);
+        appearance.Children.Add(ColorPalettePicker()); Divider(appearance);
         var welcomeStartup = Toggle("welcomeRepeat", Settings.Current.ShowWelcomeOnStartup, value => { Settings.Current.ShowWelcomeOnStartup = value; Settings.Save(); }); welcomeStartup.Content = null;
         appearance.Children.Add(SettingRow("welcomeRepeat", welcomeStartup)); Divider(appearance);
         var welcome = Action("welcomeReopen", ShowWelcome); welcome.Margin = new Thickness(0); appearance.Children.Add(SettingRow("welcomeGuide", welcome)); body.Children.Add(Card(appearance));
@@ -484,16 +501,19 @@ public sealed partial class MainWindow
             System.Windows.Automation.AutomationProperties.GetAutomationId(e) is "SidebarToolsSection" or "OverviewTools"))
             group.IsExpanded = true;
         UpdateLayout();
-        if (Descendants(frame).OfType<Button>().Count(b => System.Windows.Automation.AutomationProperties.GetName(b) == I18n.T("errors")) != 2)
-            throw new InvalidOperationException("Error assistant is missing from Overview or Your tools navigation.");
+        string[] assistantEntries = Descendants(frame).OfType<Button>()
+            .Where(b => b.IsVisible && System.Windows.Automation.AutomationProperties.GetName(b) == I18n.T("errors"))
+            .Select(System.Windows.Automation.AutomationProperties.GetAutomationId).ToArray();
+        if (!new[] { "Navigate-errors", "Quick-errors", "HomeFavorite-errors" }.All(id => assistantEntries.Count(entry => entry == id) == 1))
+            throw new InvalidOperationException("Error assistant is missing from the sidebar, tool group or quick access.");
         Navigate("errors"); UpdateLayout();
         if (!Descendants(frame).OfType<Button>().Any(b => System.Windows.Automation.AutomationProperties.GetName(b) == I18n.T("errorsOpen")))
             throw new InvalidOperationException("Error assistant page has no open action.");
         Navigate("feedback"); UpdateLayout();
-        var submit = Descendants(frame).OfType<Button>().Single(b => System.Windows.Automation.AutomationProperties.GetName(b) == I18n.T("feedbackContinue"));
+        var submit = Descendants(frame).OfType<Button>().Single(b => System.Windows.Automation.AutomationProperties.GetAutomationId(b) == "FeedbackSend");
         submit.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         if (!Descendants(frame).OfType<TextBlock>().Any(label => label.Text == I18n.T("feedbackRequired")))
-            throw new InvalidOperationException("Empty feedback was not stopped before opening GitHub.");
+            throw new InvalidOperationException("Empty feedback was not stopped before submission.");
         Navigate("convert"); UpdateLayout(); if (!Descendants(frame).OfType<ComboBox>().Any(c => c.Items.Contains("PDF"))) throw new InvalidOperationException("Conversion formats unavailable.");
         SystemCommands.MaximizeWindow(this); await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
         if (WindowState != WindowState.Maximized) throw new InvalidOperationException("Native maximize failed.");

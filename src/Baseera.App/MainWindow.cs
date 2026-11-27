@@ -49,6 +49,11 @@ public sealed partial class MainWindow : Window
         {
             if (e.Key == System.Windows.Input.Key.E && System.Windows.Input.Keyboard.Modifiers == (System.Windows.Input.ModifierKeys.Control | System.Windows.Input.ModifierKeys.Shift))
             { e.Handled = true; ShowErrorAssistant(); }
+            if (e.Key == System.Windows.Input.Key.K && System.Windows.Input.Keyboard.Modifiers == System.Windows.Input.ModifierKeys.Control && Settings.Current.Onboarded)
+            {
+                e.Handled = true;
+                if (!e.IsRepeat) OpenToolFinder();
+            }
         };
         deviceTimer.Tick += async (_, _) => { if (IsVisible && WindowState != WindowState.Minimized) await RefreshDevice(); };
         Loaded += (_, _) => StartDeviceMonitor();

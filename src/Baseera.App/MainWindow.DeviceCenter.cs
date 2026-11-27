@@ -18,6 +18,8 @@ public sealed partial class MainWindow
     private string deviceError = "", processFilter = "";
     private bool processByMemory;
     private bool overviewToolsOpen, overviewCentersOpen;
+    private readonly Queue<double?> cpuReadings = new();
+    private const int MaxCpuReadings = 16;
     internal Func<bool, CancellationToken, Task<DeviceSnapshot>>? DeviceSourceOverride { get; set; }
     private static void DeviceId(DependencyObject element, string id) => AutomationProperties.SetAutomationId(element, id);
     private bool DevicePage => page is "home" or "health" or "performance";
@@ -40,7 +42,10 @@ public sealed partial class MainWindow
         {
             var collected = await (DeviceSourceOverride?.Invoke(page == "performance", request.Token) ?? DeviceMonitor.Collect(page == "performance", request.Token));
             request.Token.ThrowIfCancellationRequested(); if (revision != deviceRevision || !DevicePage) return;
-            deviceSnapshot = collected; drawDevice?.Invoke();
+            deviceSnapshot = collected;
+            if (cpuReadings.Count == MaxCpuReadings) cpuReadings.Dequeue();
+            cpuReadings.Enqueue(collected.CpuPercent);
+            drawDevice?.Invoke();
         }
         catch (OperationCanceledException) { }
         catch (Exception) { if (revision == deviceRevision) { deviceError = I18n.T("deviceReadFailed"); if (deviceStatus is not null) deviceStatus.Text = deviceError; } }
@@ -67,22 +72,38 @@ public sealed partial class MainWindow
     }
     private Border MetricCard(string label, string icon, string value, string detail, double? percentage, string id, Action action)
     {
-        var content = new Grid(); content.RowDefinitions.Add(new()); content.RowDefinitions.Add(new()); content.RowDefinitions.Add(new());
-        var heading = new DockPanel(); var glyph = Icons.Create(icon, 18, "Muted"); DockPanel.SetDock(glyph, Dock.Right); heading.Children.Add(glyph); heading.Children.Add(Text(I18n.T(label), 12, true)); content.Children.Add(heading);
-        var reading = Text(value, 23); reading.FontWeight = HeadingWeight; reading.Margin = new Thickness(0, 8, 0, 4); Grid.SetRow(reading, 1); content.Children.Add(reading);
-        if (label != "health") { reading.FlowDirection = FlowDirection.LeftToRight; reading.TextAlignment = Arabic ? TextAlignment.Right : TextAlignment.Left; }
-        var bottom = Stack(); var caption = Text(detail, 11, true); caption.Margin = new Thickness(0); bottom.Children.Add(caption);
-        if (label is "deviceMemory" or "deviceStorage") { caption.FlowDirection = FlowDirection.LeftToRight; caption.TextAlignment = Arabic ? TextAlignment.Right : TextAlignment.Left; }
-        if (percentage is { } progress)
+        var content = new Grid();
+        content.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        content.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        content.RowDefinitions.Add(new RowDefinition());
+        var heading = new DockPanel();
+        var glyph = new Border { Background = Resource("Tint"), CornerRadius = new CornerRadius(7), Width = 32, Height = 32, Margin = new Thickness(0, 0, 8, 0), Child = Icons.Create(icon, 17, "AccentInk") };
+        DockPanel.SetDock(glyph, Dock.Left); heading.Children.Add(glyph);
+        var headingLabel = Text(I18n.T(label), 12, true); headingLabel.Margin = new Thickness(0); headingLabel.VerticalAlignment = VerticalAlignment.Center;
+        heading.Children.Add(headingLabel); content.Children.Add(heading);
+        var reading = Text(value, 22); reading.FontWeight = HeadingWeight; reading.Margin = new Thickness(0, 9, 0, 5); Grid.SetRow(reading, 1); content.Children.Add(reading);
+        if (percentage is not null) { reading.FlowDirection = FlowDirection.LeftToRight; reading.TextAlignment = Arabic ? TextAlignment.Right : TextAlignment.Left; }
+        var bottom = new DockPanel();
+        var caption = Text(detail, 11, true); caption.Margin = new Thickness(0); caption.VerticalAlignment = VerticalAlignment.Top;
+        if (label == "deviceMemory" && percentage is not null)
         {
-            progress = Math.Clamp(progress, 0, 100);
-            var meter = new Grid { Height = 3, Background = Resource("Line"), Margin = new Thickness(0, 10, 0, 0), IsHitTestVisible = false };
-            meter.ColumnDefinitions.Add(new() { Width = new GridLength(progress, GridUnitType.Star) }); meter.ColumnDefinitions.Add(new() { Width = new GridLength(100 - progress, GridUnitType.Star) });
-            meter.Children.Add(new Border { Background = Resource("Accent") }); bottom.Children.Add(meter);
+            caption.FlowDirection = FlowDirection.LeftToRight;
+            caption.TextAlignment = Arabic ? TextAlignment.Right : TextAlignment.Left;
         }
+        if (label != "health")
+        {
+            double progress = percentage is double sample && double.IsFinite(sample) ? Math.Clamp(sample, 0, 100) : 0;
+            var meter = new Grid { Height = 4, Margin = new Thickness(0, 10, 0, 0), IsHitTestVisible = false };
+            meter.ColumnDefinitions.Add(new() { Width = new GridLength(progress, GridUnitType.Star) }); meter.ColumnDefinitions.Add(new() { Width = new GridLength(100 - progress, GridUnitType.Star) });
+            var track = new Border { CornerRadius = new CornerRadius(2), Background = Resource("Line") };
+            Grid.SetColumnSpan(track, 2); meter.Children.Add(track);
+            if (progress > 0) meter.Children.Add(new Border { CornerRadius = new CornerRadius(2), Background = Resource("Accent") });
+            DockPanel.SetDock(meter, Dock.Bottom); bottom.Children.Add(meter);
+        }
+        bottom.Children.Add(caption);
         Grid.SetRow(bottom, 2); content.Children.Add(bottom);
-        var button = new Button { Content = content, Padding = new Thickness(18), HorizontalContentAlignment = HorizontalAlignment.Stretch, VerticalContentAlignment = VerticalAlignment.Stretch,
-            Background = Resource("Surface"), BorderBrush = Resource("Line"), BorderThickness = new Thickness(1), MinHeight = 134, Margin = new Thickness(0, 0, 10, 10) };
+        var button = new Button { Content = content, Padding = new Thickness(14), HorizontalContentAlignment = HorizontalAlignment.Stretch, VerticalContentAlignment = VerticalAlignment.Stretch,
+            Background = Resource("Surface"), BorderBrush = Resource("Line"), BorderThickness = new Thickness(1), MinHeight = 142, Margin = new Thickness(0, 0, 10, 10) };
         DeviceId(button, id); AutomationProperties.SetName(button, I18n.T(label) + ": " + value); button.Click += (_, _) => action();
         return new Border { Child = button };
     }
@@ -93,7 +114,13 @@ public sealed partial class MainWindow
         if (!performance) grid.Children.Add(MetricCard("health", "health", HealthState(), I18n.T("deviceSampled"), null, "DeviceHealthCard", () => Navigate("health")));
         grid.Children.Add(MetricCard("deviceCpu", "cpu", Metric(snapshot?.CpuPercent), I18n.T("deviceCpuCaption"), snapshot?.CpuPercent, "DeviceCpuCard", () => Navigate("performance")));
         grid.Children.Add(MetricCard("deviceMemory", "memory", Metric(snapshot?.Memory?.UsedPercent), snapshot?.Memory is { UsedPercent: not null } memory ? SizeText(memory.Total - memory.Available) + " / " + SizeText(memory.Total) : I18n.T("deviceUnknown"), snapshot?.Memory?.UsedPercent, "DeviceMemoryCard", () => Navigate("performance")));
-        if (!performance) grid.Children.Add(MetricCard("deviceStorage", "disk", system is null ? I18n.T("deviceUnknown") : SizeText(system.Free), system is null ? I18n.T("deviceDiskLimits") : system.Name + " · " + I18n.T("deviceFree") + " / " + SizeText(system.Total), system?.FreePercent is { } free ? 100 - free : null, "DeviceStorageCard", () => Navigate("health")));
+        if (!performance)
+        {
+            string diskDetail = system is null ? I18n.T("deviceDiskLimits") :
+                "\u2066" + system.Name + "\u2069 · " + string.Format(I18n.T("workspaceDiskTotal"), "\u2066" + SizeText(system.Total) + "\u2069");
+            grid.Children.Add(MetricCard("deviceStorage", "disk", system is null ? I18n.T("deviceUnknown") : SizeText(system.Free), diskDetail,
+                system?.FreePercent is { } free ? 100 - free : null, "DeviceStorageCard", () => Navigate("health")));
+        }
     }
     private Button QuickAccess(string key, Action action, string? hint = null)
     {
@@ -107,9 +134,26 @@ public sealed partial class MainWindow
     }
     private void ControlHome(StackPanel body)
     {
-        DeviceHeading(body, "deviceCenter", "deviceOverviewDesc");
+        var trend = AddOverviewHeader(body);
+        var readings = new DockPanel { Margin = new Thickness(0, 1, 0, 10) };
+        var observations = Text("", 12, true); DeviceId(observations, "DeviceObservationCount");
+        observations.Margin = new Thickness(14, 0, 0, 0); observations.VerticalAlignment = VerticalAlignment.Center;
+        DockPanel.SetDock(observations, Dock.Right); readings.Children.Add(observations);
+        var health = Text(I18n.T("workspaceReadings"), 16); health.FontWeight = HeadingWeight; health.Margin = new Thickness(0);
+        readings.Children.Add(health); body.Children.Add(readings);
         var metrics = new UniformGrid { Columns = 2, Margin = new Thickness(0, 0, -10, 2) }; DeviceId(metrics, "DeviceMetrics"); body.Children.Add(metrics);
-        var observations = Text("", 12, true); DeviceId(observations, "DeviceObservationCount"); body.Children.Add(observations);
+        metrics.SizeChanged += (_, args) =>
+        {
+            if (args.WidthChanged) metrics.Columns = args.NewSize.Width >= 815 ? 4 : 2;
+        };
+        SectionHeading(body, "workspaceQuickTasks");
+        var quick = new UniformGrid { Columns = 3, Margin = new Thickness(0, 0, -10, 2) };
+        foreach (string key in new[] { "scan", "errors", "translate" })
+        {
+            var button = QuickAccess(key, () => Navigate(key));
+            DeviceId(button, "HomeFavorite-" + key); quick.Children.Add(button);
+        }
+        body.Children.Add(quick);
         var tools = new UniformGrid { Columns = 2, Margin = new Thickness(0, 8, -10, 0) };
         foreach (string key in Tools)
         {
@@ -125,7 +169,14 @@ public sealed partial class MainWindow
         body.Children.Add(OverviewSection("OverviewTools", "yourTools", "toolbox", tools, overviewToolsOpen, open => overviewToolsOpen = open));
         body.Children.Add(OverviewSection("OverviewCenters", "hubCenters", "centers", centers, overviewCentersOpen, open => overviewCentersOpen = open));
         Help(body, "deviceLocalOnly");
-        drawDevice = () => { DrawMetrics(metrics); observations.Text = deviceSnapshot is null ? I18n.T("deviceNoData") : string.Format(I18n.T("deviceObservations"), deviceSnapshot.Findings.Count); }; drawDevice();
+        drawDevice = () =>
+        {
+            DrawMetrics(metrics);
+            observations.Visibility = deviceSnapshot is null ? Visibility.Collapsed : Visibility.Visible;
+            observations.Text = deviceSnapshot is null ? "" : string.Format(I18n.T("deviceObservations"), deviceSnapshot.Findings.Count);
+            trend(cpuReadings.ToArray());
+        };
+        drawDevice();
     }
     private Expander OverviewSection(string id, string label, string icon, FrameworkElement content, bool isOpen, Action<bool> setOpen)
     {
