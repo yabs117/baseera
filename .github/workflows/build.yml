@@ -14,11 +14,11 @@ jobs:
   windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
       - name: Build, test and package
@@ -29,7 +29,7 @@ jobs:
       - name: Signing policy validation
         shell: pwsh
         run: ./tests/windows/Test-SigningPolicy.ps1
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: Baseera-windows-preview
           path: |
@@ -41,13 +41,13 @@ jobs:
     runs-on: windows-2025
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Validate native servicing in a disposable guest
         shell: pwsh
         env:
           BASEERA_DISPOSABLE_VM_TEST: '1'
         run: ./tests/windows/Invoke-NativeRepairValidation.ps1 -RunNativeRepairs
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: Baseera-native-vm-evidence
