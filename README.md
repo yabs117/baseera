@@ -10,9 +10,11 @@ Windows 10 and 11 x64 · Preview releases · .NET included
 
 ## Smart Repair in action
 
-![Smart Repair turns a OneDrive sync error into possible causes, checks to try and a confidence estimate](docs/images/smart-repair-demo.gif)
+[![Play the Smart Repair demo](docs/images/smart-repair-poster.png)](docs/images/smart-repair-demo.mp4)
 
-*Baseera development build with a sample Windows error and a simulated AI response.* [How Smart Repair works](docs/SMART-REPAIR.md)
+[Watch the 5.75-second video](docs/images/smart-repair-demo.mp4)
+
+*Recorded in Baseera’s development build using a sample Windows error and a simulated AI response.* [How Smart Repair works](docs/SMART-REPAIR.md)
 
 Baseera also translates Windows app text, inspects files and ZIPs locally, manages updates for selected apps, and converts images or combines them into a PDF. [Explore the tools](docs/USER-GUIDE.md)
 
