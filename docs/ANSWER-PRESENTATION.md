@@ -28,6 +28,13 @@ Unicode characters. From 0.4.11 the answer body follows its own reply-language
 direction independently of the app interface, while model IDs and the logo itself
 remain LTR. Sections and numbered steps use clearer spacing.
 
+Paragraphs and lists are only rearranged for reading. A blank line becomes space
+between paragraphs, and a single line break stays inside the paragraph. Lines that
+already begin with a number or bullet keep that marker and use a hanging indent so
+a wrapped line lines up under the words. Step numbers and check bullets sit on the
+start side, in Arabic and in English, with a steady gap before the text. The words
+themselves are not rewritten or translated. Only the space around them changes.
+
 ![Arabic answer while revealing](images/advice-writing-ar.png)
 
 ![Completed Arabic answer](images/advice-complete-ar.png)
