@@ -25,6 +25,9 @@ public sealed partial class MainWindow
             foreach (string locale in new[] { "en", "ar", "fr", "es" })
             {
                 Settings.Current.Language = locale; Settings.Current.Dark = locale == "ar"; ApplyTheme(); Navigate("home"); await Settle();
+                var tools = Nodes(frame).OfType<Expander>().Single(e => AutomationProperties.GetAutomationId(e) == "SidebarToolsSection");
+                tools.IsExpanded = true;
+                await Settle();
                 var scan = Nodes(frame).OfType<Button>().Single(b => AutomationProperties.GetAutomationId(b) == "Navigate-scan");
                 scan.RaiseEvent(new System.Windows.Input.MouseEventArgs(System.Windows.Input.Mouse.PrimaryDevice, 0) { RoutedEvent = MouseEnterEvent });
                 await Settle();

@@ -65,6 +65,29 @@ public sealed partial class MainWindow
                 Settings.Current.Language = locale; Settings.Current.Dark = night; ApplyTheme(); Navigate("updates");
                 Activate(); UpdateLayout(); await Task.Delay(150);
                 await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                var source = Find<Button>("AppSource:Example.Explorer");
+                bool rtl = locale == "ar";
+                System.Windows.Vector ChevronDirection(bool expanded)
+                {
+                    var chevron = Descendants(source).OfType<System.Windows.Shapes.Path>().Single();
+                    var transform = chevron.TransformToAncestor(this);
+                    var figure = chevron.Data.GetFlattenedPathGeometry().Figures.Single();
+                    var points = figure.Segments.SelectMany<System.Windows.Media.PathSegment, System.Windows.Point>(segment => segment switch
+                    {
+                        System.Windows.Media.LineSegment line => new[] { line.Point },
+                        System.Windows.Media.PolyLineSegment polyline => polyline.Points,
+                        _ => Enumerable.Empty<System.Windows.Point>()
+                    }).Prepend(figure.StartPoint).Select(transform.Transform).ToArray();
+                    Require(points.Length == 3, "source chevron geometry has changed");
+                    var direction = points[1] - new System.Windows.Point((points[0].X + points[2].X) / 2, (points[0].Y + points[2].Y) / 2);
+                    Require(expanded ? direction.Y > 0 && Math.Abs(direction.X) < .01 : Math.Abs(direction.Y) < .01, "source chevron has the wrong axis");
+                    return direction;
+                }
+                var closed = ChevronDirection(expanded: false);
+                Require(rtl ? closed.X < 0 : closed.X > 0, "source chevron points against the reading direction");
+                source.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); UpdateLayout();
+                ChevronDirection(expanded: true);
+                source.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); UpdateLayout();
                 if (locale == "en" && !night || locale == "ar" && night) WindowAppearance.SavePreview(this, Path.Combine(output, "apps-list-" + locale + (night ? "-dark" : "") + ".png"));
             }
             Width = 940; Height = 680; Settings.Current.Language = "ar"; ApplyTheme(); Navigate("updates");

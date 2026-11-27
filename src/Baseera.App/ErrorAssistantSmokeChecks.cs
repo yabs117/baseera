@@ -110,7 +110,8 @@ internal static class ErrorAssistantSmokeChecks
                 await owner.Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
                 Descendants(dialog).OfType<AdvicePresenter>().Single().Finish();
                 if (!Descendants(dialog).OfType<AdviceTextView>().Any(t => t.VisibleText == "Access denied") ||
-                    !Descendants(dialog).OfType<TextBlock>().Any(t => t.Text == I18n.T("chatContextPrivacy")))
+                    !Descendants(dialog).OfType<TextBlock>().Any(t => t.Text == I18n.T("smartWorkspacePrivacy") &&
+                        System.Windows.Automation.AutomationProperties.GetHelpText(t) == I18n.T("chatContextPrivacy")))
                     throw new Exception("Error guidance or privacy notice missing in " + language);
                 if (language is "ar" or "en")
                 {

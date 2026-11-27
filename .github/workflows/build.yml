@@ -3,6 +3,11 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+    inputs:
+      native_vm_repairs:
+        description: 'Run fixed SFC/DISM validation on a disposable GitHub-hosted Windows VM'
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
@@ -21,6 +26,9 @@ jobs:
         run: ./build.ps1 -Test -Publish
       - name: Extension validation
         run: node --test extension/test/protocol.test.js
+      - name: Signing policy validation
+        shell: pwsh
+        run: ./tests/windows/Test-SigningPolicy.ps1
       - uses: actions/upload-artifact@v4
         with:
           name: Baseera-windows-preview
@@ -28,3 +36,19 @@ jobs:
             artifacts/Baseera.exe
             artifacts/*.zip
             artifacts/SHA256SUMS.txt
+  native-repair-vm:
+    if: github.event_name == 'workflow_dispatch' && inputs.native_vm_repairs
+    runs-on: windows-2025
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate native servicing in a disposable guest
+        shell: pwsh
+        env:
+          BASEERA_DISPOSABLE_VM_TEST: '1'
+        run: ./tests/windows/Invoke-NativeRepairValidation.ps1 -RunNativeRepairs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Baseera-native-vm-evidence
+          path: artifacts/native-vm-evidence/

@@ -42,7 +42,7 @@ internal sealed class AdvicePresenter : Border, IDisposable
         if (description.Length > 0 || image is not null || sharedDiagnostics)
             layout.Children.Add(UserMessage(description, image, sharedDiagnostics));
 
-        var response = new StackPanel { Margin = new Thickness(0, 24, 0, 0) }; layout.Children.Add(response);
+        var response = new StackPanel { Margin = new Thickness(0, 18, 0, 0) }; layout.Children.Add(response);
         var header = new Grid(); header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         header.ColumnDefinitions.Add(new ColumnDefinition()); header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var mark = new Border { Width = 32, Height = 32, CornerRadius = new CornerRadius(8), Child = AiProviderBadge.Mark(provider, 23), VerticalAlignment = VerticalAlignment.Top };
@@ -73,10 +73,12 @@ internal sealed class AdvicePresenter : Border, IDisposable
         state.SetResourceReference(TextBlock.ForegroundProperty, "Muted");
         AutomationProperties.SetAutomationId(state, "AdviceState"); AutomationProperties.SetLiveSetting(state, AutomationLiveSetting.Polite);
         activity.Children.Add(state); response.Children.Add(activity);
-        content.Margin = Indent(18); content.Visibility = Visibility.Collapsed; response.Children.Add(content);
+        header.SetBinding(ToolTipProperty, new System.Windows.Data.Binding(nameof(TextBlock.Text)) { Source = state });
+        content.Margin = Indent(12); content.Visibility = Visibility.Collapsed; response.Children.Add(content);
 
         var copyLabel = new StackPanel { Orientation = Orientation.Horizontal };
         var copyIcon = new System.Windows.Shapes.Path { Data = Geometry.Parse("M7,3 L15,3 L15,13 L7,13 Z M4,6 L4,16 L12,16"), StrokeThickness = 1.2, Width = 14, Height = 16, Stretch = Stretch.Uniform, Margin = new Thickness(0, 0, 6, 0) };
+        copyIcon.FlowDirection = FlowDirection.LeftToRight;
         copyIcon.SetResourceReference(System.Windows.Shapes.Shape.StrokeProperty, "Muted"); copyLabel.Children.Add(copyIcon);
         copyLabel.Children.Add(Text(I18n.T("errorCopyAdvice"), 11, true)); copy.Content = copyLabel;
         copy.HorizontalAlignment = Settings.Current.Language == "ar" ? HorizontalAlignment.Right : HorizontalAlignment.Left;
@@ -137,22 +139,22 @@ internal sealed class AdvicePresenter : Border, IDisposable
         content.Language = System.Windows.Markup.XmlLanguage.GetLanguage(locale.Language);
         if (showGreeting)
         {
-            var greeting = Add(locale.Greeting, 14, muted: true, bottom: 16);
+            var greeting = Add(locale.Greeting, 14, muted: true, bottom: 14);
             AutomationProperties.SetAutomationId(greeting, "AdviceGreeting");
         }
         if (advice.Message is not null) Add(advice.Message, bottom: 0);
         else
         {
-        var summary = Add(advice.Summary, 19, bold: true, bottom: 18); AutomationProperties.SetAutomationId(summary, "AdviceSummary");
-        Add(locale.CauseTitle, 13, bold: true, bottom: 6); Add(advice.Cause, bottom: 8);
-        Add(locale.StepsTitle, 13, bold: true, top: 14, bottom: 8);
-        for (int i = 0; i < advice.Steps.Count; i++) Add(advice.Steps[i], number: (i + 1).ToString(CultureInfo.InvariantCulture), bottom: 10);
+        var summary = Add(advice.Summary, 17, bold: true, bottom: 16); AutomationProperties.SetAutomationId(summary, "AdviceSummary");
+        Add(locale.CauseTitle, 13, bold: true, bottom: 5); Add(advice.Cause, bottom: 16);
+        Add(locale.StepsTitle, 13, bold: true, bottom: 10);
+        for (int i = 0; i < advice.Steps.Count; i++) Add(advice.Steps[i], number: (i + 1).ToString(CultureInfo.InvariantCulture), bottom: 12);
         if (advice.Checks.Count > 0)
         {
-            Add(locale.ChecksTitle, 13, bold: true, top: 14, bottom: 8);
-            foreach (string check in advice.Checks) Add(check, number: "·", bottom: 10);
+            Add(locale.ChecksTitle, 13, bold: true, bottom: 8);
+            foreach (string check in advice.Checks) Add(check, number: "·", bottom: 8);
         }
-        Add(locale.ConfidenceTitle + ": " + advice.Confidence, 12, muted: true, top: 12, bottom: 0);
+        Add(locale.ConfidenceTitle + ": " + advice.Confidence, 12, muted: true, bottom: 0);
         }
         completeText = (showGreeting ? locale.Greeting + "\n\n" : "") + (advice.Message ?? (advice.Summary + "\n\n" + locale.CauseTitle + "\n" + advice.Cause + "\n\n" +
             locale.StepsTitle + "\n" + string.Join("\n", advice.Steps.Select((step, i) => $"{i + 1}. {step}")) +
@@ -165,10 +167,10 @@ internal sealed class AdvicePresenter : Border, IDisposable
         elapsed.Start(); timer.Start();
     }
 
-    private AdviceTextView Add(string value, int size = 14, bool bold = false, bool muted = false, string? number = null, double bottom = 8, double top = 0)
+    private AdviceTextView Add(string value, int size = 14, bool bold = false, bool muted = false, string? number = null, double bottom = 8)
     {
         var section = new StackPanel(); FrameworkElement container = number is null ? section : ListRow(section, number, size);
-        container.Margin = new Thickness(0, top, 0, bottom); container.Visibility = Visibility.Collapsed; content.Children.Add(container);
+        container.Margin = new Thickness(0, 0, 0, bottom); container.Visibility = Visibility.Collapsed; content.Children.Add(container);
         AdviceTextView? first = null;
         foreach (var block in AdviceMarkup.Parse(value))
         {
@@ -194,27 +196,29 @@ internal sealed class AdvicePresenter : Border, IDisposable
         return first ?? throw new InvalidDataException("Empty response paragraph.");
     }
 
-    private FrameworkElement ListRow(StackPanel section, string marker, double bodySize)
+    private FrameworkElement ListRow(StackPanel section, string marker, int bodySize)
     {
         bool rtl = content.FlowDirection == FlowDirection.RightToLeft;
         bool bullet = marker is "·" or "•" or "-" or "*";
         var row = new Grid();
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        // The marker is list chrome. The step or check text itself is passed through unchanged.
-        var index = Text(marker, 14, true);
+        var index = Text(marker, bodySize, true);
         index.TextWrapping = TextWrapping.NoWrap;
-        index.FontSize = bodySize;
         index.FontWeight = bullet ? FontWeights.Normal : FontWeights.SemiBold;
         index.LineHeight = bodySize * 1.8;
-        index.FlowDirection = FlowDirection.LeftToRight; index.MinWidth = bullet ? 14 : 20;
+        index.FlowDirection = FlowDirection.LeftToRight;
+        index.MinWidth = bullet ? 14 : 20;
         index.TextAlignment = rtl ? TextAlignment.Left : TextAlignment.Right;
         index.HorizontalAlignment = rtl ? HorizontalAlignment.Left : HorizontalAlignment.Right;
         index.VerticalAlignment = VerticalAlignment.Top;
         index.Margin = rtl ? new Thickness(12, 0, 0, 0) : new Thickness(0, 0, 12, 0);
         Typography.SetNumeralAlignment(index, FontNumeralAlignment.Tabular);
         Typography.SetNumeralStyle(index, FontNumeralStyle.Lining);
-        row.Children.Add(index); Grid.SetColumn(section, 1); row.Children.Add(section); return row;
+        row.Children.Add(index);
+        Grid.SetColumn(section, 1);
+        row.Children.Add(section);
+        return row;
     }
 
     private void CopyText(string text)
@@ -257,8 +261,9 @@ internal sealed class AdvicePresenter : Border, IDisposable
         foreach (var part in parts)
         { part.Container.Visibility = Visibility.Visible; part.Block.Visibility = Visibility.Visible; part.Text.RevealTo(part.Value.Length); if (part.CopyCode is not null) part.CopyCode.IsEnabled = true; }
         IsTyping = false; revealAll.Visibility = Visibility.Collapsed; copy.Visibility = Visibility.Visible;
-        foreach (var dot in dots) dot.Visibility = Visibility.Collapsed;
         state.Text = I18n.T("adviceComplete") + " · " + string.Format(I18n.T("adviceResponseTime"), requestClock.Elapsed.TotalSeconds.ToString("0.0", CultureInfo.CurrentCulture));
+        AutomationProperties.SetItemStatus(this, state.Text);
+        activity.Visibility = Visibility.Collapsed;
         Changed?.Invoke(); Completed?.Invoke();
     }
 

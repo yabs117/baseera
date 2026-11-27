@@ -2,15 +2,22 @@
 
 ## Implemented preview
 
-- Development 0.4.17: protected local case history, selected read-only service states,
+- 0.5.0 Preview: eight optional local investigation centers for selected
+  Windows evidence, temporal performance, security status/signatures, network
+  measurements, scoped storage and duplicate analysis, local document search,
+  chronological events and non-destructive USB file reads. Each has explicit
+  evidence limits and review gates. [Exact scope](INVESTIGATION-CENTERS.md).
+  Included in the [0.5.0 preview build](RELEASE-0.5.0.md).
+
+- Added during 0.4.17 development and included in 0.5.0: protected local case history, selected read-only service states,
   scoped before/after retests, gradual case MVVM/constructor DI, task activity and
   cancellation, high-contrast palette, update-channel filtering, explicit-certificate
   signing support and security workflows. [Scope](SMART-REPAIR-WORKFLOW.md).
 
-- Development 0.4.16: local device control/health/performance centers, sampled CPU,
+- Added during 0.4.16 development and included in 0.5.0: local device control/health/performance centers, sampled CPU,
   physical memory and fixed-volume space, readable process and startup registration
   review, and opt-in combined device/event diagnosis. [Scope](DEVICE-CENTER.md).
-  This development change is not yet in the public 0.4.15 release.
+  Included in the [0.5.0 preview build](RELEASE-0.5.0.md).
 
 - Preview 0.4.15: existing error assistant expanded into Smart Repair with
   selected read-only diagnostics, preview/redaction, single-analysis sharing consent,
@@ -24,7 +31,7 @@
 - Open-window capture, 20 direct AI services for vision translation and dismissible overlay.
 - Error assistant with visible pasted/selected/captured image preview and service model discovery and image-capable model selection.
 - Official ChatGPT account sign-in, account picker, protected OAuth sessions, renewal, revocation, plan-use notices and account model selection.
-- Feedback and bug reporting through a prefilled GitHub issue reviewed in the browser.
+- In-app feedback and bug reporting with draft retention if delivery cannot be confirmed.
 - Chrome/Edge extension for in-place text replacement and original restoration.
 - Selected WinGet packages updated on app start and every six hours while open.
 - Baseera self-update checks, in-app download/progress, digest verification, same-path replacement, restart acknowledgement and rollback backup.

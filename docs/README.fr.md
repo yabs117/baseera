@@ -1,29 +1,31 @@
 # Baseera
 
-**En développement — 0.4.17-preview :** nouveau centre de contrôle, santé/performances, dossiers Smart Repair, comparaisons, activité et canaux de mise à jour. Ces fonctions ne sont pas encore dans le téléchargement public 0.4.15. [Liste complète et aperçu](../README.md#in-development--0417).
+[English](../README.md) · [العربية](README.ar.md) · [Español](README.es.md) · **Français** · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [Tiếng Việt](README.vi.md)
+
+**Baseera 0.6.5 Preview** ajoute quatre palettes de couleurs, un logo qui cligne au clic et l’envoi de remarques dans l’application. [Télécharger Baseera.exe](https://github.com/yabs117/baseera/releases/download/v0.6.5-preview/Baseera.exe) · [Version et fichiers](https://github.com/yabs117/baseera/releases/tag/v0.6.5-preview) · [Périmètre et limites](INVESTIGATION-CENTERS.md).
 
 **Version expérimentale 0.4.15 :** Smart Repair étend l’assistant existant avec des diagnostics locaux facultatifs, une prévisualisation modifiable et un consentement par analyse. Seuls trois outils Windows prédéfinis peuvent être lancés après confirmation distincte et UAC si nécessaire : cache DNS, SFC et DISM. Aucun script généré ni redémarrage automatique. [Détails et limites](SMART-REPAIR.md). [Notes de version et téléchargement](RELEASE-0.4.15.md).
 
 Application Windows expérimentale : analyse locale des fichiers, traduction de
-fenêtres avec Gemini, mises à jour WinGet choisies et conversion d’images/PDF.
+fenêtres avec le modèle visuel choisi, mises à jour WinGet choisies et conversion d’images/PDF.
 L’interface est disponible en arabe (RTL), anglais, français et espagnol.
 
 Prérequis : Windows 10/11 x64. Le runtime .NET est inclus. Pour compiler avec le SDK 10 :
-`./build.ps1 -Test -Publish`. Lancez `artifacts/Baseera-v0.4.15-Windows-x64/Baseera.exe`.
+`./build.ps1 -Test -Publish`. Lancez `artifacts/Baseera-v0.6.5-Windows-x64/Baseera.exe`.
 L’extension de navigateur est un téléchargement séparé : suivez `START-HERE.html` et chargez le dossier `extension` dans Chrome/Edge. Ne lancez pas ses fichiers source par double-clic.
 
 Activez uniquement les outils voulus lors du premier lancement. Pour la traduction,
 choisissez parmi 20 services directs, dont Gemini, OpenAI (modèles ChatGPT), Claude et Grok. Ajoutez la clé propre au service, puis chargez les modèles avec vision. OpenRouter est supprimé ; le plantage lors du changement de service est corrigé. L’accès et le prix dépendent du compte. [Services et vérification](AI-SERVICES.md). La capture est envoyée sur demande. Échap ferme la couche.
 L’extension dans `extension/` traduit le texte de la page en place et restaure l’original.
 
-L’assistant d’erreurs figure dans « Vos outils », sur l’accueil et dans la barre latérale. Sa page ouvre la fenêtre d’analyse ; lorsqu’il est activé, elle s’ouvre aussi au démarrage normal. Vous pouvez désactiver cet outil dans les paramètres. Collez
+L’assistant d’erreurs figure dans « Vos outils », sur l’accueil et dans la barre latérale. Dans la version 0.5.0, il s’ouvre à votre demande depuis sa page, une action de revue ou Ctrl+Shift+E. Le lancement normal reste sur l’aperçu. Vous pouvez désactiver cet outil dans les paramètres. Collez
 un message ou une image, collez un fichier image copié, choisissez un fichier ou capturez une fenêtre ouverte ; l’aperçu apparaît aussitôt. Demandez ensuite une analyse avec la clé choisie. Vous pouvez fermer l’assistant sans
 configurer de clé et le rouvrir avec Ctrl+Shift+E depuis Baseera. Le texte et l’image
 choisis sont envoyés au service choisi seulement après votre clic directement. Vérifiez la capture avant
 l’envoi : elle peut contenir des données privées. Les conseils ne sont pas une
 réparation garantie et aucun réglage Windows n’est modifié automatiquement.
 
-« Avis et remarques », juste au-dessus des paramètres, ouvre un ticket GitHub prérempli que vous vérifiez et envoyez dans le navigateur. Aucune clé API ni image n’est jointe automatiquement.
+Dans « Avis et remarques », juste au-dessus des paramètres, le bouton d’envoi transmet le type, le titre et les détails au service de retour de Baseera. Le brouillon reste dans le formulaire si l’envoi ne peut pas être confirmé.
 
 L’analyse est statique, limitée, et ne certifie pas qu’un fichier est sûr ou malveillant.
 Les sources de mises à jour manuelles prennent actuellement en charge GitHub Releases

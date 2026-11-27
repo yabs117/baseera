@@ -50,7 +50,8 @@ internal sealed class UpdateWindow : Window
     private async Task Install()
     {
         if (download is not null) return;
-        download = new CancellationTokenSource(); install.IsEnabled = false; later.Content = I18n.T("cancel"); progress.Visibility = Visibility.Visible; progress.Value = 0;
+        using var tracked = ((MainWindow)Owner).Services.Tasks.Begin("selfTitle", true);
+        download = CancellationTokenSource.CreateLinkedTokenSource(tracked.Token); install.IsEnabled = false; later.Content = I18n.T("cancel"); progress.Visibility = Visibility.Visible; progress.Value = 0;
         string? folder = null; bool launched = false;
         try
         {
@@ -58,17 +59,19 @@ internal sealed class UpdateWindow : Window
             folder = await SelfUpdater.Prepare(release, new Progress<long>(bytes =>
             {
                 progress.Value = bytes;
+                tracked.Report(bytes / (double)release.Size);
                 message.Text = bytes == release.Size ? I18n.T("selfVerifying") : I18n.T("selfDownloading") + "  " + (bytes * 100d / release.Size).ToString("0") + "%";
             }), download.Token);
             download.Token.ThrowIfCancellationRequested(); handingOff = true; later.IsEnabled = false; message.Text = I18n.T("selfRestarting");
             await SelfUpdater.StartHelper(folder);
+            tracked.Complete();
             launched = true;
             download.Dispose(); download = null;
             // The helper has validated the payload and is waiting for this process to exit.
             Application.Current.Shutdown();
         }
-        catch (OperationCanceledException) { message.Text = I18n.T("selfCanceled"); }
-        catch (Exception ex) { message.Text = I18n.T("selfFailed") + "\n" + ex.Message; }
+        catch (OperationCanceledException) { tracked.Cancelled(); message.Text = I18n.T("selfCanceled"); }
+        catch (Exception ex) { tracked.Failed(); message.Text = I18n.T("selfFailed") + "\n" + ex.Message; }
         finally
         {
             handingOff = false;

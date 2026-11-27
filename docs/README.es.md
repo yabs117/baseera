@@ -1,29 +1,31 @@
 # Baseera
 
-**En desarrollo — 0.4.17-preview:** centro de control, salud/rendimiento, casos Smart Repair, comparaciones, actividad y canales de actualización. Estas funciones aún no están en la descarga pública 0.4.15. [Lista completa y vista previa](../README.md#in-development--0417).
+[English](../README.md) · [العربية](README.ar.md) · **Español** · [Français](README.fr.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [Tiếng Việt](README.vi.md)
+
+**Baseera 0.6.5 Preview** añade cuatro paletas de colores, un logotipo que parpadea al pulsarlo y el envío de comentarios desde la aplicación. [Descargar Baseera.exe](https://github.com/yabs117/baseera/releases/download/v0.6.5-preview/Baseera.exe) · [Versión y archivos](https://github.com/yabs117/baseera/releases/tag/v0.6.5-preview) · [Alcance y límites](INVESTIGATION-CENTERS.md).
 
 **Versión preliminar 0.4.15:** Smart Repair amplía el asistente existente con diagnósticos locales opcionales, vista previa editable y consentimiento por análisis. Solo ejecuta tres herramientas predefinidas tras confirmación independiente y UAC si corresponde: caché DNS, SFC y DISM. Sin scripts generados ni reinicio automático. [Detalles y límites](SMART-REPAIR.md). [Notas de versión y descarga](RELEASE-0.4.15.md).
 
 Aplicación experimental para Windows: análisis local de archivos, traducción de
-ventanas con Gemini, actualizaciones WinGet elegidas y conversión de imágenes/PDF.
+ventanas con el modelo de visión elegido, actualizaciones WinGet elegidas y conversión de imágenes/PDF.
 Interfaz en árabe (RTL), inglés, francés y español.
 
 Requisitos: Windows 10/11 x64. El runtime .NET está incluido. Para compilar con SDK 10:
-`./build.ps1 -Test -Publish`. Abre `artifacts/Baseera-v0.4.15-Windows-x64/Baseera.exe`.
+`./build.ps1 -Test -Publish`. Abre `artifacts/Baseera-v0.6.5-Windows-x64/Baseera.exe`.
 La extensión del navegador se descarga por separado: sigue `START-HERE.html` y carga la carpeta `extension` en Chrome/Edge. No abras sus archivos fuente con doble clic.
 
 Activa solo las herramientas que necesitas. Elige entre 20 servicios directos, como Gemini, OpenAI (modelos ChatGPT), Claude y Grok. Introduce la clave del servicio y carga sus modelos con visión. Se eliminó OpenRouter y se corrigió el cierre al cambiar de servicio. El acceso y los precios dependen de la cuenta. [Servicios y pruebas](AI-SERVICES.md). Envía la captura al servicio seleccionado
 cuando lo solicitas. Esc cierra la capa de traducción. La extensión en `extension/`
 reemplaza el texto de la página y permite restaurar el original.
 
-El asistente de errores aparece en «Tus herramientas» de la página principal y la barra lateral. Su página abre la ventana de análisis; si está activado, también se abre al iniciar Baseera normalmente. Puedes desactivarlo en Configuración.
+El asistente de errores aparece en «Tus herramientas» de la página principal y la barra lateral. En la versión 0.5.0 se abre cuando lo eliges desde su página, una acción de revisión o Ctrl+Shift+E. El inicio normal permanece en la vista general. Puedes desactivarlo en Configuración.
 Pega el mensaje o una imagen, copia un archivo de imagen, elige un archivo o captura una ventana abierta; la vista previa aparece enseguida. Solicita un análisis con la clave elegida. Puedes cerrar la ventana sin configurar
 una clave y volver a abrirla con Ctrl+Shift+E desde Baseera. El texto y la imagen
 elegidos se envían al servicio elegido solo al pulsar Analizar directamente. Revisa la captura antes de
 enviarla: puede contener datos privados. Los pasos sugeridos no garantizan una
 solución y no cambian automáticamente la configuración de Windows.
 
-«Opiniones y comentarios», justo encima de Configuración, abre una incidencia de GitHub prellenada para que la revises y la envíes en el navegador. No se adjuntan imágenes ni claves API automáticamente.
+En «Opiniones y comentarios», justo encima de Configuración, el botón de envío transmite el tipo, el título y los detalles al servicio de comentarios de Baseera. El borrador se conserva si no se puede confirmar el envío.
 
 El análisis es estático y limitado: no certifica que un archivo sea seguro o malicioso.
 Las fuentes manuales admiten actualmente GitHub Releases para revisión; no ejecutan
