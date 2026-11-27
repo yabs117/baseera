@@ -10,9 +10,9 @@ Windows 10 and 11 x64 · Preview releases · .NET included
 
 ## Smart Repair in action
 
-[![Play the Smart Repair demo](docs/images/smart-repair-poster.png)](docs/images/smart-repair-demo.mp4)
+[![Play the Smart Repair demo](docs/images/smart-repair-poster.png)](https://cdn.jsdelivr.net/gh/yabs117/baseera@672255a9250643ed88fad540b77fa538b68d9f2f/docs/images/smart-repair-demo.mp4)
 
-[Watch the 5.75-second video](docs/images/smart-repair-demo.mp4)
+[Watch the 5.75-second video](https://cdn.jsdelivr.net/gh/yabs117/baseera@672255a9250643ed88fad540b77fa538b68d9f2f/docs/images/smart-repair-demo.mp4) · [Download MP4](https://github.com/yabs117/baseera/raw/672255a9250643ed88fad540b77fa538b68d9f2f/docs/images/smart-repair-demo.mp4)
 
 *Recorded in Baseera’s development build using a sample Windows error and a simulated AI response.* [How Smart Repair works](docs/SMART-REPAIR.md)
 
