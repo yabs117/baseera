@@ -29,7 +29,7 @@ jobs:
       - name: Signing policy validation
         shell: pwsh
         run: ./tests/windows/Test-SigningPolicy.ps1
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: Baseera-windows-preview
           path: |
@@ -47,7 +47,7 @@ jobs:
         env:
           BASEERA_DISPOSABLE_VM_TEST: '1'
         run: ./tests/windows/Invoke-NativeRepairValidation.ps1 -RunNativeRepairs
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: Baseera-native-vm-evidence
